@@ -9,10 +9,10 @@ async function main() {
   const topoData = data.topo[0];
 
   // Create output directories if needed
-  const stopsDir = path.join(process.cwd(), "_data", 'stops');
-  const linesDir = path.join(process.cwd(), "_data", 'lines');
+  const stopsDir = path.join(process.cwd(), "public/_data", 'stops');
+  const linesDir = path.join(process.cwd(), "public/_data", 'lines');
 
-  const minimalStopsFile = path.join(process.cwd(), "_data", 'minimal-stops.json');
+  const minimalStopsFile = path.join(process.cwd(), "public/_data", 'minimal-stops.json');
 
   if (!fs.existsSync(stopsDir)) {
     fs.mkdirSync(stopsDir, { recursive: true });

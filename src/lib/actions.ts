@@ -8,7 +8,7 @@ import { MinimalStop, StopData } from "@/types";
 
 function readFile(file: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    fs.readFile(path.join(process.cwd(), "_data", file), "utf-8", (err, data) => {
+    fs.readFile(path.join(process.cwd(), "public/_data", file), "utf-8", (err, data) => {
       if (err) reject(err);
       resolve(data);
     });
