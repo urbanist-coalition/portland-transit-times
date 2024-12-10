@@ -90,6 +90,7 @@ export default function Arrivals({ stopCode }: ArrivalsProps) {
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
   useEffect(() => {
+    predictionsByStopCode(stopCode).then(setArrivals);
     setLastUpdated(Date.now());
     const pollingInterval = setInterval(async () => {
       try {
