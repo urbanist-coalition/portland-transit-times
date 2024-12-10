@@ -1,6 +1,6 @@
 import Arrivals from "@/components/arrivals";
 import { AddRecentStop } from "@/components/recent-stops";
-import { minimalStops, stopByStopCode } from "@/lib/actions";
+import { stopByStopCode } from "@/lib/actions";
 import { isTooLight, toProperCase } from "@/lib/utils";
 import { Container, Typography, Box, Chip, Stack } from "@mui/material";
 
@@ -23,11 +23,6 @@ function LinePill({ lineName, lineColor }: LinePillProps) {
       }}
     />
   );
-}
-
-export async function generateStaticParams() {
-  const stops = await minimalStops();
-  return stops.map(({ stopCode }) => ({ stopCode }));
 }
 
 export default async function StopsStopCodePage({ params }: { params: Promise<{ stopCode: string; }> }) {
