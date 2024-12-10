@@ -133,9 +133,8 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
             Tired of waiting?
           </Typography>
           <Typography textAlign="left">
-            Join the Urbanist Coalition of Portland! Aside from projects like this website we are advocating to improve Portland&aposs transit network including more frequency. Anyone can get involved regardless of of their background!
+            Join the Urbanist Coalition of Portland! Aside from projects like this website we are advocating to improve Portland{"'"}s transit network including more frequency. Anyone can get involved regardless of of their background! <MaterialLink href="https://urbanistportland.me" target="_blank" rel="noopener noreferrer">Learn more</MaterialLink>.
           </Typography>
-          <MaterialLink href="https://urbanistportland.me" target="_blank" rel="noopener noreferrer"><Button>Join Now!</Button></MaterialLink>
         </Box>
       </Box>
     </Box>
