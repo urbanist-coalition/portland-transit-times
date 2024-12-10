@@ -1,6 +1,6 @@
 import Arrivals from "@/components/arrivals";
 import { AddRecentStop } from "@/components/recent-stops";
-import { stopByStopCode } from "@/lib/actions";
+import { predictionsByStopCode, stopByStopCode } from "@/lib/actions";
 import { isTooLight, toProperCase } from "@/lib/utils";
 import { Container, Typography, Box, Chip, Stack } from "@mui/material";
 
@@ -28,6 +28,7 @@ function LinePill({ lineName, lineColor }: LinePillProps) {
 export default async function StopsStopCodePage({ params }: { params: Promise<{ stopCode: string; }> }) {
   const { stopCode } = await params;
   const stop = await stopByStopCode(stopCode);
+  const predictions = await predictionsByStopCode(stopCode);
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -43,7 +44,7 @@ export default async function StopsStopCodePage({ params }: { params: Promise<{ 
           </Stack>
         )}
       </Box>
-      <Arrivals stopCode={stopCode} />
+      <Arrivals stopCode={stopCode} arrivals={predictions} />
       <AddRecentStop stopCode={stopCode} stopName={stop.stopName} />
     </Container>
   );

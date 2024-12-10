@@ -82,10 +82,11 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
 
 interface ArrivalsProps {
   stopCode: string;
+  arrivals: Prediction[];
 }
 
-export default function Arrivals({ stopCode }: ArrivalsProps) {
-  const [arrivals, setArrivals] = useState<Prediction[]>([]);
+export default function Arrivals({ stopCode, arrivals: initialArrivals }: ArrivalsProps) {
+  const [arrivals, setArrivals] = useState<Prediction[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
