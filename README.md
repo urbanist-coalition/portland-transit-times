@@ -1,3 +1,7 @@
+# Portland Maine Transit Tracker
+
+This is a stops-based transit tracker for Portland Main's transit. Brought to you by the [Urbanist Coalition of Portland](https://urbanistportland.me).
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

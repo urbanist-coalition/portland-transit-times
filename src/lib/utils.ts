@@ -1,0 +1,43 @@
+export function toProperCase(input: string): string {
+  // Convert entire string to lowercase, then replace the first letter of each word with its uppercase equivalent.
+  return input
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/**
+ * Determines if a hex color is too light, useful for determining text color and adding
+ * borders when dealing with dynamic colors provided by the transit service.
+ * @param hexColor - A string representing a hex color (e.g., "#FFFFFF" or "#FFF").
+ * @param threshold - Optional threshold for deciding lightness (default is 0.5).
+ * @returns True if the color is too light for white text, otherwise false.
+ */
+export function isTooLight(hexColor: string, threshold: number = 0.5): boolean {
+  // Ensure the hex color is valid
+  const hex = hexColor.replace('#', '');
+  if (!/^([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex)) {
+    throw new Error('Invalid hex color');
+  }
+
+  // Expand shorthand hex to full format if needed
+  const fullHex = hex.length === 3
+    ? hex.split('').map(char => char + char).join('')
+    : hex;
+
+  // Convert hex to RGB values
+  const r = parseInt(fullHex.substring(0, 2), 16) / 255;
+  const g = parseInt(fullHex.substring(2, 4), 16) / 255;
+  const b = parseInt(fullHex.substring(4, 6), 16) / 255;
+
+  // Calculate relative luminance
+  const luminance = (channel: number) =>
+    channel <= 0.03928
+      ? channel / 12.92
+      : Math.pow((channel + 0.055) / 1.055, 2.4);
+
+  const relativeLuminance = 0.2126 * luminance(r) + 0.7152 * luminance(g) + 0.0722 * luminance(b);
+
+  // Determine if the color is too light
+  return relativeLuminance > threshold;
+}
+
