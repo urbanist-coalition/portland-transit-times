@@ -55,7 +55,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
   const tooLight = isTooLight(prediction.lineColor);
 
-  let delta = prediction.predictedTime - prediction.scheduledTime;
+  const delta = prediction.predictedTime - prediction.scheduledTime;
   let lateMessage = "";
   if (delta > 60) {
     lateMessage = ` (${Math.floor(delta / 60)} min late)`;
