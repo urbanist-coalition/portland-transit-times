@@ -27,18 +27,23 @@ function formatPredictedTime(secondsFromMidnight: number, now: number): string {
   const arrivalTime = new Date(midnight.getTime() + secondsFromMidnight * 1000);
   const secondsFromNow = Math.floor((arrivalTime.getTime() - now) / 1000);
 
+  // Heuristic here: because times are in seconds to midnight, as we get to the end of the day
+  // the seconds to midnight are from the next day, but they are from that day's midnight
+  // so they appear to be in the past. There is probably a better way to solve this but
+  // for now we can be confident those will all be more than 30 minutes away because the buses don't
+  // run between midnight and 12:30. I hesitate to just flip to the next day for negative numbers
+  // because there are some cases where the value should be in the past, like if we
+  // count past the value before doing another fetch or they are lat to update the prediction.
+  if (Math.abs(secondsFromNow) > thirtyMinutes) {
+    return formatScheduledTime(secondsFromMidnight, now);
+  }
+
   if (secondsFromNow < oneMinute) {
     return "DUE";
-  } else if (secondsFromNow <= thirtyMinutes) {
-    // Less than or equal to 30 minutes, show minutes only
-    const minutes = Math.ceil(secondsFromNow / 60);
-    return `${minutes} min`;
-  } else {
-    // Greater than 30 minutes, show time of day (HH:MM)
-    const hours = arrivalTime.getHours().toString().padStart(2, "0");
-    const minutes = arrivalTime.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
   }
+
+  const minutes = Math.ceil(secondsFromNow / 60);
+  return `${minutes} min`;
 }
 
 interface PredictionCardProps {
@@ -49,6 +54,16 @@ interface PredictionCardProps {
 function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
   const tooLight = isTooLight(prediction.lineColor);
+
+  let delta = prediction.predictedTime - prediction.scheduledTime;
+  let lateMessage = "";
+  if (delta > 60) {
+    lateMessage = ` (${Math.floor(delta / 60)} min late)`;
+  }
+  if (delta < -60) {
+    lateMessage = ` (${Math.floor(-delta / 60)} min early)`;
+  }
+
 
   return (
     <Card
@@ -68,7 +83,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
           </Typography>
 
           <Typography variant="body2">
-            <strong>Scheduled:</strong> {formatScheduledTime(prediction.scheduledTime, now)}
+            <strong>Scheduled:</strong> {formatScheduledTime(prediction.scheduledTime, now)} {lateMessage}
           </Typography>
 
           <Typography variant="body2">
