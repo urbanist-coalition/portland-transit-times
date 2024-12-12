@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { topography } from "@/lib/conduent/topography";
+import { topography } from "@/lib/conduent";
 import { LineData, MinimalStop, StopData } from "@/types";
 import { toProperCase } from "@/lib/utils";
 

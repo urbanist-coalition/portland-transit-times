@@ -1,4 +1,4 @@
-import { Location as ConduentLocation } from "@/lib/conduent/topography"
+import { Location as ConduentLocation } from "@/lib/conduent"
 
 export type Location = ConduentLocation;
 

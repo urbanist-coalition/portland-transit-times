@@ -2,8 +2,8 @@
 
 import fs from "fs";
 import path from "path";
-import { Line } from "@/lib/conduent/topography";
-import { stopPredictions } from "@/lib/conduent/stop-predictions";
+import { Line } from "@/lib/conduent";
+import { stopPredictions } from "@/lib/conduent";
 import { MinimalStop, StopData } from "@/types";
 
 function readFile(file: string): Promise<string> {

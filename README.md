@@ -4,6 +4,8 @@ This is a stops-based transit tracker for Portland Main's transit. Brought to yo
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+[Official Tracker](https://gpmetro.org/1631/Bus-Tracker-and-Trip-Planner)
+
 ## Getting Started
 
 First, run the development server:
