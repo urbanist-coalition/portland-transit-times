@@ -6,6 +6,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 [Official Tracker](https://gpmetro.org/1631/Bus-Tracker-and-Trip-Planner)
 
+
 ## Getting Started
 
 First, run the development server:
