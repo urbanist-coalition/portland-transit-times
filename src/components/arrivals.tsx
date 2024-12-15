@@ -6,44 +6,15 @@ import { Card, CardContent, Stack, Typography, Box, Button, useTheme } from "@mu
 import { isTooLight, toProperCase } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
+import { differenceInMinutes, format } from "date-fns";
 
-function formatScheduledTime(secondsFromMidnight: number, now: number): string {
-  const midnight = new Date(now);
-  midnight.setHours(0, 0, 0, 0);
+const FORMAT = "h:mm";
 
-  const arrivalTime = new Date(midnight.getTime() + secondsFromMidnight * 1000);
-  const hours = arrivalTime.getHours().toString().padStart(2, "0");
-  const minutes = arrivalTime.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
-function formatPredictedTime(secondsFromMidnight: number, now: number): string {
-  const oneMinute = 60;
-  const thirtyMinutes = 30 * oneMinute;
-
-  const midnight = new Date(now);
-  midnight.setHours(0, 0, 0, 0);
-
-  const arrivalTime = new Date(midnight.getTime() + secondsFromMidnight * 1000);
-  const secondsFromNow = Math.floor((arrivalTime.getTime() - now) / 1000);
-
-  // Heuristic here: because times are in seconds to midnight, as we get to the end of the day
-  // the seconds to midnight are from the next day, but they are from that day's midnight
-  // so they appear to be in the past. There is probably a better way to solve this but
-  // for now we can be confident those will all be more than 30 minutes away because the buses don't
-  // run between midnight and 12:30. I hesitate to just flip to the next day for negative numbers
-  // because there are some cases where the value should be in the past, like if we
-  // count past the value before doing another fetch or they are lat to update the prediction.
-  if (Math.abs(secondsFromNow) > thirtyMinutes) {
-    return formatScheduledTime(secondsFromMidnight, now);
-  }
-
-  if (secondsFromNow < oneMinute) {
-    return "DUE";
-  }
-
-  const minutes = Math.ceil(secondsFromNow / 60);
-  return `${minutes} min`;
+function formatPredictedTime(date: Date, now: number): string {
+  const delta = differenceInMinutes(date, now);
+  if (delta > 120) return format(date, FORMAT);
+  if (delta < 1) return "Due";
+  return `${delta} min`;
 }
 
 interface PredictionCardProps {
@@ -55,13 +26,13 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
   const tooLight = isTooLight(prediction.lineColor);
 
-  const delta = prediction.predictedTime - prediction.scheduledTime;
-  let lateMessage = "";
-  if (delta > 60) {
-    lateMessage = ` (${Math.floor(delta / 60)} min late)`;
+  const delta = differenceInMinutes(prediction.predictedTime, prediction.scheduledTime);
+  let lateMessage = "(on time)";
+  if (delta > 0) {
+    lateMessage = ` (${delta} min late)`;
   }
-  if (delta < -60) {
-    lateMessage = ` (${Math.floor(-delta / 60)} min early)`;
+  if (delta < 0) {
+    lateMessage = ` (${Math.abs(delta)} min early)`;
   }
 
 
@@ -83,11 +54,11 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
           </Typography>
 
           <Typography variant="body2">
-            <strong>Scheduled:</strong> {formatScheduledTime(prediction.scheduledTime, now)} {lateMessage}
+            <strong>Scheduled:</strong> {format(prediction.scheduledTime, FORMAT)}
           </Typography>
 
           <Typography variant="body2">
-            <strong>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)}
+            <strong>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)} {lateMessage}
           </Typography>
         </Stack>
       </CardContent>
@@ -133,6 +104,10 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
 
   return (
     <Box sx={{ p: 2 }}>
+      {arrivals.length === 0 && (
+        <Typography variant="h6" align="center" gutterBottom>
+          No upcoming arrivals
+        </Typography>)}
       {arrivals.map((prediction, index) => (
         <PredictionCard key={index} prediction={prediction} now={now} />
       ))}

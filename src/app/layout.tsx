@@ -4,6 +4,7 @@ import { AppRouterCacheProvider } from "@mui/material-nextjs/v13-appRouter";
 import "./globals.css";
 import { ThemeProvider } from "@mui/material";
 import { theme } from "@/theme";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -43,6 +44,7 @@ export default function RootLayout({
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>
+      <GoogleAnalytics gaId="G-N0ZF7N9TRZ" />
     </html >
   );
 }
