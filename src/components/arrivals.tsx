@@ -21,6 +21,14 @@ function formatPredictedTime(date: Date, now: number): string {
   return `${delta} min`;
 }
 
+function ScheduleLabel({ title }: { title: string }) {
+  return <strong style={{ width: "72px", display: "inline-block" }}>{title}</strong>;
+}
+
+function ScheduleTime({ time }: { time: string }) {
+  return <span style={{ width: "52px", display: "inline-block", textAlign: "right" }}>{time}</span>;
+}
+
 interface PredictionCardProps {
   prediction: Prediction;
   now: number;
@@ -43,8 +51,6 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     statusColor = theme.palette.info.main; // blue for early
   }
 
-  const labelWidth = "72px";
-
   return (
     <Card
       variant="outlined"
@@ -63,11 +69,11 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
           </Typography>
 
           <Typography variant="body2">
-            <strong style={{ width: labelWidth, display: "inline-flex" }}>Scheduled:</strong> {_format(prediction.scheduledTime)}
+            <ScheduleLabel title="Scheduled:" /> <ScheduleTime time={_format(prediction.scheduledTime)} />
           </Typography>
 
           <Typography variant="body2" component="div">
-            <strong style={{ width: labelWidth, display: "inline-flex" }}>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)}
+            <ScheduleLabel title="Predicted:" /> <ScheduleTime time={formatPredictedTime(prediction.predictedTime, now)} />
             <Chip
               label={statusMessage}
               sx={{
