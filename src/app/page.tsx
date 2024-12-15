@@ -20,15 +20,12 @@ export default async function HomePage() {
         Brought to you by the <Link href="https://urbanistportland.me">Urbanist Coalition of Portland</Link>.
       </Typography>
       <Typography variant="body1" gutterBottom>
-        Select your stop for real time arrival information:
+        Find your stop to keep up to date with real time arrival information!
       </Typography>
-
-      <StopSearch stopCodes={stopCodes} />
-      <RecentStops />
 
       <Box mt={4}>
         <Typography variant="h6" gutterBottom>
-          Or Find Stops By Location
+          Find Stops By Location
         </Typography>
         <Link href="/by-location">
           <Button
@@ -39,6 +36,22 @@ export default async function HomePage() {
           </Button>
         </Link>
       </Box>
+
+      <Box
+        display="flex"
+        alignItems="center"
+        mt={2}
+      >
+        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #000" }} />
+        <Typography variant="body1" sx={{ px: 2 }}>
+          OR
+        </Typography>
+        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #000" }} />
+      </Box>
+
+      <StopSearch stopCodes={stopCodes} />
+      <RecentStops />
+
 
     </Container>
   );

@@ -12,7 +12,7 @@ function getRecentStops(): MinimalStop[] {
 
 function addRecentStop(stopCode: string, stopName: string) {
   const recentStops = [{ stopCode, stopName }, ...getRecentStops().filter((stop) => stop.stopCode !== stopCode)];
-  window.localStorage.setItem("recentStops", JSON.stringify(recentStops));
+  window.localStorage.setItem("recentStops", JSON.stringify(recentStops.slice(0, 10)));
 }
 
 export function AddRecentStop({ stopCode, stopName }: { stopCode: string, stopName: string }) {
