@@ -40,13 +40,13 @@ export default async function HomePage() {
       <Box
         display="flex"
         alignItems="center"
-        mt={2}
+        mt={4}
       >
-        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #000" }} />
+        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
         <Typography variant="body1" sx={{ px: 2 }}>
           OR
         </Typography>
-        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #000" }} />
+        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
       </Box>
 
       <StopSearch stopCodes={stopCodes} />
