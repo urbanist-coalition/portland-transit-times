@@ -8,11 +8,15 @@ import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, format } from "date-fns";
 
-const FORMAT = "h:mm";
+const FORMAT = "h:mm a";
+
+function _format(date: Date): string {
+  return format(date, FORMAT).toLowerCase();
+}
 
 function formatPredictedTime(date: Date, now: number): string {
   const delta = differenceInMinutes(date, now);
-  if (delta > 30) return format(date, FORMAT);
+  if (delta > 30) return _format(date);
   if (delta < 1) return "Due";
   return `${delta} min`;
 }
@@ -39,6 +43,8 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     statusColor = theme.palette.info.main; // blue for early
   }
 
+  const labelWidth = "72px";
+
   return (
     <Card
       variant="outlined"
@@ -57,11 +63,11 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
           </Typography>
 
           <Typography variant="body2">
-            <strong>Scheduled:</strong> {format(prediction.scheduledTime, FORMAT)}
+            <strong style={{ width: labelWidth, display: "inline-flex" }}>Scheduled:</strong> {_format(prediction.scheduledTime)}
           </Typography>
 
           <Typography variant="body2" component="div">
-            <strong>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)}
+            <strong style={{ width: labelWidth, display: "inline-flex" }}>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)}
             <Chip
               label={statusMessage}
               sx={{

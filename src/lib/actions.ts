@@ -44,6 +44,7 @@ function toDate(secondsFromMidnight: number): Date {
   // in between the predicted and actual time. Arrivals in the next day should
   // be WAY in the past so this two hour grace period should handle most cases.
   const hourDelta = differenceInHours(date, now);
+  console.log(hourDelta, date, now);
   if (hourDelta < -2) return addDays(date, 1);
   return date;
 }
