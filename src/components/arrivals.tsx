@@ -2,7 +2,7 @@
 
 import { Prediction, predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
-import { Card, CardContent, Stack, Typography, Box, Button, useTheme } from "@mui/material";
+import { Card, CardContent, Stack, Typography, Box, Button, useTheme, Chip } from "@mui/material";
 import { isTooLight, toProperCase } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
@@ -12,7 +12,7 @@ const FORMAT = "h:mm";
 
 function formatPredictedTime(date: Date, now: number): string {
   const delta = differenceInMinutes(date, now);
-  if (delta > 120) return format(date, FORMAT);
+  if (delta > 30) return format(date, FORMAT);
   if (delta < 1) return "Due";
   return `${delta} min`;
 }
@@ -27,14 +27,17 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   const tooLight = isTooLight(prediction.lineColor);
 
   const delta = differenceInMinutes(prediction.predictedTime, prediction.scheduledTime);
-  let lateMessage = "(on time)";
-  if (delta > 0) {
-    lateMessage = ` (${delta} min late)`;
-  }
-  if (delta < 0) {
-    lateMessage = ` (${Math.abs(delta)} min early)`;
-  }
 
+  let statusMessage = "On Time";
+  let statusColor = theme.palette.success.main; // green for on time
+
+  if (delta > 0) {
+    statusMessage = `${delta} min late`;
+    statusColor = theme.palette.error.main; // red for late
+  } else if (delta < 0) {
+    statusMessage = `${Math.abs(delta)} min early`;
+    statusColor = theme.palette.info.main; // blue for early
+  }
 
   return (
     <Card
@@ -57,8 +60,20 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
             <strong>Scheduled:</strong> {format(prediction.scheduledTime, FORMAT)}
           </Typography>
 
-          <Typography variant="body2">
-            <strong>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)} {lateMessage}
+          <Typography variant="body2" component="div">
+            <strong>Predicted:</strong> {formatPredictedTime(prediction.predictedTime, now)}
+            <Chip
+              label={statusMessage}
+              sx={{
+                ml: 1,
+                bgcolor: statusColor,
+                color: theme.palette.getContrastText(statusColor),
+                fontWeight: 'bold',
+                height: '20px',
+                '& .MuiChip-label': { p: 0, pl: 1, pr: 1 }
+              }}
+              size="small"
+            />
           </Typography>
         </Stack>
       </CardContent>

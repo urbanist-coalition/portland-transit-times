@@ -1,29 +1,9 @@
 import Arrivals from "@/components/arrivals";
+import LinePill from "@/components/line-pill";
 import { AddRecentStop } from "@/components/recent-stops";
 import { predictionsByStopCode, stopByStopCode } from "@/lib/actions";
-import { isTooLight, toProperCase } from "@/lib/utils";
-import { Container, Typography, Box, Chip, Stack } from "@mui/material";
-
-interface LinePillProps {
-  lineName: string;
-  lineColor: string;
-}
-
-function LinePill({ lineName, lineColor }: LinePillProps) {
-  const tooLight = isTooLight(lineColor);
-
-  return (
-    <Chip
-      label={lineName}
-      sx={{
-        backgroundColor: lineColor,
-        color: !tooLight ? "#fff" : "#000",
-        border: tooLight ? "1px solid #000" : "none",
-        fontWeight: "bold",
-      }}
-    />
-  );
-}
+import { toProperCase } from "@/lib/utils";
+import { Container, Typography, Box, Stack } from "@mui/material";
 
 export default async function StopsStopCodePage({ params }: { params: Promise<{ stopCode: string; }> }) {
   const { stopCode } = await params;
