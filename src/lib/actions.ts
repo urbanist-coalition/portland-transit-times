@@ -6,7 +6,7 @@ import { Line } from "@/lib/conduent";
 import { stopPredictions } from "@/lib/conduent";
 import { MinimalStop, StopData } from "@/types";
 
-import { startOfDay, addSeconds, addDays, format, compareAsc, differenceInHours } from 'date-fns';
+import { startOfDay, addSeconds, addDays, compareAsc, differenceInHours } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 function readFile(file: string): Promise<string> {
