@@ -130,7 +130,7 @@ export default function ByLocation() {
       </Box>
       <Box textAlign="center" mt={2}>
         <Typography variant="caption" display="block" gutterBottom>
-          Don't see your stop? You can search for your stop by number or name on the home page.
+          Don{"'"}t see your stop? You can search for your stop by number or name on the home page.
         </Typography>
         <Link href="/" passHref>
           <Button variant="outlined">Home</Button>
