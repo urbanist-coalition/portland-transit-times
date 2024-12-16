@@ -49,6 +49,7 @@ function toDate(secondsFromMidnight: number): Date {
 }
 
 export interface Prediction {
+  predictionId: number
   lineName: string
   lineColor: string
   destinationLabel: string
@@ -72,6 +73,7 @@ export async function predictionsByStopCode(stopCode: string): Promise<Predictio
         //  whatever reason the API is still returning it.
         if (horaire.etatHoraire === 0) continue;
         predictions.push({
+          predictionId: horaire.idHoraire,
           lineName: line.nomCommercial,
           lineColor: line.couleur,
           destinationLabel: destination.libelle,

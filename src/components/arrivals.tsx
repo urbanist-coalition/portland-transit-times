@@ -2,11 +2,12 @@
 
 import { Prediction, predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
-import { Card, CardContent, Stack, Typography, Box, Button, useTheme, Chip } from "@mui/material";
+import { Card, CardContent, Stack, Typography, Box, Button, useTheme, Chip, Collapse } from "@mui/material";
 import { isTooLight, toProperCase } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, format } from "date-fns";
+import { TransitionGroup } from "react-transition-group";
 
 const FORMAT = "h:mm a";
 
@@ -135,9 +136,13 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
         <Typography variant="h6" align="center" gutterBottom>
           No upcoming arrivals
         </Typography>)}
-      {arrivals.map((prediction, index) => (
-        <PredictionCard key={index} prediction={prediction} now={now} />
-      ))}
+      <TransitionGroup>
+        {arrivals.map((prediction, index) => (
+          <Collapse key={prediction.predictionId} in={false} timeout={500} unmountOnExit>
+            <PredictionCard key={index} prediction={prediction} now={now} />
+          </Collapse>
+        ))}
+      </TransitionGroup>
       <Box textAlign="center" mt={2}>
         <Typography variant="caption" display="block" gutterBottom>
           Last updated: {lastUpdatedString}
@@ -154,7 +159,7 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
           </Typography>
         </Box>
       </Box>
-    </Box>
+    </Box >
   );
 }
 
