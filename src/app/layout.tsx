@@ -44,7 +44,7 @@ export default function RootLayout({
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>
-      <GoogleAnalytics gaId="G-N0ZF7N9TRZ" />
+      <GoogleAnalytics gaId="G-K5C2F0D9CT" />
     </html >
   );
 }
