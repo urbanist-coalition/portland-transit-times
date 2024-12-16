@@ -1,6 +1,6 @@
 {
-  "name": "UCP Transit",
-  "short_name": "Transit",
+  "name": "UCP Portland Transit",
+  "short_name": "Portland Transit",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

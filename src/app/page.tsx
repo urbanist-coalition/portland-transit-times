@@ -14,10 +14,10 @@ export default async function HomePage() {
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Transit Times
+        Portland Maine Transit Times
       </Typography>
       <Typography gutterBottom>
-        Brought to you by the <Link href="https://urbanistportland.me">Urbanist Coalition of Portland</Link>.
+        Brought to you by the <Link href="https://urbanistportland.me">Urbanist Coalition of Portland</Link> (not affiliated with GPMetro).
       </Typography>
       <Typography variant="body1" gutterBottom>
         Find your stop to keep up to date with real time arrival information!
