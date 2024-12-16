@@ -113,7 +113,7 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
-    }, 30000);
+    }, 15000);
 
     const nowInterval = setInterval(() => {
       setNow(Date.now());
