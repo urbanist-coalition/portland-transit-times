@@ -94,6 +94,11 @@ export default function ByLocation() {
         <Typography variant="body1">
           One moment please...
         </Typography>
+        <Box textAlign="center" mt={2}>
+          <Link href="/" passHref>
+            <Button variant="outlined">Go Back</Button>
+          </Link>
+        </Box>
       </Container>
     );
   }
@@ -122,6 +127,14 @@ export default function ByLocation() {
             />
           ))}
         </Stack>
+      </Box>
+      <Box textAlign="center" mt={2}>
+        <Typography variant="caption" display="block" gutterBottom>
+          Don't see your stop? You can search for your stop by number or name on the home page.
+        </Typography>
+        <Link href="/" passHref>
+          <Button variant="outlined">Home</Button>
+        </Link>
       </Box>
     </Container>
   );
