@@ -27,7 +27,7 @@ function ScheduleLabel({ title }: { title: string }) {
 }
 
 function ScheduleTime({ time }: { time: string }) {
-  return <span style={{ width: "52px", display: "inline-block", textAlign: "right" }}>{time}</span>;
+  return <span style={{ width: "60px", display: "inline-block", textAlign: "right" }}>{time}</span>;
 }
 
 interface PredictionCardProps {
