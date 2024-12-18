@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "generate-json": "tsx src/generate-json.ts",
-    "build": "npm run generate-json && next build",
+    "capture-predictions": "tsx src/build-scripts/generate-stop-name-overrides.ts --refresh",
+    "generate-stop-name-overrides": "tsx src/build-scripts/generate-stop-name-overrides.ts",
+    "generate-json": "tsx src/build-scripts/generate-json.ts",
+    "build": "npm run generate-stop-name-overrides && npm run generate-json && next build",
     "start": "next start",
     "lint": "next lint"
   },

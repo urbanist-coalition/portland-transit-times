@@ -1,26 +1,19 @@
-import fs from "fs";
 import path from "path";
 import { topography } from "@/lib/conduent";
 import { LineData, MinimalStop, StopData } from "@/types";
 import { toProperCase } from "@/lib/utils";
+import { absolutePath, readJSON, stopNameOverridesFilename, writeJSON } from "./util";
 
 async function main() {
   const data = await topography();
   const topoData = data.topo[0];
 
   // Create output directories if needed
-  const stopsDir = path.join(process.cwd(), "public/_data", 'stops');
-  const linesDir = path.join(process.cwd(), "public/_data", 'lines');
+  const stopsDir = 'stops';
+  const linesDir = 'lines';
 
-  const minimalStopsFile = path.join(process.cwd(), "public/_data", 'minimal-stops.json');
-
-  if (!fs.existsSync(stopsDir)) {
-    fs.mkdirSync(stopsDir, { recursive: true });
-  }
-
-  if (!fs.existsSync(linesDir)) {
-    fs.mkdirSync(linesDir, { recursive: true });
-  }
+  const minimalStopsFile = absolutePath('minimal-stops.json');
+  const stopNameOverrides: Record<string, string> = await readJSON(stopNameOverridesFilename, {});
 
   // Create a lookup map for lines by id
   const lineMap = new Map<number, { lineName: string, lineColor: string }>();
@@ -34,7 +27,7 @@ async function main() {
   const minimalStops: MinimalStop[] = [];
   // Generate JSON files for stops with line info enriched
   if (topoData.pointArret) {
-    topoData.pointArret.forEach(stop => {
+    await Promise.all(topoData.pointArret.map(async stop => {
       // Enrich the stop with line details
       const lines: LineData[] = (stop.infoLigneSwiv || []).map(info => {
         const lineInfo = lineMap.get(info.idLigne);
@@ -50,7 +43,7 @@ async function main() {
 
       const enrichedStop: StopData = {
         stopId: stop.idPointArret,
-        stopName: stop.nomCommercial,
+        stopName: stopNameOverrides[stop.stopCode] || stop.nomCommercial,
         stopCode: stop.stopCode,
         location: stop.localisation,
         lines
@@ -63,21 +56,21 @@ async function main() {
       });
 
       const filePath = path.join(stopsDir, `${stop.stopCode}.json`);
-      fs.writeFileSync(filePath, JSON.stringify(enrichedStop, null, 2), 'utf-8');
+      await writeJSON(filePath, enrichedStop);
       console.log(`Wrote enriched stop data to ${filePath}`);
-    });
+    }));
   } else {
     console.warn("No pointArret data found in topography.");
   }
-  fs.writeFileSync(minimalStopsFile, JSON.stringify(minimalStops, null, 2), 'utf-8');
+  await writeJSON(minimalStopsFile, minimalStops);
 
   // Generate JSON files for lines
   if (topoData.ligne) {
-    topoData.ligne.forEach(line => {
+    await Promise.all(topoData.ligne.map(async line => {
       const filePath = path.join(linesDir, `${line.idLigne}.json`);
-      fs.writeFileSync(filePath, JSON.stringify(line, null, 2), 'utf-8');
+      await writeJSON(filePath, line);
       console.log(`Wrote line data to ${filePath}`);
-    });
+    }));
   } else {
     console.warn("No ligne data found in topography.");
   }
