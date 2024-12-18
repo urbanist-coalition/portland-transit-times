@@ -57,7 +57,7 @@ jobs:
         if: steps.compare.outputs.hash_changed == 'true'
         run: |
           echo "Triggering Vercel build..."
-          # curl -X POST $VERCEL_BUILD_HOOK_URL
+          curl -X POST $VERCEL_BUILD_HOOK_URL
           echo "Vercel build triggered."
 
       - name: Notify No Change
