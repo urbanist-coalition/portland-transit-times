@@ -50,7 +50,6 @@ export interface Prediction {
 export async function predictionsByStopCode(stopCode: string): Promise<Prediction[]> {
   const stop = await stopByStopCode(stopCode);
   const schedule = await stopPredictions(stop.stopId);
-  console.log(stop, schedule);
   const lines = await Promise.all(stop.lines.map(({ stopId }) => lineById(stopId)));
   const lineMap: Record<number, Line> = lines.reduce((acc, line) => ({ ...acc, [line.idLigne]: line }), {});
 
