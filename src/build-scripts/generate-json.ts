@@ -40,23 +40,24 @@ async function main() {
         };
       });
 
+      const stopName = stopNameOverrides[stop.stopCode] || toProperCase(stop.nomCommercial);
+
       const enrichedStop: StopData = {
         stopId: stop.idPointArret,
-        stopName: stopNameOverrides[stop.stopCode] || stop.nomCommercial,
+        stopName,
         stopCode: stop.stopCode,
         location: stop.localisation,
         lines
       };
 
       minimalStops.push({
-        stopName: toProperCase(stop.nomCommercial),
+        stopName,
         stopCode: stop.stopCode,
         location: stop.localisation,
       });
 
       const filePath = path.join(stopsDir, stop.stopCode);
       await writeJSON(filePath, enrichedStop);
-      console.log(`Wrote enriched stop data to ${filePath}`);
     }));
   } else {
     console.warn("No pointArret data found in topography.");
@@ -68,7 +69,6 @@ async function main() {
     await Promise.all(topoData.ligne.map(async line => {
       const filePath = path.join(linesDir, String(line.idLigne));
       await writeJSON(filePath, line);
-      console.log(`Wrote line data to ${filePath}`);
     }));
   } else {
     console.warn("No ligne data found in topography.");

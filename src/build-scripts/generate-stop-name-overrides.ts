@@ -1,5 +1,6 @@
 import { stopPredictions, topography } from "@/lib/conduent";
 import { readJSON, writeJSON } from "@/lib/file-utils";
+import { toProperCase } from "@/lib/utils";
 
 /** A record of directions by stopCode and lineName, designed to be JSON serialized. 
  *
@@ -84,23 +85,23 @@ function nameOverrides(stopName: string, stopCodes: string[], destinationsByStop
   //   PULSE is the center we can safely use it.
   if (aDestinations.includes('PULSE')) {
     return {
-      [stopCodeA]: `${stopName} (Inbound)`,
-      [stopCodeB]: `${stopName} (Outbound)`,
+      [stopCodeA]: `${toProperCase(stopName)} (Inbound)`,
+      [stopCodeB]: `${toProperCase(stopName)} (Outbound)`,
     }
   }
 
   if (bDestinations.includes('PULSE')) {
     return {
-      [stopCodeA]: `${stopName} (Outbound)`,
-      [stopCodeB]: `${stopName} (Inbound)`,
+      [stopCodeA]: `${toProperCase(stopName)} (Outbound)`,
+      [stopCodeB]: `${toProperCase(stopName)} (Inbound)`,
     }
   }
 
   // If either stop only has one direction you can differentiate the names by adding the direction
   //   to the stop name. Even if the other stop serves multiple destinations it still disambiguates them.
   if (aDestinations.length === 1 || bDestinations.length === 1) return {
-    [stopCodeA]: aDestinations.length === 1 ? `${stopName} to ${aDestinations[0]}` : stopName,
-    [stopCodeB]: bDestinations.length === 1 ? `${stopName} to ${bDestinations[0]}` : stopName,
+    [stopCodeA]: toProperCase(aDestinations.length === 1 ? `${stopName} ↪ ${aDestinations[0]}` : stopName),
+    [stopCodeB]: toProperCase(bDestinations.length === 1 ? `${stopName} ↪ ${bDestinations[0]}` : stopName),
   };
 
   // If we get here that means we need a stopCodeOverrides entry, print the data to help with that.
@@ -141,7 +142,7 @@ async function main(refreshPredictions = false) {
         }
       }
     }
-    writeJSON("stop-predictions.json", lineDirectionsByStopCode, true);
+    writeJSON("stop-predictions", lineDirectionsByStopCode, true);
   }
 
   const stopsByName: Record<string, string[]> = {};
@@ -155,7 +156,7 @@ async function main(refreshPredictions = false) {
     Object.assign(stopNameOverrides, nameOverrides(stopName, stopCodes, lineDirectionsByStopCode));
   }
 
-  await writeJSON("stop-name-overrides.json", stopNameOverrides);
+  await writeJSON("stop-name-overrides", stopNameOverrides);
 }
 
 main(process.argv[2] === "--refresh").catch(console.error);
