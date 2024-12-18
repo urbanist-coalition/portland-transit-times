@@ -36,7 +36,7 @@ async function mkdirIfNotExists(pathname: string): Promise<string> {
 }
 
 export async function writeJSON(name: string, data: object, persistent = false): Promise<void> {
-  const pathname = absolutePath(name, persistent);
+  const pathname = absolutePath(`${name}.json`, persistent);
   await mkdirIfNotExists(path.dirname(pathname));
   await new Promise<void>((resolve, reject) => {
     fs.writeFile(pathname, JSON.stringify(data, null, 2), err => {
