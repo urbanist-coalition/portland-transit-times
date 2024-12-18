@@ -1,16 +1,29 @@
 import path from "path";
-import { topography } from "@/lib/conduent";
+import crypto from "crypto";
+import stringify from "json-stable-stringify";
+
+import { Line, topography } from "@/lib/conduent";
 import { LineData, MinimalStop, StopData } from "@/types";
 import { toProperCase } from "@/lib/utils";
 import { readJSON, writeJSON } from "@/lib/file-utils";
 
-async function main() {
+interface StaticData {
+  minimalStops: MinimalStop[];
+  stops: Record<string, StopData>
+  lines: Record<string, Line>
+}
+
+function computeDataHash(staticData: StaticData): string {
+  const str = stringify(staticData);
+  if (!str) {
+    throw new Error("Failed to stringify static data.");
+  }
+  return crypto.createHash('sha256').update(str).digest('hex')
+}
+
+async function generateStaticData() {
   const data = await topography();
   const topoData = data.topo[0];
-
-  // Create output directories if needed
-  const stopsDir = 'stops';
-  const linesDir = 'lines';
 
   const stopNameOverrides: Record<string, string> = await readJSON("stop-name-overrides", {});
 
@@ -24,55 +37,71 @@ async function main() {
   });
 
   const minimalStops: MinimalStop[] = [];
-  // Generate JSON files for stops with line info enriched
-  if (topoData.pointArret) {
-    await Promise.all(topoData.pointArret.map(async stop => {
-      // Enrich the stop with line details
-      const lines: LineData[] = (stop.infoLigneSwiv || []).map(info => {
-        const lineInfo = lineMap.get(info.idLigne);
-        if (!lineInfo) {
-          throw new Error(`Line info not found for id ${info.idLigne}`);
-        }
-        return {
-          stopId: info.idLigne,
-          lineName: lineInfo?.lineName || "Unknown",
-          lineColor: lineInfo?.lineColor || "#000000",
-        };
-      });
+  const stops: Record<string, StopData> = {};
+  const lines: Record<string, Line> = {};
 
-      const stopName = stopNameOverrides[stop.stopCode] || toProperCase(stop.nomCommercial);
+  if (topoData.pointArret.length === 0) {
+    throw new Error("No pointArret data found in topography.");
+  }
 
-      const enrichedStop: StopData = {
-        stopId: stop.idPointArret,
-        stopName,
-        stopCode: stop.stopCode,
-        location: stop.localisation,
-        lines
+  await Promise.all(topoData.pointArret.map(async stop => {
+    // Enrich the stop with line details
+    const lines: LineData[] = (stop.infoLigneSwiv || []).map(info => {
+      const lineInfo = lineMap.get(info.idLigne);
+      if (!lineInfo) {
+        throw new Error(`Line info not found for id ${info.idLigne}`);
+      }
+      return {
+        stopId: info.idLigne,
+        lineName: lineInfo?.lineName || "Unknown",
+        lineColor: lineInfo?.lineColor || "#000000",
       };
+    });
 
-      minimalStops.push({
-        stopName,
-        stopCode: stop.stopCode,
-        location: stop.localisation,
-      });
+    const stopName = stopNameOverrides[stop.stopCode] || toProperCase(stop.nomCommercial);
 
-      const filePath = path.join(stopsDir, stop.stopCode);
-      await writeJSON(filePath, enrichedStop);
-    }));
-  } else {
-    console.warn("No pointArret data found in topography.");
+    const enrichedStop: StopData = {
+      stopId: stop.idPointArret,
+      stopName,
+      stopCode: stop.stopCode,
+      location: stop.localisation,
+      lines
+    };
+
+    minimalStops.push({
+      stopName,
+      stopCode: stop.stopCode,
+      location: stop.localisation,
+    });
+
+    stops[stop.stopCode] = enrichedStop;
+  }));
+
+  if (topoData.ligne.length === 0) {
+    throw new Error("No ligne data found in topography.");
   }
-  await writeJSON('minimal-stops', minimalStops);
 
-  // Generate JSON files for lines
-  if (topoData.ligne) {
-    await Promise.all(topoData.ligne.map(async line => {
-      const filePath = path.join(linesDir, String(line.idLigne));
-      await writeJSON(filePath, line);
-    }));
-  } else {
-    console.warn("No ligne data found in topography.");
-  }
+  await Promise.all(topoData.ligne.map(async line => {
+    lines[String(line.idLigne)] = line;
+  }));
+
+  return { minimalStops, stops, lines };
+}
+
+async function main() {
+  const data = await generateStaticData();
+  const hash = computeDataHash(data);
+  await Promise.all([
+    writeJSON('minimal-stops', data.minimalStops),
+    Promise.all(Object.entries(data.stops).map(([stopCode, stopData]) =>
+      writeJSON(path.join('stops', stopCode), stopData)
+    )),
+    Promise.all(Object.entries(data.lines).map(([lineId, lineData]) =>
+      writeJSON(path.join('lines', lineId), lineData)
+    )),
+    writeJSON('data-hash', { hash })
+  ]);
+  console.log(hash);
 }
 
 main().catch(err => {

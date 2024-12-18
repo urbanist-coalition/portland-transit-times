@@ -1,0 +1,68 @@
+name: Trigger Vercel Build on Data Change
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Runs every hour at minute 0
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+
+    env:
+      VERCEL_BUILD_HOOK_URL: ${{ secrets.VERCEL_BUILD_HOOK_URL }}
+      DATA_HASH_URL: ${{ secrets.DATA_HASH_URL }}
+      NODE_VERSION: ${{ secrets.NODE_VERSION }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run generate-json and Capture Hash
+        id: generate
+        run: |
+          echo "Running generate-json..."
+          HASH=$(npm run generate-json | tail -n1)
+          echo "current_hash=$HASH" >> $GITHUB_ENV
+          echo "Current Hash: $HASH"
+
+      - name: Fetch Live Hash
+        id: fetch
+        run: |
+          echo "Fetching live hash from $DATA_HASH_URL..."
+          LIVE_HASH=$(curl -s $DATA_HASH_URL | jq -r '.hash')
+          echo "live_hash=$LIVE_HASH" >> $GITHUB_ENV
+          echo "Live Hash: $LIVE_HASH"
+
+      - name: Compare Hashes
+        id: compare
+        run: |
+          echo "Comparing hashes..."
+          if [ "$current_hash" != "$live_hash" ]; then
+            echo "Hash has changed."
+            echo "hash_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Hash is unchanged."
+            echo "hash_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger Vercel Build
+        if: steps.compare.outputs.hash_changed == 'true'
+        run: |
+          echo "Triggering Vercel build..."
+          curl -X POST $VERCEL_BUILD_HOOK_URL
+          echo "Vercel build triggered."
+
+      - name: Notify No Change
+        if: steps.compare.outputs.hash_changed != 'true'
+        run: |
+          echo "No changes detected. Build not triggered."
+
