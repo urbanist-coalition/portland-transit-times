@@ -3,7 +3,7 @@
 import fs from "fs";
 import path from "path";
 
-export function absolutePath(name: string, persistent = false): string {
+function absolutePath(name: string, persistent = false): string {
   if (persistent) return path.join(process.cwd(), "public/data", name);
   return path.join(process.cwd(), "public/_data", name);
 }

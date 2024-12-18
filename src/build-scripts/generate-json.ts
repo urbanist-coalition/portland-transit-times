@@ -2,7 +2,7 @@ import path from "path";
 import { topography } from "@/lib/conduent";
 import { LineData, MinimalStop, StopData } from "@/types";
 import { toProperCase } from "@/lib/utils";
-import { absolutePath, readJSON, stopNameOverridesFilename, writeJSON } from "./util";
+import { readJSON, writeJSON } from "@/lib/file-utils";
 
 async function main() {
   const data = await topography();
@@ -12,8 +12,7 @@ async function main() {
   const stopsDir = 'stops';
   const linesDir = 'lines';
 
-  const minimalStopsFile = absolutePath('minimal-stops.json');
-  const stopNameOverrides: Record<string, string> = await readJSON(stopNameOverridesFilename, {});
+  const stopNameOverrides: Record<string, string> = await readJSON("stop-name-overrides", {});
 
   // Create a lookup map for lines by id
   const lineMap = new Map<number, { lineName: string, lineColor: string }>();
@@ -55,19 +54,19 @@ async function main() {
         location: stop.localisation,
       });
 
-      const filePath = path.join(stopsDir, `${stop.stopCode}.json`);
+      const filePath = path.join(stopsDir, stop.stopCode);
       await writeJSON(filePath, enrichedStop);
       console.log(`Wrote enriched stop data to ${filePath}`);
     }));
   } else {
     console.warn("No pointArret data found in topography.");
   }
-  await writeJSON(minimalStopsFile, minimalStops);
+  await writeJSON('minimal-stops', minimalStops);
 
   // Generate JSON files for lines
   if (topoData.ligne) {
     await Promise.all(topoData.ligne.map(async line => {
-      const filePath = path.join(linesDir, `${line.idLigne}.json`);
+      const filePath = path.join(linesDir, String(line.idLigne));
       await writeJSON(filePath, line);
       console.log(`Wrote line data to ${filePath}`);
     }));

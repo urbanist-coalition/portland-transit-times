@@ -1,5 +1,5 @@
 import { stopPredictions, topography } from "@/lib/conduent";
-import { readJSON, writeJSON } from "./util";
+import { readJSON, writeJSON } from "@/lib/file-utils";
 
 /** A record of directions by stopCode and lineName, designed to be JSON serialized. 
  *
@@ -124,7 +124,7 @@ async function main(refreshPredictions = false) {
   }
 
   // Persist this, we can only get predictions when there are buses around
-  const lineDirectionsByStopCode: DestinationsByStopCode = await readJSON("stop-predictions.json", {}, true);
+  const lineDirectionsByStopCode: DestinationsByStopCode = await readJSON("stop-predictions", {}, true);
   if (refreshPredictions) {
     for (const { idPointArret, stopCode } of topo.topo[0].pointArret) {
       const prediction = await tryWithRetry(() => stopPredictions(idPointArret));

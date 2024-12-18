@@ -1,33 +1,23 @@
 "use server";
 
-import fs from "fs";
-import path from "path";
 import { Line } from "@/lib/conduent";
 import { stopPredictions } from "@/lib/conduent";
 import { MinimalStop, StopData } from "@/types";
 
 import { startOfDay, addSeconds, addDays, compareAsc, differenceInHours } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-
-function readFile(file: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    fs.readFile(path.join(process.cwd(), "public/_data", file), "utf-8", (err, data) => {
-      if (err) reject(err);
-      resolve(data);
-    });
-  });
-}
+import { readJSON } from "./file-utils";
 
 export async function minimalStops(): Promise<MinimalStop[]> {
-  return JSON.parse(await readFile("minimal-stops.json"));
+  return readJSON("minimal-stops");
 }
 
 export async function stopByStopCode(stopCode: string): Promise<StopData> {
-  return JSON.parse(await readFile(`stops/${stopCode}.json`));
+  return readJSON(`stops/${stopCode}`);
 }
 
 async function lineById(lineId: number): Promise<Line> {
-  return JSON.parse(await readFile(`lines/${lineId}.json`));
+  return readJSON(`lines/${lineId}`);
 }
 
 function toDate(secondsFromMidnight: number): Date {
