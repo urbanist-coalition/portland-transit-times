@@ -2,7 +2,7 @@ name: Trigger Vercel Build on Data Change
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # Runs every hour at minute 0
+    - cron: '*/10 * * * *' # Runs every 10 minutes
   workflow_dispatch: # Allows manual triggering
 
 jobs:
@@ -11,8 +11,6 @@ jobs:
 
     env:
       VERCEL_BUILD_HOOK_URL: ${{ secrets.VERCEL_BUILD_HOOK_URL }}
-      DATA_HASH_URL: ${{ secrets.DATA_HASH_URL }}
-      NODE_VERSION: ${{ secrets.NODE_VERSION }}
 
     steps:
       - name: Checkout Repository
@@ -21,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22.12.0
 
       - name: Install Dependencies
         run: npm install
