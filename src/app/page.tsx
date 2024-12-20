@@ -28,7 +28,6 @@ export default function HomePage() {
             color="primary"
           >
             Find Stops By Location
-            Use My Location
           </Button>
         </Link>
       </Box>
