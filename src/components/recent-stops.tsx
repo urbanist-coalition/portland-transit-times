@@ -1,12 +1,12 @@
 "use client";
 
-import { MinimalStop } from "@/types";
+import { StopData } from "@/types";
 import { toProperCase } from "@/lib/utils";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-function getRecentStops(): MinimalStop[] {
+function getRecentStops(): StopData[] {
   return JSON.parse(window.localStorage.getItem("recentStops") || "[]");
 }
 
@@ -24,7 +24,7 @@ export function AddRecentStop({ stopCode, stopName }: { stopCode: string, stopNa
 
 export function RecentStops() {
   const router = useRouter();
-  const [recentStops, setRecentStops] = useState<MinimalStop[]>([]);
+  const [recentStops, setRecentStops] = useState<StopData[]>([]);
   useEffect(() => {
     setRecentStops(getRecentStops());
   }, []);

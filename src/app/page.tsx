@@ -7,10 +7,8 @@ import {
 } from "@mui/material";
 import { RecentStops } from "@/components/recent-stops";
 import StopSearch from "@/components/stop-search";
-import { minimalStops } from "@/lib/actions";
 
-export default async function HomePage() {
-  const stopCodes = await minimalStops();
+export default function HomePage() {
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -24,14 +22,12 @@ export default async function HomePage() {
       </Typography>
 
       <Box mt={4}>
-        <Typography variant="h6" gutterBottom>
-          Find Stops By Location
-        </Typography>
         <Link href="/by-location">
           <Button
             variant="contained"
             color="primary"
           >
+            Find Stops By Location
             Use My Location
           </Button>
         </Link>
@@ -49,7 +45,7 @@ export default async function HomePage() {
         <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
       </Box>
 
-      <StopSearch stopCodes={stopCodes} />
+      <StopSearch />
       <RecentStops />
 
 

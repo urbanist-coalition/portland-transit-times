@@ -1,14 +1,11 @@
 "use client";
 
-import { MinimalStop } from "@/types";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
+import { useStops } from "@/components/stops-provider";
 
-interface StopSearchProps {
-  stopCodes: MinimalStop[]
-}
-
-export default function StopSearch({ stopCodes }: StopSearchProps) {
+export default function StopSearch() {
+  const { stops } = useStops();
   const router = useRouter();
 
   const handleSelectStop = (stopCode: string) => {
@@ -22,7 +19,7 @@ export default function StopSearch({ stopCodes }: StopSearchProps) {
       </Typography>
       <Autocomplete
         fullWidth
-        options={stopCodes}
+        options={stops}
         getOptionLabel={(option) => `${option.stopCode} - ${option.stopName}`}
         renderInput={(params) => <TextField {...params} label="Stop Code" />}
         onChange={(_event, value) => {

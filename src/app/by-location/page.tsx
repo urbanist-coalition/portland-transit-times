@@ -1,62 +1,31 @@
 "use client";
 
-import { getClosestStops } from "@/lib/actions";
-import { MinimalStop } from "@/types";
+import { StopData } from "@/types";
 import { Box, Button, Chip, Container, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NearMeIcon from "@mui/icons-material/NearMe";
+import { useStops } from '@/components/stops-provider';
+import { distance } from '@/lib/utils';
+import dynamic from 'next/dynamic';
 
-export default function ByLocation() {
-  const [error, setError] = useState<string | null>(null);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [closestStops, setClosestStops] = useState<[MinimalStop, number][]>([]);
+type LocationInfo = {
+  status: "fetching";
+} | {
+  status: "loaded";
+  location: { latitude: number; longitude: number };
+  stopDistances: number[];
+  closestStops: [StopData, number][];
+} | {
+  status: "error";
+  message: string;
+};
 
+const DynamicMap = dynamic(() => import('@/components/map'), { ssr: false });
+
+function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
   const router = useRouter();
-
-  // Attempt to get user's current position
-  useEffect(() => {
-    if (!("geolocation" in navigator)) {
-      setError("Geolocation is not available on this device.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      (geoError) => {
-        if (geoError.code === geoError.PERMISSION_DENIED) {
-          setError("You denied the request for Geolocation. Please enable it to find stops by location.");
-          return;
-        }
-        if (geoError.code === geoError.POSITION_UNAVAILABLE) {
-          setError("Location information is unavailable.");
-          return;
-        }
-        if (geoError.code === geoError.TIMEOUT) {
-          setError("Location request timed out. Please try again.");
-          return;
-        }
-        setError("An unknown error occurred.");
-      }
-    );
-  }, []);
-
-  // Fetch closest stops once we have location
-  useEffect(() => {
-    if (!location) return;
-    getClosestStops(location.latitude, location.longitude)
-      .then(setClosestStops)
-      .catch((err) => {
-        console.error("Error fetching closest stops:", err);
-        setClosestStops([]);
-      });
-  }, [location]);
 
   function goToStop(stopCode: string) {
     return () => {
@@ -64,51 +33,23 @@ export default function ByLocation() {
     };
   }
 
-  if (error) {
+  if (locationInfo.status === "fetching") {
+    return <Typography variant="body1">Waiting for your location...</Typography>;
+  }
+
+  if (locationInfo.status === "error") {
     return (
-      <Container maxWidth="sm" sx={{ py: 4, textAlign: "center" }}>
-        <Typography variant="h4" gutterBottom>
-          We&apos;re Sorry
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          {error}
-        </Typography>
-        <Typography variant="body2" gutterBottom>
-          Please try a different way to find stops.
-        </Typography>
-        <Link href="/" passHref>
-          <Button variant="contained" sx={{ mt: 2 }}>
-            Go Back
-          </Button>
-        </Link>
-      </Container>
+      <Box>
+        <Typography variant="body1" color="error">{locationInfo.message}</Typography>
+        <Typography variant="body1" gutterBottom>You can still find stops on the map below or by searching for a stop on the home page.</Typography>
+      </Box>
     );
   }
 
-  if (!location) {
-    return (
-      <Container maxWidth="sm" sx={{ py: 4, textAlign: "center" }}>
-        <Typography variant="h4" gutterBottom>
-          Finding Your Location
-        </Typography>
-        <Typography variant="body1">
-          One moment please...
-        </Typography>
-        <Box textAlign="center" mt={2}>
-          <Link href="/" passHref>
-            <Button variant="outlined">Go Back</Button>
-          </Link>
-        </Box>
-      </Container>
-    );
-  }
+  const { closestStops } = locationInfo;
 
-  // If we have a location and no error
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Stops Near You
-      </Typography>
+    <Box>
       <Typography variant="body1" gutterBottom>
         We have found some stops near your current location.
       </Typography>
@@ -128,6 +69,77 @@ export default function ByLocation() {
           ))}
         </Stack>
       </Box>
+    </Box>
+  );
+}
+
+export default function ByLocation() {
+  const { stops } = useStops();
+  const [locationInfo, setLocationInfo] = useState<LocationInfo>({ status: "fetching" });
+
+  useEffect(() => {
+    function fetchLocation() {
+      if (!("geolocation" in navigator)) {
+        setLocationInfo({ status: "error", message: "Geolocation is not available on this device." });
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const stopDistances = stops.map(stop => distance(
+            stop.location.lat,
+            stop.location.lng,
+            position.coords.latitude,
+            position.coords.longitude,
+          ));
+          setLocationInfo({
+            status: "loaded",
+            location: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            },
+            stopDistances,
+            closestStops: stops.map((stop, idx) => [stop, stopDistances[idx]] as [StopData, number]).toSorted((a, b) => a[1] - b[1]).slice(0, 5),
+          });
+
+        },
+        (geoError) => {
+          if (geoError.code === geoError.PERMISSION_DENIED) {
+            setLocationInfo({ status: "error", message: "You denied the request for Geolocation. Please enable it to find stops by location." });
+            return;
+          }
+          if (geoError.code === geoError.POSITION_UNAVAILABLE) {
+            setLocationInfo({ status: "error", message: "Location information is unavailable." });
+            return;
+          }
+          if (geoError.code === geoError.TIMEOUT) {
+            setLocationInfo({ status: "error", message: "Location request timed out. Please try again." });
+            return;
+          }
+          setLocationInfo({ status: "error", message: "An unknown error occurred while fetching your location." });
+        }
+      );
+    }
+
+    fetchLocation();
+    const interval = setInterval(fetchLocation, 10000);
+    return () => clearTimeout(interval);
+  }, [stops]);
+
+  const location = locationInfo.status === "loaded" ? locationInfo.location : null;
+  const stopDistances = locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
+  return (
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Find Stops By Location
+      </Typography>
+
+      <NearbyStopsBox locationInfo={locationInfo} />
+
+      <Box mt={4} mb={4} style={{ height: "400px", width: "100%" }}>
+        <DynamicMap location={location} stopDistances={stopDistances} />
+      </Box>
+
       <Box textAlign="center" mt={2}>
         <Typography variant="caption" display="block" gutterBottom>
           Don{"'"}t see your stop? You can search for your stop by number or name on the home page.

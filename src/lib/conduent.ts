@@ -145,7 +145,7 @@ interface LineInfo {
 }
 
 // Represents a transit line with its details.
-export interface Line {
+interface Line {
   nomCommercial: string; // Non-commercial name of the line
   libCommercial: string; // Commercial name of the line
   mnemo: string; // Mnemonic or short identifier for the line

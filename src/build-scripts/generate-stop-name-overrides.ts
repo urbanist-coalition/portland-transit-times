@@ -50,6 +50,9 @@ const stopCodeOverrides: Record<string, string> = {
   //   This one is particularly confusing because 251 is Forest & Congress, around the corner
   "1054": "Congress & Forest (Inbound)",
   "132": "Congress & Forest (Outbound)",
+  // Preble St ext. + Marginal Way
+  "423": "Preble St ext. + Marginal Way (Inbound)",
+  "693": "Preble St ext. + Marginal Way (Outbound)",
 }
 
 function flatDestinations(stopDestinations: StopDestinations): string[] {

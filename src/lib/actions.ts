@@ -1,23 +1,18 @@
 "use server";
 
-import { Line } from "@/lib/conduent";
 import { stopPredictions } from "@/lib/conduent";
-import { MinimalStop, StopData } from "@/types";
+import { LineData, StopData } from "@/types";
 
 import { startOfDay, addSeconds, addDays, compareAsc, differenceInHours } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { readJSON } from "./file-utils";
 
-export async function minimalStops(): Promise<MinimalStop[]> {
-  return readJSON("minimal-stops");
+export async function getAllStops(): Promise<StopData[]> {
+  return readJSON("all-stops");
 }
 
 export async function stopByStopCode(stopCode: string): Promise<StopData> {
   return readJSON(`stops/${stopCode}`);
-}
-
-async function lineById(lineId: number): Promise<Line> {
-  return readJSON(`lines/${lineId}`);
 }
 
 function toDate(secondsFromMidnight: number): Date {
@@ -50,8 +45,7 @@ export interface Prediction {
 export async function predictionsByStopCode(stopCode: string): Promise<Prediction[]> {
   const stop = await stopByStopCode(stopCode);
   const schedule = await stopPredictions(stop.stopId);
-  const lines = await Promise.all(stop.lines.map(({ stopId }) => lineById(stopId)));
-  const lineMap: Record<number, Line> = lines.reduce((acc, line) => ({ ...acc, [line.idLigne]: line }), {});
+  const lineMap: Record<number, LineData> = stop.lines.reduce((acc, line) => ({ ...acc, [line.lineId]: line }), {});
 
   const predictions: Prediction[] = [];
   for (const ligneHoraire of schedule.listeHoraires) {
@@ -64,8 +58,8 @@ export async function predictionsByStopCode(stopCode: string): Promise<Predictio
         if (horaire.etatHoraire === 0) continue;
         predictions.push({
           predictionId: horaire.idHoraire,
-          lineName: line.nomCommercial,
-          lineColor: line.couleur,
+          lineName: line.lineName,
+          lineColor: line.lineColor,
           destinationLabel: destination.libelle,
           scheduledTime: toDate(horaire.horaireApplicable),
           predictedTime: toDate(horaire.horaire),
@@ -78,29 +72,3 @@ export async function predictionsByStopCode(stopCode: string): Promise<Predictio
   return predictions;
 }
 
-export async function getClosestStops(lat: number, lon: number): Promise<[MinimalStop, number][]> {
-  const n = 5;
-  const stops = await minimalStops();
-
-  const R = 6371000; // Earth radius in meters
-  const toRadians = (deg: number) => deg * (Math.PI / 180);
-
-  function distance(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const φ1 = toRadians(lat1);
-    const φ2 = toRadians(lat2);
-    const Δφ = toRadians(lat2 - lat1);
-    const Δλ = toRadians(lon2 - lon1);
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // distance in meters
-  }
-
-  const closestStops = stops
-    .map(stop => [stop, distance(lat, lon, stop.location.lat, stop.location.lng)] as [MinimalStop, number])
-    .sort((a, b) => a[1] - b[1]);
-  return closestStops.slice(0, n);
-}

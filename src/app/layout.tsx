@@ -5,6 +5,8 @@ import "./globals.css";
 import { ThemeProvider } from "@mui/material";
 import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { StopsProvider } from "@/components/stops-provider";
+import { getAllStops } from "@/lib/actions";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -22,11 +24,13 @@ export const metadata: Metadata = {
   description: "Transit times for the Greater Portland Metro Area",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const stops = await getAllStops();
+
   return (
     <html lang="en" >
       <head>
@@ -40,7 +44,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
-            {children}
+            <StopsProvider stops={stops}>
+              {children}
+            </StopsProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

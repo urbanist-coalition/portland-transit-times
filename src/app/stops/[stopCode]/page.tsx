@@ -18,8 +18,8 @@ export default async function StopsStopCodePage({ params }: { params: Promise<{ 
         </Typography>
         {stop.lines && stop.lines.length > 0 && (
           <Stack direction="row" spacing={1} mb={2}>
-            {stop.lines.map(({ stopId, lineName, lineColor }) => (
-              <LinePill key={stopId} lineName={lineName} lineColor={lineColor} />
+            {stop.lines.map(({ lineId, lineName, lineColor }) => (
+              <LinePill key={lineId} lineName={lineName} lineColor={lineColor} />
             ))}
           </Stack>
         )}
