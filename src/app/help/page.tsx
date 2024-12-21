@@ -1,10 +1,11 @@
+import BackButton from "@/components/back-button";
 import { Accordion, AccordionDetails, AccordionSummary, Box, Container, Link, Typography } from "@mui/material";
 
 export default function Help() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Help
+        <BackButton /> Help
       </Typography>
       <Accordion>
         <AccordionSummary>

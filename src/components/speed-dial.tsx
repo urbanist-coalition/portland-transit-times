@@ -35,6 +35,7 @@ export default function TransitSpeedDial() {
       open={open}
       onOpen={handleOpen}
       onClose={handleClose}
+      onClick={() => setOpen(!open)}
     >
       {actions.map((action) => (
         <SpeedDialAction
