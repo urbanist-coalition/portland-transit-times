@@ -26,3 +26,8 @@ a {
     color-scheme: dark;
   }
 }
+
+div.leaflet-popup-content-wrapper, div.leaflet-popup-tip {
+  background-color: canvas;
+}
+

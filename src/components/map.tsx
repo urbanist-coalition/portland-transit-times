@@ -2,7 +2,7 @@
 
 import 'leaflet/dist/leaflet.css';
 
-import { Box, Button, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Button, IconButton, Stack, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import MyLocationIcon from '@mui/icons-material/MyLocation';
@@ -13,24 +13,10 @@ import { renderToString } from 'react-dom/server';
 import { useStops } from '@/components/stops-provider';
 import LinePill from './line-pill';
 
-const myLocationDivIcon = L.divIcon({
-  html: renderToString(<MyLocationIcon style={{ color: 'blue' }} />),
-  className: "", // optional: add custom class for styling
-  iconSize: [12, 12],
-  iconAnchor: [12, 24],  // adjust if needed so that the "point" of the icon is at the correct spot
-});
-
-const placeDivIcon = L.divIcon({
-  html: renderToString(<PlaceIcon style={{ color: 'red' }} />),
-  className: "",
-  iconSize: [24, 24],
-  iconAnchor: [12, 24],
-});
-
 interface MapProps {
   location: {
-    latitude: number;
-    longitude: number;
+    lat: number;
+    lng: number;
   } | null;
   stopDistances?: number[];
 }
@@ -39,9 +25,9 @@ const RecenterAutomatically = ({ location }: MapProps) => {
   const map = useMap();
   const [hadLocation, setHadLocation] = useState(false);
   useEffect(() => {
+    // only center on location when we first get a location
     if (!location || hadLocation) return;
-    const { latitude: lat, longitude: lng } = location;
-    map.setView([lat, lng], 16);
+    map.setView(location, 16);
     setHadLocation(true);
   }, [location, hadLocation, map]);
 
@@ -55,13 +41,21 @@ const CenterMeButton = ({ location }: MapProps) => {
 
   function centerOnLocation() {
     if (!location) return;
-    const { latitude: lat, longitude: lng } = location;
-    map.setView([lat, lng], 16);
+    map.setView(location, 16);
   }
 
   return (
     <Tooltip title="Center on your location">
-      <IconButton sx={{ position: 'absolute', bottom: 10, right: 10, zIndex: 10000, color: "black" }} onClick={centerOnLocation}>
+      <IconButton
+        sx={{
+          position: 'absolute',
+          bottom: 10,
+          right: 10,
+          // 400 is exactly the minimum needed to be above the map, found with manual binary search
+          zIndex: 400
+        }}
+        onClick={centerOnLocation}
+      >
         <MyLocationIcon />
       </IconButton>
     </Tooltip>
@@ -78,6 +72,27 @@ export default function Map({ location, stopDistances }: MapProps) {
     };
   }
 
+  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
+  const baseMap = prefersDarkMode ? 'dark_all' : 'rastertiles/voyager';
+  const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
+
+  const theme = useTheme()
+
+  const myLocationStyle = prefersDarkMode ? { fill: theme.palette.primary.dark } : {};
+  const myLocationDivIcon = L.divIcon({
+    html: renderToString(<MyLocationIcon style={myLocationStyle} />),
+    className: "", // this must be blank or the icons will be in white boxes
+    iconSize: [18, 18],
+  });
+
+  const placeStyle = prefersDarkMode ? { stroke: theme.palette.primary.dark } : { fill: theme.palette.primary.main };
+  const placeDivIcon = L.divIcon({
+    html: renderToString(<PlaceIcon style={placeStyle} />),
+    className: "", // this must be blank or the icons will be in white boxes
+    iconSize: [24, 24],
+    iconAnchor: [12, 24], // centers bottom of pin on location
+  });
+
   return (
     <MapContainer
       center={[43.6632339, -70.2864549]}
@@ -87,25 +102,22 @@ export default function Map({ location, stopDistances }: MapProps) {
       attributionControl={false}
       zoomControl={false}
     >
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-      />
-      {location && (<Marker position={[location.latitude, location.longitude]} icon={myLocationDivIcon}>
+      <TileLayer url={baseMapUrl} />
+      {location && (<Marker position={location} icon={myLocationDivIcon}>
         <Popup>Your Location</Popup>
       </Marker>)}
-      {/* Markers for closest stops */}
       {stops.map((stop, i) => (
-        <Marker riseOnHover={true} key={stop.stopCode} position={[stop.location.lat, stop.location.lng]} icon={placeDivIcon}>
+        <Marker riseOnHover={true} key={stop.stopCode} position={stop.location} icon={placeDivIcon}>
           <Popup>
             <Box style={{ textAlign: "center" }}>
-              <Typography variant="h6">
+              <Typography variant="h6" color="textPrimary">
                 {stop.stopName}
               </Typography>
-              <Typography variant="caption">
+              <Typography variant="caption" color="textPrimary">
                 Code: {stop.stopCode}
               </Typography><br />
               {stopDistances && stopDistances[i] && (
-                <Typography variant="caption">
+                <Typography variant="caption" color="textPrimary">
                   {Math.round(stopDistances[i])} meters away
                 </Typography>
               )}
@@ -116,7 +128,7 @@ export default function Map({ location, stopDistances }: MapProps) {
                   ))}
                 </Stack>
               )}
-              <Button variant="text" onClick={goToStop(stop.stopCode)}>View Stop</Button>
+              <Button variant="text" onClick={goToStop(stop.stopCode)}>View Arrivals</Button>
             </Box>
           </Popup>
         </Marker>

@@ -14,7 +14,7 @@ type LocationInfo = {
   status: "fetching";
 } | {
   status: "loaded";
-  location: { latitude: number; longitude: number };
+  location: { lat: number; lng: number };
   stopDistances: number[];
   closestStops: [StopData, number][];
 } | {
@@ -101,8 +101,8 @@ export default function ByLocation() {
           setLocationInfo({
             status: "loaded",
             location: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
             },
             stopDistances,
             closestStops: stops.map((stop, idx) => [stop, stopDistances[idx]] as [StopData, number]).toSorted((a, b) => a[1] - b[1]).slice(0, 5),
