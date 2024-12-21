@@ -1,4 +1,5 @@
 import Arrivals from "@/components/arrivals";
+import BackButton from "@/components/back-button";
 import LinePill from "@/components/line-pill";
 import { AddRecentStop } from "@/components/recent-stops";
 import { predictionsByStopCode, stopByStopCode } from "@/lib/actions";
@@ -13,6 +14,7 @@ export default async function StopsStopCodePage({ params }: { params: Promise<{ 
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Box mb={2}>
         <Typography variant="h4" component="h1" gutterBottom>
+          <BackButton />
           {stop.stopName}
         </Typography>
         {stop.lines && stop.lines.length > 0 && (

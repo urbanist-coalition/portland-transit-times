@@ -150,11 +150,11 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
         <Link href="/" passHref>
           <Button variant="outlined">Switch Stops</Button>
         </Link>
-        <Box>
+        <Box textAlign="left">
           <Typography mt={2} variant="h6" gutterBottom>
             Tired of waiting?
           </Typography>
-          <Typography textAlign="left">
+          <Typography>
             Join the Urbanist Coalition of Portland! Aside from projects like this website we are advocating to improve Portland{"'"}s transit network including more frequency. Anyone can get involved regardless of of their background! <MaterialLink href="https://urbanistportland.me" target="_blank" rel="noopener noreferrer">Learn more</MaterialLink>.
           </Typography>
         </Box>

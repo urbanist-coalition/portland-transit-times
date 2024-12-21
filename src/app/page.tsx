@@ -3,7 +3,6 @@ import {
   Typography,
   Box,
   Button,
-  Link,
 } from "@mui/material";
 import NextLink from "next/link";
 import { RecentStops } from "@/components/recent-stops";
@@ -13,17 +12,14 @@ export default function HomePage() {
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Portland Maine Transit Times
-      </Typography>
-      <Typography gutterBottom>
-        Brought to you by the <Link href="https://urbanistportland.me">Urbanist Coalition of Portland</Link> (not affiliated with GPMetro).
+        Portland, ME Transit
       </Typography>
       <Typography variant="body1" gutterBottom>
-        Find your stop to keep up to date with real time arrival information!
+        Find your stop to keep up to date with <strong>real time</strong> arrivals!
       </Typography>
 
-      <Box mt={4}>
-        <NextLink href="/by-location">
+      <Box mt={4} textAlign="center">
+        <NextLink href="/by-location" style={{ display: 'inline' }}>
           <Button
             variant="contained"
             color="primary"
