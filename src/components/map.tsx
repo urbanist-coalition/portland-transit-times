@@ -3,7 +3,6 @@
 import 'leaflet/dist/leaflet.css';
 
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import PlaceIcon from '@mui/icons-material/Place';
@@ -12,6 +11,7 @@ import L from "leaflet";
 import { renderToString } from 'react-dom/server';
 import { useStops } from '@/components/stops-provider';
 import LinePill from './line-pill';
+import Link from 'next/link';
 
 interface MapProps {
   location: {
@@ -64,13 +64,6 @@ const CenterMeButton = ({ location }: MapProps) => {
 
 export default function Map({ location, stopDistances }: MapProps) {
   const { stops } = useStops();
-  const router = useRouter();
-
-  function goToStop(stopCode: string) {
-    return () => {
-      router.push(`/stops/${stopCode}`);
-    };
-  }
 
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const baseMap = prefersDarkMode ? 'dark_all' : 'rastertiles/voyager';
@@ -128,7 +121,9 @@ export default function Map({ location, stopDistances }: MapProps) {
                   ))}
                 </Stack>
               )}
-              <Button variant="text" onClick={goToStop(stop.stopCode)}>View Arrivals</Button>
+              <Link href={`/stops/${stop.stopCode}`} passHref>
+                <Button variant="text">View Arrivals</Button>
+              </Link>
             </Box>
           </Popup>
         </Marker>

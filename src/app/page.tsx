@@ -5,6 +5,7 @@ import {
   Button,
   Link,
 } from "@mui/material";
+import NextLink from "next/link";
 import { RecentStops } from "@/components/recent-stops";
 import StopSearch from "@/components/stop-search";
 
@@ -22,14 +23,14 @@ export default function HomePage() {
       </Typography>
 
       <Box mt={4}>
-        <Link href="/by-location">
+        <NextLink href="/by-location">
           <Button
             variant="contained"
             color="primary"
           >
             Find Stops By Location
           </Button>
-        </Link>
+        </NextLink>
       </Box>
 
       <Box
