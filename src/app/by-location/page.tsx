@@ -41,7 +41,6 @@ function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
     return (
       <Box>
         <Typography variant="body1" color="error">{locationInfo.message}</Typography>
-        <Typography variant="body1" gutterBottom>You can still find stops on the map below or by searching for a stop on the home page.</Typography>
       </Box>
     );
   }
@@ -50,8 +49,8 @@ function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
 
   return (
     <Box>
-      <Typography variant="body1" gutterBottom>
-        We have found some stops near your current location.
+      <Typography variant="h6">
+        Nearby Stops:
       </Typography>
 
       <Box mt={4}>
@@ -130,15 +129,15 @@ export default function ByLocation() {
   const stopDistances = locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
+      <Typography variant="h5" component="h1" gutterBottom>
         Find Stops By Location
       </Typography>
-
-      <NearbyStopsBox locationInfo={locationInfo} />
 
       <Box mt={4} mb={4} style={{ height: "400px", width: "100%" }}>
         <DynamicMap location={location} stopDistances={stopDistances} />
       </Box>
+
+      <NearbyStopsBox locationInfo={locationInfo} />
 
       <Box textAlign="center" mt={2}>
         <Typography variant="caption" display="block" gutterBottom>
