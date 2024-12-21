@@ -17,6 +17,7 @@ export default function Help() {
               src="/stop-number.png"
               alt="Stop Number"
               width={300}
+              maxWidth="100%"
               display="inline-block"
             />
           </Box>

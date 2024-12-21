@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 export default function TransitSpeedDial() {
   const router = useRouter();
   const [isTouch, setIsTouch] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const actions = [{
     icon: <Home />,
@@ -23,11 +24,17 @@ export default function TransitSpeedDial() {
     setIsTouch('ontouchstart' in window);
   }, []);
 
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
+
   return (
     <SpeedDial
-      ariaLabel="SpeedDial basic example"
+      ariaLabel="SpeedDial"
       sx={{ position: 'fixed', bottom: 16, right: 16 }}
       icon={<SpeedDialIcon />}
+      open={open}
+      onOpen={handleOpen}
+      onClose={handleClose}
     >
       {actions.map((action) => (
         <SpeedDialAction
@@ -35,7 +42,11 @@ export default function TransitSpeedDial() {
           icon={action.icon}
           tooltipTitle={action.name}
           tooltipOpen={isTouch}
-          onClick={action.onClick}
+          onClick={() => {
+            action.onClick();
+            handleClose();
+          }}
+          aria-label={action.name}
         />
       ))}
     </SpeedDial>

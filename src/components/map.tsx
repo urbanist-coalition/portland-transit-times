@@ -45,7 +45,7 @@ const CenterMeButton = ({ location }: MapProps) => {
   }
 
   return (
-    <Tooltip title="Center on your location">
+    <Tooltip title="Center on your location" placement="top-start">
       <IconButton
         sx={{
           position: 'absolute',
