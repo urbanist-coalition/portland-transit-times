@@ -12,11 +12,13 @@ import dynamic from 'next/dynamic';
 
 type LocationInfo = {
   status: "fetching";
+  message?: undefined
 } | {
   status: "loaded";
   location: { lat: number; lng: number };
   stopDistances: number[];
   closestStops: [StopData, number][];
+  message?: undefined;
 } | {
   status: "error";
   message: string;
@@ -130,9 +132,7 @@ export default function ByLocation() {
     fetchLocation();
     const interval = setInterval(fetchLocation, 10000);
     return () => clearTimeout(interval);
-    // we only want to run this effect if the stops or status change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stops, locationInfo.status]);
+  }, [stops, locationInfo.status, locationInfo.message]);
 
   const location = locationInfo.status === "loaded" ? locationInfo.location : null;
   const stopDistances = locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
