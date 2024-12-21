@@ -78,6 +78,13 @@ export default function ByLocation() {
 
   useEffect(() => {
     function fetchLocation() {
+      if (locationInfo.status === "error" && [
+        "You denied the request for Geolocation. Please enable it to find stops by location.",
+        "Geolocation is not available on this device.",
+      ].includes(locationInfo.message)) {
+        return;
+      }
+
       if (!("geolocation" in navigator)) {
         setLocationInfo({ status: "error", message: "Geolocation is not available on this device." });
         return;
