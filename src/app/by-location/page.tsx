@@ -128,8 +128,9 @@ export default function ByLocation() {
     }
 
     fetchLocation();
-    const interval = setInterval(fetchLocation, 10000);
-    return () => clearTimeout(interval);
+    // TODO: Uncomment if this isn't causing the IOS bug
+    // const interval = setInterval(fetchLocation, 10000);
+    // return () => clearTimeout(interval);
   }, [stops, locationInfo]);
 
   const location = locationInfo.status === "loaded" ? locationInfo.location : null;
