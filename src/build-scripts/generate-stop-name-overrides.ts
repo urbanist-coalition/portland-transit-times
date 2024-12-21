@@ -85,8 +85,8 @@ function ruleBasedOverrides(stopName: string, stopCodes: [string, string], desti
   // If either stop only has one direction you can differentiate the names by adding the direction
   //   to the stop name. Even if the other stop serves multiple destinations it still disambiguates them.
   if (aDestinations.length === 1 || bDestinations.length === 1) return {
-    [stopCodeA]: aDestinations.length === 1 ? `${stopName} ↪ ${aDestinations[0]}` : stopName,
-    [stopCodeB]: bDestinations.length === 1 ? `${stopName} ↪ ${bDestinations[0]}` : stopName,
+    [stopCodeA]: aDestinations.length === 1 ? `${stopName} ⇨ ${aDestinations[0]}` : stopName,
+    [stopCodeB]: bDestinations.length === 1 ? `${stopName} ⇨ ${bDestinations[0]}` : stopName,
   };
 
   // If we get here that means we need a stopCodeOverrides entry, print the data to help with that.
