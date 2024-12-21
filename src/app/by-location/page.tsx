@@ -128,10 +128,11 @@ export default function ByLocation() {
     }
 
     fetchLocation();
-    // TODO: Uncomment if this isn't causing the IOS bug
-    // const interval = setInterval(fetchLocation, 10000);
-    // return () => clearTimeout(interval);
-  }, [stops, locationInfo]);
+    const interval = setInterval(fetchLocation, 10000);
+    return () => clearTimeout(interval);
+    // we only want to run this effect if the stops or status change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stops, locationInfo.status]);
 
   const location = locationInfo.status === "loaded" ? locationInfo.location : null;
   const stopDistances = locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
