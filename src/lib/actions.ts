@@ -5,7 +5,8 @@ import { LineData, StopData } from "@/types";
 
 import { startOfDay, addSeconds, addDays, compareAsc, differenceInHours } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-import { readJSON } from "./file-utils";
+import { readJSON } from "@/lib/file-utils";
+import { fixCapitalization } from "@/lib/capitalization";
 
 export async function getAllStops(): Promise<StopData[]> {
   return readJSON("all-stops");
@@ -60,7 +61,7 @@ export async function predictionsByStopCode(stopCode: string): Promise<Predictio
           predictionId: horaire.idHoraire,
           lineName: line.lineName,
           lineColor: line.lineColor,
-          destinationLabel: destination.libelle,
+          destinationLabel: fixCapitalization(destination.libelle),
           scheduledTime: toDate(horaire.horaireApplicable),
           predictedTime: toDate(horaire.horaire),
         });

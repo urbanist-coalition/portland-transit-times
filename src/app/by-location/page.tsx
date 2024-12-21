@@ -130,7 +130,7 @@ export default function ByLocation() {
     fetchLocation();
     const interval = setInterval(fetchLocation, 10000);
     return () => clearTimeout(interval);
-  }, [stops]);
+  }, [stops, locationInfo]);
 
   const location = locationInfo.status === "loaded" ? locationInfo.location : null;
   const stopDistances = locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;

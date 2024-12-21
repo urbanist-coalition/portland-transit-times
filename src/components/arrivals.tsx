@@ -3,7 +3,7 @@
 import { Prediction, predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
 import { Card, CardContent, Stack, Typography, Box, Button, useTheme, Chip, Collapse } from "@mui/material";
-import { isTooLight, toProperCase } from "@/lib/utils";
+import { isTooLight } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, format } from "date-fns";
@@ -66,7 +66,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
             <Box component="span" sx={{ color: tooLight ? theme.palette.text.primary : prediction.lineColor, mr: 1 }}>
               {prediction.lineName}
             </Box>
-            to {toProperCase(prediction.destinationLabel)}
+            to {prediction.destinationLabel}
           </Typography>
 
           <Typography variant="body2">

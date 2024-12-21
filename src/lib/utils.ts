@@ -1,10 +1,3 @@
-export function toProperCase(input: string): string {
-  // Convert entire string to lowercase, then replace the first letter of each word with its uppercase equivalent.
-  return input
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 /**
  * Determines if a hex color is too light, useful for determining text color and adding
  * borders when dealing with dynamic colors provided by the transit service.

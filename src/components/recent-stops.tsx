@@ -1,33 +1,44 @@
 "use client";
 
 import { StopData } from "@/types";
-import { toProperCase } from "@/lib/utils";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useStops } from "@/components/stops-provider";
 
-function getRecentStops(): StopData[] {
+interface StopCode {
+  stopCode: string;
+}
+
+function getRecentStopCodes(): StopCode[] {
   return JSON.parse(window.localStorage.getItem("recentStops") || "[]");
 }
 
-function addRecentStop(stopCode: string, stopName: string) {
-  const recentStops = [{ stopCode, stopName }, ...getRecentStops().filter((stop) => stop.stopCode !== stopCode)];
+function getRecentStops(stops: StopData[]): StopData[] {
+  return getRecentStopCodes()
+    .map(({ stopCode }) => stops.find(s => s.stopCode === stopCode))
+    .filter((stop): stop is StopData => Boolean(stop));
+}
+
+function addRecentStop(stopCode: string) {
+  const recentStops = [{ stopCode }, ...getRecentStopCodes().filter((stop) => stop.stopCode !== stopCode)];
   window.localStorage.setItem("recentStops", JSON.stringify(recentStops.slice(0, 10)));
 }
 
 export function AddRecentStop({ stopCode, stopName }: { stopCode: string, stopName: string }) {
   useEffect(() => {
-    addRecentStop(stopCode, toProperCase(stopName));
+    addRecentStop(stopCode);
   }, [stopCode, stopName]);
-  return <div />
+  return null;
 }
 
 export function RecentStops() {
   const router = useRouter();
+  const { stops } = useStops();
   const [recentStops, setRecentStops] = useState<StopData[]>([]);
   useEffect(() => {
-    setRecentStops(getRecentStops());
-  }, []);
+    setRecentStops(getRecentStops(stops));
+  }, [stops]);
 
   function goToStop(stopCode: string) {
     return () => {

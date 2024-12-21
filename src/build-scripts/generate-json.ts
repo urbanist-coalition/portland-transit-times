@@ -4,8 +4,8 @@ import stringify from "json-stable-stringify";
 
 import { topography } from "@/lib/conduent";
 import { LineData, StopData } from "@/types";
-import { toProperCase } from "@/lib/utils";
 import { readJSON, writeJSON } from "@/lib/file-utils";
+import { fixCapitalization } from "@/lib/capitalization";
 
 interface StaticData {
   stops: Record<string, StopData>
@@ -54,7 +54,7 @@ async function generateStaticData() {
       };
     });
 
-    const stopName = stopNameOverrides[stop.stopCode] || toProperCase(stop.nomCommercial);
+    const stopName = stopNameOverrides[stop.stopCode] || fixCapitalization(stop.nomCommercial);
 
     stops[stop.stopCode] = {
       stopId: stop.idPointArret,
