@@ -4,7 +4,7 @@ import { StopData } from "@/types";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useStops } from "@/components/stops-provider";
+import { useStaticData } from "@/components/static-data-provider";
 
 interface StopCode {
   stopCode: string;
@@ -14,9 +14,9 @@ function getRecentStopCodes(): StopCode[] {
   return JSON.parse(window.localStorage.getItem("recentStops") || "[]");
 }
 
-function getRecentStops(stops: StopData[]): StopData[] {
+function getRecentStops(stops: Record<string, StopData>): StopData[] {
   return getRecentStopCodes()
-    .map(({ stopCode }) => stops.find(s => s.stopCode === stopCode))
+    .map(({ stopCode }) => stops[stopCode])
     .filter((stop): stop is StopData => Boolean(stop));
 }
 
@@ -34,7 +34,7 @@ export function AddRecentStop({ stopCode, stopName }: { stopCode: string, stopNa
 
 export function RecentStops() {
   const router = useRouter();
-  const { stops } = useStops();
+  const { stops } = useStaticData();
   const [recentStops, setRecentStops] = useState<StopData[]>([]);
   useEffect(() => {
     setRecentStops(getRecentStops(stops));

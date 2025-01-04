@@ -3,9 +3,10 @@ import crypto from "crypto";
 import stringify from "json-stable-stringify";
 
 import { topography } from "@/lib/conduent";
-import { LineData, StopData } from "@/types";
+import { StopData, LineData } from "@/types";
 import { readJSON, writeJSON } from "@/lib/file-utils";
 import { fixCapitalization } from "@/lib/capitalization";
+import { locationEquals } from "@/lib/utils";
 
 interface StaticData {
   stops: Record<string, StopData>
@@ -26,12 +27,18 @@ async function generateStaticData() {
   const stopNameOverrides: Record<string, string> = await readJSON("stop-name-overrides", {});
 
   // Create a lookup map for lines by id
-  const lineMap = new Map<number, { lineName: string, lineColor: string }>();
+  const lines: Record<string, LineData> = {};
   topoData.ligne.forEach(line => {
-    lineMap.set(line.idLigne, {
+    const points = line.itineraire
+      .map(i => i.troncons.flatMap(t => [t.debut, t.fin]))
+      .map(segment => segment.filter((v, i) => !locationEquals(segment[i - 1], v)));
+
+    lines[String(line.idLigne)] = {
+      lineId: line.idLigne,
       lineName: line.nomCommercial || line.libCommercial,
-      lineColor: line.couleur
-    });
+      lineColor: line.couleur,
+      points,
+    }
   });
 
   const stops: Record<string, StopData> = {};
@@ -41,19 +48,6 @@ async function generateStaticData() {
   }
 
   await Promise.all(topoData.pointArret.map(async stop => {
-    // Enrich the stop with line details
-    const lines: LineData[] = (stop.infoLigneSwiv || []).map(info => {
-      const lineInfo = lineMap.get(info.idLigne);
-      if (!lineInfo) {
-        throw new Error(`Line info not found for id ${info.idLigne}`);
-      }
-      return {
-        lineId: info.idLigne,
-        lineName: lineInfo?.lineName || "Unknown",
-        lineColor: lineInfo?.lineColor || "#000000",
-      };
-    });
-
     const stopName = stopNameOverrides[stop.stopCode] || fixCapitalization(stop.nomCommercial);
 
     stops[stop.stopCode] = {
@@ -61,7 +55,7 @@ async function generateStaticData() {
       stopName,
       stopCode: stop.stopCode,
       location: stop.localisation,
-      lines
+      lineIds: stop.infoLigneSwiv.map(info => info.idLigne),
     };
   }));
 
@@ -69,17 +63,19 @@ async function generateStaticData() {
     throw new Error("No ligne data found in topography.");
   }
 
-  return { stops };
+  return { stops, lines };
 }
 
 async function main() {
   const data = await generateStaticData();
+  const { stops, lines } = data;
   const hash = computeDataHash(data);
   await Promise.all([
-    writeJSON('all-stops', Object.values(data.stops)),
+    writeJSON('all-stops', stops),
     Promise.all(Object.entries(data.stops).map(([stopCode, stopData]) =>
       writeJSON(path.join('stops', stopCode), stopData)
     )),
+    writeJSON('all-lines', lines),
     writeJSON('data-hash', { hash })
   ]);
   console.log(hash);

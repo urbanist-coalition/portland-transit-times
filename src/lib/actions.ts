@@ -8,8 +8,12 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { readJSON } from "@/lib/file-utils";
 import { fixCapitalization } from "@/lib/capitalization";
 
-export async function getAllStops(): Promise<StopData[]> {
+export async function getAllStops(): Promise<Record<string, StopData>> {
   return readJSON("all-stops");
+}
+
+export async function getAllLines(): Promise<Record<string, LineData>> {
+  return readJSON("all-lines");
 }
 
 export async function stopByStopCode(stopCode: string): Promise<StopData> {
@@ -46,11 +50,11 @@ export interface Prediction {
 export async function predictionsByStopCode(stopCode: string): Promise<Prediction[]> {
   const stop = await stopByStopCode(stopCode);
   const schedule = await stopPredictions(stop.stopId);
-  const lineMap: Record<number, LineData> = stop.lines.reduce((acc, line) => ({ ...acc, [line.lineId]: line }), {});
+  const lines = await getAllLines();
 
   const predictions: Prediction[] = [];
   for (const ligneHoraire of schedule.listeHoraires) {
-    const line = lineMap[ligneHoraire.idLigne];
+    const line = lines[String(ligneHoraire.idLigne)];
     for (const destination of ligneHoraire.destination) {
       for (const horaire of destination.horaires) {
         // From observing the API it seems that if this is set 0 the bus is not arriving

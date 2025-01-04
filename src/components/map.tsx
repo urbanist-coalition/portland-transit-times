@@ -2,26 +2,26 @@
 
 import 'leaflet/dist/leaflet.css';
 
-import { Box, Button, IconButton, Stack, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useEffect, useState } from "react";
 import MyLocationIcon from '@mui/icons-material/MyLocation';
-import PlaceIcon from '@mui/icons-material/Place';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
+import MaterialLink from '@mui/material/Link';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
 import L from "leaflet";
 import { renderToString } from 'react-dom/server';
-import { useStops } from '@/components/stops-provider';
+import { useStaticData } from '@/components/static-data-provider';
 import LinePill from './line-pill';
 import Link from 'next/link';
+import { Location, StopData } from '@/types';
+import { isTooLight, locationEquals } from '@/lib/utils';
 
 interface MapProps {
-  location: {
-    lat: number;
-    lng: number;
-  } | null;
+  location: Location | null;
   stopDistances?: number[];
 }
 
-const RecenterAutomatically = ({ location }: MapProps) => {
+const RecenterAutomatically = ({ location }: { location: Location | null }) => {
   const map = useMap();
   const [hadLocation, setHadLocation] = useState(false);
   useEffect(() => {
@@ -34,7 +34,7 @@ const RecenterAutomatically = ({ location }: MapProps) => {
   return null;
 }
 
-const CenterMeButton = ({ location }: MapProps) => {
+const CenterMeButton = ({ location, center }: { location: Location | null, center: Location }) => {
   const map = useMap();
 
   if (!location) return null;
@@ -56,35 +56,170 @@ const CenterMeButton = ({ location }: MapProps) => {
         }}
         onClick={centerOnLocation}
       >
-        <MyLocationIcon />
+        {locationEquals(location, center) ?
+          <MyLocationIcon />
+          : <LocationSearchingIcon />}
       </IconButton>
     </Tooltip>
   );
 }
 
-export default function Map({ location, stopDistances }: MapProps) {
-  const { stops } = useStops();
+function Pusher({ setZoom, setCenter }: { setZoom: (zoom: number) => void, setCenter: (center: Location) => void }) {
+  const map = useMap();
 
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-  const baseMap = prefersDarkMode ? 'dark_all' : 'rastertiles/voyager';
-  const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
+  useEffect(() => {
+    function handleZoomEnd() {
+      setZoom(map.getZoom());
+    }
+
+    function handleMoveEnd() {
+      setCenter(map.getCenter());
+    }
+
+    map.on('zoomend', handleZoomEnd);
+    map.on('moveend', handleMoveEnd);
+    return () => {
+      map.off('zoomend', handleZoomEnd);
+      map.off('moveend', handleMoveEnd);
+    };
+  }, [map, setZoom, setCenter]);
+
+
+  return null;
+}
+
+const generatePieSlices = (colors: string[], radius: number) => {
+  const slicePaths = [];
+  const center = radius;
+
+  if (colors.length === 1) {
+    // Single color: Fill entire circle
+    slicePaths.push({
+      color: colors[0],
+      pathData: `M ${center} ${center} m -${radius}, 0 a ${radius},${radius} 0 1,0 ${radius * 2},0 a ${radius},${radius} 0 1,0 -${radius * 2},0`,
+    });
+  } else {
+    // Multiple colors: Distribute evenly
+    const total = colors.length;
+
+    colors.forEach((color, index) => {
+      const startAngle = ((index - 0.5) / total) * 2 * Math.PI; // Offset by 90 degrees
+      const endAngle = ((index + 0.5) / total) * 2 * Math.PI;
+
+      const startX = center + radius * Math.cos(startAngle);
+      const startY = center + radius * Math.sin(startAngle);
+      const endX = center + radius * Math.cos(endAngle);
+      const endY = center + radius * Math.sin(endAngle);
+
+      const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+
+      const pathData = `
+        M ${center} ${center}
+        L ${startX} ${startY}
+        A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}
+        Z
+      `;
+
+      slicePaths.push({ color, pathData });
+    });
+  }
+
+  return slicePaths;
+};
+
+function StopIcon({
+  colors,
+  size,
+  outlineColor = "black",
+  outlineWidth = 4, // Reduced to make the outline more subtle
+}: {
+  colors: string[];
+  size: number;
+  outlineColor?: string;
+  outlineWidth?: number;
+}) {
+  const radius = size / 2;
+  const halfOutline = outlineWidth / 2;
+  const innerRadius = radius - halfOutline; // Adjust for the outline width
+  const slices = generatePieSlices(colors, innerRadius);
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox={`${-halfOutline} ${-halfOutline} ${size + halfOutline} ${size + halfOutline}`}
+    >
+      {/* Thin Outline */}
+      <circle
+        cx={innerRadius}
+        cy={innerRadius}
+        r={innerRadius}
+        fill="none"
+        stroke={outlineColor}
+        strokeWidth={outlineWidth}
+      />
+
+      {/* Pie Slices */}
+      {slices.map((slice, index) => (
+        <path key={index} d={slice.pathData} fill={slice.color} />
+      ))}
+    </svg>
+  );
+};
+
+export default function Map({ location, stopDistances }: MapProps) {
+  const { stops, lines } = useStaticData();
+  const [zoom, setZoom] = useState(13);
+  const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
+
+  const zoomIconSizes: Record<number, number> = {
+    13: 10,
+    14: 12,
+    15: 14,
+    16: 16,
+    17: 18,
+    18: 20,
+    19: 22,
+    20: 24,
+  };
+
+  // For some reason when the map is zoomed out the stops appear to be too low and to the left
+  //   These values are picked to make the stops look good at these zoom levels
+  //   They are X and Y
+  //   - X bigger = left, smaller = right
+  //   - Y bigger = up, smaller = down
+  const zoonSkew: Record<number, [number, number]> = {
+    13: [-2, 2],
+    14: [-1, 1],
+  }
+
+  const iconSize = zoomIconSizes[zoom];
+
 
   const theme = useTheme()
+  const baseMap = theme.palette.mode === "dark" ? 'dark_all' : 'rastertiles/voyager';
+  const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
 
-  const myLocationStyle = prefersDarkMode ? { fill: theme.palette.primary.dark } : {};
+  const myLocationStyle = { fill: theme.palette.primary.main };
   const myLocationDivIcon = L.divIcon({
     html: renderToString(<MyLocationIcon style={myLocationStyle} />),
     className: "", // this must be blank or the icons will be in white boxes
     iconSize: [18, 18],
+    iconAnchor: [9, 9],
   });
 
-  const placeStyle = prefersDarkMode ? { stroke: theme.palette.primary.dark } : { fill: theme.palette.primary.main };
-  const placeDivIcon = L.divIcon({
-    html: renderToString(<PlaceIcon style={placeStyle} />),
-    className: "", // this must be blank or the icons will be in white boxes
-    iconSize: [24, 24],
-    iconAnchor: [12, 24], // centers bottom of pin on location
-  });
+  const placeDivIcon = (stop: StopData) => {
+    const colors = stop.lineIds.map(lineId => lines[lineId].lineColor);
+    const [skewX, skewY] = zoonSkew[zoom] || [0, 0];
+
+    return L.divIcon({
+      html: renderToString(<StopIcon colors={colors} size={iconSize} outlineColor={theme.palette.grey['700']} />),
+      className: "", // this must be blank or the icons will be in white boxes
+      iconSize: [iconSize, iconSize],
+      iconAnchor: [iconSize / 2 + skewX, iconSize / 2 + skewY],
+    });
+  };
 
   return (
     <MapContainer
@@ -92,15 +227,15 @@ export default function Map({ location, stopDistances }: MapProps) {
       zoom={13}
       scrollWheelZoom={true}
       style={{ height: "100%", width: "100%" }}
-      attributionControl={false}
       zoomControl={false}
+      attributionControl={false}
     >
       <TileLayer url={baseMapUrl} />
       {location && (<Marker position={location} icon={myLocationDivIcon}>
         <Popup>Your Location</Popup>
       </Marker>)}
-      {stops.map((stop, i) => (
-        <Marker riseOnHover={true} key={stop.stopCode} position={stop.location} icon={placeDivIcon}>
+      {zoom > 12 && Object.values(stops).map((stop, i) => (
+        <Marker riseOnHover={true} key={stop.stopCode} position={stop.location} icon={placeDivIcon(stop)}>
           <Popup>
             <Box style={{ textAlign: "center" }}>
               <Typography variant="h6" color="textPrimary">
@@ -114,11 +249,12 @@ export default function Map({ location, stopDistances }: MapProps) {
                   {Math.round(stopDistances[i])} meters away
                 </Typography>
               )}
-              {stop.lines && stop.lines.length > 0 && (
+              {stop.lineIds && stop.lineIds.length > 0 && (
                 <Stack direction="row" spacing={1} m={1} justifyContent="center">
-                  {stop.lines.map(({ lineId, lineName, lineColor }) => (
-                    <LinePill key={lineId} lineName={lineName} lineColor={lineColor} />
-                  ))}
+                  {stop.lineIds.map(lineId => {
+                    const { lineName, lineColor } = lines[lineId];
+                    return <LinePill key={lineId} lineName={lineName} lineColor={lineColor} />;
+                  })}
                 </Stack>
               )}
               <Link href={`/stops/${stop.stopCode}`} passHref>
@@ -128,9 +264,38 @@ export default function Map({ location, stopDistances }: MapProps) {
           </Popup>
         </Marker>
       ))}
+      {theme.palette.mode === "light" && Object.values(lines).filter(({ lineColor }) => isTooLight(lineColor)).map(({ lineId, points }) => (
+        <Polyline key={lineId} positions={points} color="black" weight={4} />
+      ))}
+      {Object.values(lines).map(({ lineId, points, lineColor }) => (
+        <Polyline key={lineId} positions={points} color={lineColor} />
+      ))}
       <RecenterAutomatically location={location} />
-      <CenterMeButton location={location} />
+      <CenterMeButton location={location} center={center} />
+      <Pusher setZoom={setZoom} setCenter={setCenter} />
+      {/* Custom Attribution */}
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'absolute',
+          bottom: 8,
+          left: 8,
+          padding: '6px 12px',
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          zIndex: 400,
+        }}
+      >
+        <Typography variant="body2" component="div" fontSize={10}>
+          &copy; <MaterialLink href="https://www.openstreetmap.org/copyright" color="inherit" underline="hover">
+            OpenStreetMap
+          </MaterialLink>{' '}
+          contributors | Map tiles by{' '}
+          <MaterialLink href="https://carto.com/" color="inherit" underline="hover">
+            Carto
+          </MaterialLink>
+        </Typography>
+      </Paper>
     </MapContainer>
   );
 }
-

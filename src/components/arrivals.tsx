@@ -6,7 +6,7 @@ import { Card, CardContent, Stack, Typography, Box, Button, useTheme, Chip, Coll
 import { isTooLight } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
-import { differenceInMinutes, format } from "date-fns";
+import { differenceInMinutes, format, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
 
 const FORMAT = "h:mm a";
@@ -39,7 +39,17 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
   const tooLight = isTooLight(prediction.lineColor);
 
-  const delta = differenceInMinutes(prediction.predictedTime, prediction.scheduledTime);
+  const delta = differenceInMinutes(
+    // Times are displayed to the user rounded to the start of the minute
+    //   If we don't do that with the delta it may be off by a minute
+    //   For example, if the delta is 80 seconds (predicted 13:00:50, scheduled 13:02:10)
+    //   it will look to the user like the difference is 2 minutes but the delta is closer
+    //   to 1 minute. Even though the rounding is more accurate it looks wrong to the user.
+    //   Sub-minute accuracy is not relevant in the context of bus predictions so it is better
+    //   that the delta looks correct.
+    startOfMinute(prediction.predictedTime),
+    startOfMinute(prediction.scheduledTime),
+  );
 
   let statusMessage = "On Time";
   let statusColor = theme.palette.success.main; // green for on time

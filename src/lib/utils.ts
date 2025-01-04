@@ -1,11 +1,13 @@
+import { Location } from "@/types";
+
 /**
  * Determines if a hex color is too light, useful for determining text color and adding
  * borders when dealing with dynamic colors provided by the transit service.
  * @param hexColor - A string representing a hex color (e.g., "#FFFFFF" or "#FFF").
- * @param threshold - Optional threshold for deciding lightness (default is 0.5).
+ * @param threshold - Optional threshold for deciding lightness (default is 0.8).
  * @returns True if the color is too light for white text, otherwise false.
  */
-export function isTooLight(hexColor: string, threshold: number = 0.5): boolean {
+export function isTooLight(hexColor: string, threshold: number = 0.8): boolean {
   // Ensure the hex color is valid
   const hex = hexColor.replace('#', '');
   if (!/^([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex)) {
@@ -50,5 +52,10 @@ export function distance(lat1: number, lon1: number, lat2: number, lon2: number)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // distance in meters
+}
+
+export function locationEquals(a: Location | undefined, b: Location): boolean {
+  if (!a) return false;
+  return a.lat === b.lat && a.lng === b.lng;
 }
 

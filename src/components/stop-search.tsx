@@ -2,10 +2,10 @@
 
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useStops } from "@/components/stops-provider";
+import { useStaticData } from "@/components/static-data-provider";
 
 export default function StopSearch() {
-  const { stops } = useStops();
+  const { stops } = useStaticData();
   const router = useRouter();
 
   const handleSelectStop = (stopCode: string) => {
@@ -15,13 +15,13 @@ export default function StopSearch() {
   return (
     <Box mt={4}>
       <Typography variant="h6" gutterBottom>
-        Enter a Stop Number
+        Enter a Stop Number or Name
       </Typography>
       <Autocomplete
         fullWidth
-        options={stops}
+        options={Object.values(stops)}
         getOptionLabel={(option) => `${option.stopCode} - ${option.stopName}`}
-        renderInput={(params) => <TextField {...params} label="Stop Code" />}
+        renderInput={(params) => <TextField {...params} label="Stop Number/Name" />}
         onChange={(_event, value) => {
           if (value && value.stopCode) {
             handleSelectStop(value.stopCode);

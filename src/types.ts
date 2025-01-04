@@ -1,11 +1,14 @@
-import { Location as ConduentLocation } from "@/lib/conduent"
-
-export type Location = ConduentLocation;
+export interface Location {
+  lat: number;
+  lng: number;
+  cap?: number;
+}
 
 export interface LineData {
   lineId: number;
   lineName: string;
   lineColor: string;
+  points: Location[][];
 }
 
 export interface StopData {
@@ -13,6 +16,6 @@ export interface StopData {
   stopName: string
   stopCode: string;
   location: Location;
-  lines: LineData[];
+  lineIds: number[];
 }
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NearMeIcon from "@mui/icons-material/NearMe";
-import { useStops } from '@/components/stops-provider';
+import { useStaticData } from '@/components/static-data-provider';
 import { distance } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
@@ -75,10 +75,11 @@ function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
 }
 
 export default function ByLocation() {
-  const { stops } = useStops();
+  const { stops } = useStaticData();
   const [locationInfo, setLocationInfo] = useState<LocationInfo>({ status: "fetching" });
 
   useEffect(() => {
+    const stopsArray = Object.values(stops);
     function fetchLocation() {
       if (locationInfo.status === "error" && [
         "You denied the request for Geolocation. Please enable it to find stops by location.",
@@ -94,7 +95,7 @@ export default function ByLocation() {
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const stopDistances = stops.map(stop => distance(
+          const stopDistances = stopsArray.map(stop => distance(
             stop.location.lat,
             stop.location.lng,
             position.coords.latitude,
@@ -107,7 +108,7 @@ export default function ByLocation() {
               lng: position.coords.longitude,
             },
             stopDistances,
-            closestStops: stops.map((stop, idx) => [stop, stopDistances[idx]] as [StopData, number]).toSorted((a, b) => a[1] - b[1]).slice(0, 5),
+            closestStops: stopsArray.map((stop, idx) => [stop, stopDistances[idx]] as [StopData, number]).toSorted((a, b) => a[1] - b[1]).slice(0, 5),
           });
 
         },

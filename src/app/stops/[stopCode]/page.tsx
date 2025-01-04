@@ -2,11 +2,12 @@ import Arrivals from "@/components/arrivals";
 import BackButton from "@/components/back-button";
 import LinePill from "@/components/line-pill";
 import { AddRecentStop } from "@/components/recent-stops";
-import { predictionsByStopCode, stopByStopCode } from "@/lib/actions";
+import { getAllLines, predictionsByStopCode, stopByStopCode } from "@/lib/actions";
 import { Container, Typography, Box, Stack } from "@mui/material";
 
 export default async function StopsStopCodePage({ params }: { params: Promise<{ stopCode: string; }> }) {
   const { stopCode } = await params;
+  const lines = await getAllLines();
   const stop = await stopByStopCode(stopCode);
   const predictions = await predictionsByStopCode(stopCode);
 
@@ -17,11 +18,12 @@ export default async function StopsStopCodePage({ params }: { params: Promise<{ 
           <BackButton />
           {stop.stopName}
         </Typography>
-        {stop.lines && stop.lines.length > 0 && (
+        {stop.lineIds && stop.lineIds.length > 0 && (
           <Stack direction="row" spacing={1} mb={2}>
-            {stop.lines.map(({ lineId, lineName, lineColor }) => (
-              <LinePill key={lineId} lineName={lineName} lineColor={lineColor} />
-            ))}
+            {stop.lineIds.map(lineId => {
+              const { lineName, lineColor } = lines[lineId];
+              return <LinePill key={lineId} lineName={lineName} lineColor={lineColor} />;
+            })}
           </Stack>
         )}
       </Box>

@@ -1,7 +1,7 @@
 "use client";
 
 import { SpeedDial, SpeedDialAction, SpeedDialIcon } from '@mui/material';
-import { Help, Home } from "@mui/icons-material";
+import { Help, Home, Map } from "@mui/icons-material";
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -18,6 +18,10 @@ export default function TransitSpeedDial() {
     name: 'Help',
     icon: <Help />,
     onClick: () => { router.push('/help'); }
+  }, {
+    name: 'Map',
+    icon: <Map />,
+    onClick: () => { router.push('/map'); },
   }];
 
   useEffect(() => {
@@ -35,6 +39,8 @@ export default function TransitSpeedDial() {
       open={open}
       onOpen={handleOpen}
       onClose={handleClose}
+      // this fixes a strange iOS bug where the speed dial would sometimes
+      //   require two taps to open. It is unclear why this is necessary.
       onClick={() => setOpen(!open)}
     >
       {actions.map((action) => (

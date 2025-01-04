@@ -5,9 +5,9 @@ import "./globals.css";
 import { Box, Container, ThemeProvider, Typography } from "@mui/material";
 import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
-import { StopsProvider } from "@/components/stops-provider";
+import { StaticDataProvider } from "@/components/static-data-provider";
 import SpeedDial from "@/components/speed-dial";
-import { getAllStops } from "@/lib/actions";
+import { getAllLines, getAllStops } from "@/lib/actions";
 
 import MaterialLink from "@mui/material/Link";
 
@@ -33,6 +33,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const stops = await getAllStops();
+  const lines = await getAllLines();
 
   return (
     <html lang="en" >
@@ -47,7 +48,7 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
-            <StopsProvider stops={stops}>
+            <StaticDataProvider stops={stops} lines={lines}>
               {children}
               <footer>
                 <Container maxWidth="sm" sx={{ pb: 4 }}>
@@ -70,7 +71,7 @@ export default async function RootLayout({
                 </Container>
               </footer>
               <SpeedDial />
-            </StopsProvider>
+            </StaticDataProvider>
           </ThemeProvider >
         </AppRouterCacheProvider >
       </body >
