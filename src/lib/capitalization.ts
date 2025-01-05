@@ -10,6 +10,7 @@ const knownAcronyms = [
   "MMC", // Maine Medical Center
   "JC", // JC Penney
   "CBHS", // Casco Bay High School
+  "IDEXX", // IDEXX Laboratories
   "IB", // Inbound
   "OB", // Outbound
 ];
