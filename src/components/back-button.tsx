@@ -8,7 +8,11 @@ export default function BackButton() {
   const router = useRouter();
 
   function goBack() {
-    router.back();
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push("/"); // Redirect to home if no history
+    }
   }
 
   return (
