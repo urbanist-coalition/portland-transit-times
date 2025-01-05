@@ -6,25 +6,28 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import NearMeIcon from "@mui/icons-material/NearMe";
-import { useStaticData } from '@/components/static-data-provider';
-import { distance } from '@/lib/utils';
-import dynamic from 'next/dynamic';
+import { useStaticData } from "@/components/static-data-provider";
+import { distance } from "@/lib/utils";
+import dynamic from "next/dynamic";
 
-type LocationInfo = {
-  status: "fetching";
-  message?: undefined
-} | {
-  status: "loaded";
-  location: { lat: number; lng: number };
-  stopDistances: number[];
-  closestStops: [StopData, number][];
-  message?: undefined;
-} | {
-  status: "error";
-  message: string;
-};
+type LocationInfo =
+  | {
+      status: "fetching";
+      message?: undefined;
+    }
+  | {
+      status: "loaded";
+      location: { lat: number; lng: number };
+      stopDistances: number[];
+      closestStops: [StopData, number][];
+      message?: undefined;
+    }
+  | {
+      status: "error";
+      message: string;
+    };
 
-const DynamicMap = dynamic(() => import('@/components/map'), { ssr: false });
+const DynamicMap = dynamic(() => import("@/components/map"), { ssr: false });
 
 function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
   const router = useRouter();
@@ -36,13 +39,17 @@ function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
   }
 
   if (locationInfo.status === "fetching") {
-    return <Typography variant="body1">Waiting for your location...</Typography>;
+    return (
+      <Typography variant="body1">Waiting for your location...</Typography>
+    );
   }
 
   if (locationInfo.status === "error") {
     return (
       <Box>
-        <Typography variant="body1" color="error">{locationInfo.message}</Typography>
+        <Typography variant="body1" color="error">
+          {locationInfo.message}
+        </Typography>
       </Box>
     );
   }
@@ -51,9 +58,7 @@ function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
 
   return (
     <Box>
-      <Typography variant="h6">
-        Nearby Stops:
-      </Typography>
+      <Typography variant="h6">Nearby Stops:</Typography>
 
       <Box mt={4}>
         <Stack direction="row" flexWrap="wrap" rowGap={2} columnGap={2}>
@@ -76,31 +81,41 @@ function NearbyStopsBox({ locationInfo }: { locationInfo: LocationInfo }) {
 
 export default function ByLocation() {
   const { stops } = useStaticData();
-  const [locationInfo, setLocationInfo] = useState<LocationInfo>({ status: "fetching" });
+  const [locationInfo, setLocationInfo] = useState<LocationInfo>({
+    status: "fetching",
+  });
 
   useEffect(() => {
     const stopsArray = Object.values(stops);
     function fetchLocation() {
-      if (locationInfo.status === "error" && [
-        "You denied the request for Geolocation. Please enable it to find stops by location.",
-        "Geolocation is not available on this device.",
-      ].includes(locationInfo.message)) {
+      if (
+        locationInfo.status === "error" &&
+        [
+          "You denied the request for Geolocation. Please enable it to find stops by location.",
+          "Geolocation is not available on this device.",
+        ].includes(locationInfo.message)
+      ) {
         return;
       }
 
       if (!("geolocation" in navigator)) {
-        setLocationInfo({ status: "error", message: "Geolocation is not available on this device." });
+        setLocationInfo({
+          status: "error",
+          message: "Geolocation is not available on this device.",
+        });
         return;
       }
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const stopDistances = stopsArray.map(stop => distance(
-            stop.location.lat,
-            stop.location.lng,
-            position.coords.latitude,
-            position.coords.longitude,
-          ));
+          const stopDistances = stopsArray.map((stop) =>
+            distance(
+              stop.location.lat,
+              stop.location.lng,
+              position.coords.latitude,
+              position.coords.longitude
+            )
+          );
           setLocationInfo({
             status: "loaded",
             location: {
@@ -108,24 +123,41 @@ export default function ByLocation() {
               lng: position.coords.longitude,
             },
             stopDistances,
-            closestStops: stopsArray.map((stop, idx) => [stop, stopDistances[idx]] as [StopData, number]).toSorted((a, b) => a[1] - b[1]).slice(0, 5),
+            closestStops: stopsArray
+              .map(
+                (stop, idx) => [stop, stopDistances[idx]] as [StopData, number]
+              )
+              .toSorted((a, b) => a[1] - b[1])
+              .slice(0, 5),
           });
-
         },
         (geoError) => {
           if (geoError.code === geoError.PERMISSION_DENIED) {
-            setLocationInfo({ status: "error", message: "You denied the request for Geolocation. Please enable it to find stops by location." });
+            setLocationInfo({
+              status: "error",
+              message:
+                "You denied the request for Geolocation. Please enable it to find stops by location.",
+            });
             return;
           }
           if (geoError.code === geoError.POSITION_UNAVAILABLE) {
-            setLocationInfo({ status: "error", message: "Location information is unavailable." });
+            setLocationInfo({
+              status: "error",
+              message: "Location information is unavailable.",
+            });
             return;
           }
           if (geoError.code === geoError.TIMEOUT) {
-            setLocationInfo({ status: "error", message: "Location request timed out. Please try again." });
+            setLocationInfo({
+              status: "error",
+              message: "Location request timed out. Please try again.",
+            });
             return;
           }
-          setLocationInfo({ status: "error", message: "An unknown error occurred while fetching your location." });
+          setLocationInfo({
+            status: "error",
+            message: "An unknown error occurred while fetching your location.",
+          });
         }
       );
     }
@@ -135,8 +167,10 @@ export default function ByLocation() {
     return () => clearTimeout(interval);
   }, [stops, locationInfo.status, locationInfo.message]);
 
-  const location = locationInfo.status === "loaded" ? locationInfo.location : null;
-  const stopDistances = locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
+  const location =
+    locationInfo.status === "loaded" ? locationInfo.location : null;
+  const stopDistances =
+    locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Typography variant="h5" component="h1" gutterBottom>
@@ -151,7 +185,8 @@ export default function ByLocation() {
 
       <Box textAlign="center" mt={2}>
         <Typography variant="caption" display="block" gutterBottom>
-          Don{"'"}t see your stop? You can search for your stop by number or name on the home page.
+          Don{"'"}t see your stop? You can search for your stop by number or
+          name on the home page.
         </Typography>
         <Link href="/" passHref>
           <Button variant="outlined">Home</Button>
@@ -160,4 +195,3 @@ export default function ByLocation() {
     </Container>
   );
 }
-

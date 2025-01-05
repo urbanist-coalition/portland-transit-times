@@ -1,23 +1,27 @@
-import Ajv, { JSONSchemaType } from 'ajv';
+import Ajv, { JSONSchemaType } from "ajv";
 
-async function conduentFetch<T>(path: string, schema: JSONSchemaType<T>): Promise<T> {
-  const baseUrl = 'https://swiv.gptd.cadavl.com/SWIV/GPTD/proxy/restWS';
+async function conduentFetch<T>(
+  path: string,
+  schema: JSONSchemaType<T>
+): Promise<T> {
+  const baseUrl = "https://swiv.gptd.cadavl.com/SWIV/GPTD/proxy/restWS";
   const now = Date.now();
   const response = await fetch(`${baseUrl}/${path}?_tmp=${now}`, {
-    "credentials": "omit",
-    "headers": {
-      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0",
-      "Accept": "application/json, text/javascript, */*; q=0.01",
+    credentials: "omit",
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0",
+      Accept: "application/json, text/javascript, */*; q=0.01",
       "Accept-Language": "en-US,en;q=0.5",
       "X-Requested-With": "XMLHttpRequest",
       "Sec-Fetch-Dest": "empty",
       "Sec-Fetch-Mode": "cors",
       "Sec-Fetch-Site": "same-origin",
-      "Sec-GPC": "1"
+      "Sec-GPC": "1",
     },
-    "referrer": "https://swiv.gptd.cadavl.com/SWIV/GPTD",
-    "method": "GET",
-    "mode": "cors"
+    referrer: "https://swiv.gptd.cadavl.com/SWIV/GPTD",
+    method: "GET",
+    mode: "cors",
   });
 
   if (!response.ok) {
@@ -37,26 +41,26 @@ async function conduentFetch<T>(path: string, schema: JSONSchemaType<T>): Promis
 
 // Represents a specific schedule entry with its state and timing.
 interface Horaire {
-  idHoraire: number;          // schedule ID
-  etatHoraire: number;        // schedule state (e.g., active, inactive)
-  etatPassage: number;        // passage state (e.g., on-time, delayed)
-  horaire: number;            // predicted time in seconds from midnight
-  horaireApplicable: number;  // scheduled time in seconds from midnight
+  idHoraire: number; // schedule ID
+  etatHoraire: number; // schedule state (e.g., active, inactive)
+  etatPassage: number; // passage state (e.g., on-time, delayed)
+  horaire: number; // predicted time in seconds from midnight
+  horaireApplicable: number; // scheduled time in seconds from midnight
 }
 
 // Represents a destination, which includes one or more schedules (horaires).
 interface Destination {
-  libelle: string;            // label for the destination
-  libelleHexa: string;        // hexadecimal-encoded label
-  existeSuivant: boolean;     // indicates if a next schedule (following run) exists
-  existePrecedent: boolean;   // indicates if a previous schedule (preceding run) exists
-  modeManu: boolean;          // indicates if manual mode is enabled
-  horaires: Horaire[];        // list of schedule entries for this destination
+  libelle: string; // label for the destination
+  libelleHexa: string; // hexadecimal-encoded label
+  existeSuivant: boolean; // indicates if a next schedule (following run) exists
+  existePrecedent: boolean; // indicates if a previous schedule (preceding run) exists
+  modeManu: boolean; // indicates if manual mode is enabled
+  horaires: Horaire[]; // list of schedule entries for this destination
 }
 
 // Represents the line schedule entry that associates a line (idLigne) with destinations and their schedules.
 interface LigneHoraire {
-  idLigne: number;            // line ID
+  idLigne: number; // line ID
   destination: Destination[]; // array of destinations for this line
 }
 
@@ -66,56 +70,71 @@ interface ListeHorairesResponse {
 }
 
 const listeHorairesSchema: JSONSchemaType<ListeHorairesResponse> = {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "listeHoraires": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "idLigne": { "type": "number" },
-          "destination": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "libelle": { "type": "string" },
-                "libelleHexa": { "type": "string" },
-                "existeSuivant": { "type": "boolean" },
-                "existePrecedent": { "type": "boolean" },
-                "modeManu": { "type": "boolean" },
-                "horaires": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "idHoraire": { "type": "number" },
-                      "etatHoraire": { "type": "number" },
-                      "etatPassage": { "type": "number" },
-                      "horaire": { "type": "number" },
-                      "horaireApplicable": { "type": "number" }
+  $schema: "http://json-schema.org/draft-07/schema#",
+  type: "object",
+  properties: {
+    listeHoraires: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          idLigne: { type: "number" },
+          destination: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                libelle: { type: "string" },
+                libelleHexa: { type: "string" },
+                existeSuivant: { type: "boolean" },
+                existePrecedent: { type: "boolean" },
+                modeManu: { type: "boolean" },
+                horaires: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      idHoraire: { type: "number" },
+                      etatHoraire: { type: "number" },
+                      etatPassage: { type: "number" },
+                      horaire: { type: "number" },
+                      horaireApplicable: { type: "number" },
                     },
-                    "required": ["idHoraire", "etatHoraire", "etatPassage", "horaire", "horaireApplicable"],
-                    "additionalProperties": false
-                  }
-                }
+                    required: [
+                      "idHoraire",
+                      "etatHoraire",
+                      "etatPassage",
+                      "horaire",
+                      "horaireApplicable",
+                    ],
+                    additionalProperties: false,
+                  },
+                },
               },
-              "required": ["libelle", "libelleHexa", "existeSuivant", "existePrecedent", "modeManu", "horaires"],
-              "additionalProperties": false
-            }
-          }
+              required: [
+                "libelle",
+                "libelleHexa",
+                "existeSuivant",
+                "existePrecedent",
+                "modeManu",
+                "horaires",
+              ],
+              additionalProperties: false,
+            },
+          },
         },
-        "required": ["idLigne", "destination"],
-        "additionalProperties": false
-      }
-    }
+        required: ["idLigne", "destination"],
+        additionalProperties: false,
+      },
+    },
   },
-  "required": ["listeHoraires"],
-  "additionalProperties": false
+  required: ["listeHoraires"],
+  additionalProperties: false,
 };
 
-export async function stopPredictions(stopId: number): Promise<ListeHorairesResponse> {
+export async function stopPredictions(
+  stopId: number
+): Promise<ListeHorairesResponse> {
   return conduentFetch(`horaires/pta/${stopId}`, listeHorairesSchema);
 }
 
@@ -184,126 +203,141 @@ interface TopographyResponse {
 }
 
 const locationSchema: JSONSchemaType<Location> = {
-  "type": "object",
-  "properties": {
-    "lat": { "type": "number" },
-    "lng": { "type": "number" },
-    "cap": { "type": "number" }
+  type: "object",
+  properties: {
+    lat: { type: "number" },
+    lng: { type: "number" },
+    cap: { type: "number" },
   },
-  "required": ["lat", "lng", "cap"],
-  "additionalProperties": false
+  required: ["lat", "lng", "cap"],
+  additionalProperties: false,
 };
 
 const segmentSchema: JSONSchemaType<Segment> = {
-  "type": "object",
-  "properties": {
-    "debut": locationSchema,
-    "fin": locationSchema,
-    "idTroncon": { "type": "number" }
+  type: "object",
+  properties: {
+    debut: locationSchema,
+    fin: locationSchema,
+    idTroncon: { type: "number" },
   },
-  "required": ["debut", "fin", "idTroncon"],
-  "additionalProperties": false
+  required: ["debut", "fin", "idTroncon"],
+  additionalProperties: false,
 };
 
-
 const lineInfoSchema: JSONSchemaType<LineInfo> = {
-  "type": "object",
-  "properties": {
-    "idLigne": { "type": "number" },
-    "estPad": { "type": "boolean" }
+  type: "object",
+  properties: {
+    idLigne: { type: "number" },
+    estPad: { type: "boolean" },
   },
-  "required": ["idLigne", "estPad"],
-  "additionalProperties": false
+  required: ["idLigne", "estPad"],
+  additionalProperties: false,
 };
 
 const schema: JSONSchemaType<TopographyResponse> = {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "topo": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
-      "items": [{
-        "type": "object",
-        "properties": {
-          "ligne": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "nomCommercial": { "type": "string" },
-                "libCommercial": { "type": "string" },
-                "mnemo": { "type": "string" },
-                "couleur": { "type": "string" },
-                "itineraire": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "troncons": {
-                        "type": "array",
-                        "items": segmentSchema,
-                      }
+  $schema: "http://json-schema.org/draft-07/schema#",
+  type: "object",
+  properties: {
+    topo: {
+      type: "array",
+      minItems: 1,
+      maxItems: 1,
+      items: [
+        {
+          type: "object",
+          properties: {
+            ligne: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  nomCommercial: { type: "string" },
+                  libCommercial: { type: "string" },
+                  mnemo: { type: "string" },
+                  couleur: { type: "string" },
+                  itineraire: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        troncons: {
+                          type: "array",
+                          items: segmentSchema,
+                        },
+                      },
+                      required: ["troncons"],
+                      additionalProperties: false,
                     },
-                    "required": ["troncons"],
-                    "additionalProperties": false
-                  }
+                  },
+                  messageIVExiste: { type: "boolean" },
+                  idLigne: { type: "number" },
                 },
-                "messageIVExiste": { "type": "boolean" },
-                "idLigne": { "type": "number" }
+                required: [
+                  "nomCommercial",
+                  "libCommercial",
+                  "mnemo",
+                  "couleur",
+                  "itineraire",
+                  "messageIVExiste",
+                  "idLigne",
+                ],
+                additionalProperties: false,
               },
-              "required": ["nomCommercial", "libCommercial", "mnemo", "couleur", "itineraire", "messageIVExiste", "idLigne"],
-              "additionalProperties": false
-            }
-          },
-          "pointArret": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "nomCommercial": { "type": "string" },
-                "stopCode": { "type": "string" },
-                "infoLigneSwiv": {
-                  "type": "array",
-                  "items": lineInfoSchema
+            },
+            pointArret: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  nomCommercial: { type: "string" },
+                  stopCode: { type: "string" },
+                  infoLigneSwiv: {
+                    type: "array",
+                    items: lineInfoSchema,
+                  },
+                  localisation: locationSchema,
+                  idPointArret: { type: "number" },
+                  mnemoPointArret: { type: "string" },
                 },
-                "localisation": locationSchema,
-                "idPointArret": { "type": "number" },
-                "mnemoPointArret": { "type": "string" }
+                required: [
+                  "nomCommercial",
+                  "stopCode",
+                  "infoLigneSwiv",
+                  "localisation",
+                  "idPointArret",
+                  "mnemoPointArret",
+                ],
+                additionalProperties: false,
               },
-              "required": ["nomCommercial", "stopCode", "infoLigneSwiv", "localisation", "idPointArret", "mnemoPointArret"],
-              "additionalProperties": false
-            }
-          },
-          "deviation": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "troncons": {
-                  "type": "array",
-                  "items": segmentSchema,
-                }
+            },
+            deviation: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  troncons: {
+                    type: "array",
+                    items: segmentSchema,
+                  },
+                },
+                required: ["troncons"],
+                additionalProperties: false,
               },
-              "required": ["troncons"],
-              "additionalProperties": false
-            }
+            },
+            libelleCE: {
+              type: "string",
+            },
           },
-          "libelleCE": {
-            "type": "string",
-          }
+          required: ["ligne", "pointArret", "deviation", "libelleCE"],
+          additionalProperties: false,
         },
-        "required": ["ligne", "pointArret", "deviation", "libelleCE"],
-        "additionalProperties": false
-      }]
-    }
+      ],
+    },
   },
-  "required": ["topo"],
-  "additionalProperties": false
-}
-
+  required: ["topo"],
+  additionalProperties: false,
+};
 
 export async function topography(): Promise<TopographyResponse> {
-  return conduentFetch('topo', schema);
+  return conduentFetch("topo", schema);
 }

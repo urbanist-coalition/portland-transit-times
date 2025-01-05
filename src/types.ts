@@ -13,9 +13,8 @@ export interface LineData {
 
 export interface StopData {
   stopId: number;
-  stopName: string
+  stopName: string;
   stopCode: string;
   location: Location;
   lineIds: number[];
 }
-

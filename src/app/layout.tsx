@@ -36,12 +36,21 @@ export default async function RootLayout({
   const lines = await getAllLines();
 
   return (
-    <html lang="en" >
+    <html lang="en">
       <head>
-        <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+        <link
+          rel="icon"
+          type="image/png"
+          href="/favicon-96x96.png"
+          sizes="96x96"
+        />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <link rel="shortcut icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/apple-touch-icon.png"
+        />
         <meta name="apple-mobile-web-app-title" content="UCP Transit" />
         <link rel="manifest" href="/site.webmanifest" />
       </head>
@@ -59,7 +68,11 @@ export default async function RootLayout({
                       component="div"
                       mb={1}
                     >
-                      Made with ❤️ by the <MaterialLink href="https://urbanistportland.me">Urbanist Coalition of Portland</MaterialLink>. Not affiliated with GPMetro.
+                      Made with ❤️ by the{" "}
+                      <MaterialLink href="https://urbanistportland.me">
+                        Urbanist Coalition of Portland
+                      </MaterialLink>
+                      . Not affiliated with GPMetro.
                     </Typography>
                     <Box
                       component="img"
@@ -72,10 +85,10 @@ export default async function RootLayout({
               </footer>
               <SpeedDial />
             </StaticDataProvider>
-          </ThemeProvider >
-        </AppRouterCacheProvider >
-      </body >
+          </ThemeProvider>
+        </AppRouterCacheProvider>
+      </body>
       <GoogleAnalytics gaId="G-K5C2F0D9CT" />
-    </html >
+    </html>
   );
 }

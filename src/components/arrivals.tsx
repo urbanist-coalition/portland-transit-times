@@ -2,7 +2,17 @@
 
 import { Prediction, predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
-import { Card, CardContent, Stack, Typography, Box, Button, useTheme, Chip, Collapse } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Stack,
+  Typography,
+  Box,
+  Button,
+  useTheme,
+  Chip,
+  Collapse,
+} from "@mui/material";
 import { isTooLight } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
@@ -23,11 +33,19 @@ function formatPredictedTime(date: Date, now: number): string {
 }
 
 function ScheduleLabel({ title }: { title: string }) {
-  return <strong style={{ width: "72px", display: "inline-block" }}>{title}</strong>;
+  return (
+    <strong style={{ width: "72px", display: "inline-block" }}>{title}</strong>
+  );
 }
 
 function ScheduleTime({ time }: { time: string }) {
-  return <span style={{ width: "60px", display: "inline-block", textAlign: "right" }}>{time}</span>;
+  return (
+    <span
+      style={{ width: "60px", display: "inline-block", textAlign: "right" }}
+    >
+      {time}
+    </span>
+  );
 }
 
 interface PredictionCardProps {
@@ -48,7 +66,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     //   Sub-minute accuracy is not relevant in the context of bus predictions so it is better
     //   that the delta looks correct.
     startOfMinute(prediction.predictedTime),
-    startOfMinute(prediction.scheduledTime),
+    startOfMinute(prediction.scheduledTime)
   );
 
   let statusMessage = "On Time";
@@ -66,34 +84,49 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     <Card
       variant="outlined"
       sx={{
-        borderLeft: tooLight && theme.palette.mode === "light" ? undefined : `8px solid ${prediction.lineColor}`,
-        mb: 2 // margin bottom for spacing
+        borderLeft:
+          tooLight && theme.palette.mode === "light"
+            ? undefined
+            : `8px solid ${prediction.lineColor}`,
+        mb: 2, // margin bottom for spacing
       }}
     >
       <CardContent>
         <Stack spacing={1}>
-          <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-            <Box component="span" sx={{ color: tooLight ? theme.palette.text.primary : prediction.lineColor, mr: 1 }}>
+          <Typography variant="h6" component="div" sx={{ fontWeight: "bold" }}>
+            <Box
+              component="span"
+              sx={{
+                color: tooLight
+                  ? theme.palette.text.primary
+                  : prediction.lineColor,
+                mr: 1,
+              }}
+            >
               {prediction.lineName}
             </Box>
             to {prediction.destinationLabel}
           </Typography>
 
           <Typography variant="body2">
-            <ScheduleLabel title="Scheduled:" /> <ScheduleTime time={_format(prediction.scheduledTime)} />
+            <ScheduleLabel title="Scheduled:" />{" "}
+            <ScheduleTime time={_format(prediction.scheduledTime)} />
           </Typography>
 
           <Typography variant="body2" component="div">
-            <ScheduleLabel title="Predicted:" /> <ScheduleTime time={formatPredictedTime(prediction.predictedTime, now)} />
+            <ScheduleLabel title="Predicted:" />{" "}
+            <ScheduleTime
+              time={formatPredictedTime(prediction.predictedTime, now)}
+            />
             <Chip
               label={statusMessage}
               sx={{
                 ml: 1,
                 bgcolor: statusColor,
                 color: theme.palette.getContrastText(statusColor),
-                fontWeight: 'bold',
-                height: '20px',
-                '& .MuiChip-label': { p: 0, pl: 1, pr: 1 }
+                fontWeight: "bold",
+                height: "20px",
+                "& .MuiChip-label": { p: 0, pl: 1, pr: 1 },
               }}
               size="small"
             />
@@ -109,7 +142,10 @@ interface ArrivalsProps {
   arrivals: Prediction[];
 }
 
-export default function Arrivals({ stopCode, arrivals: initialArrivals }: ArrivalsProps) {
+export default function Arrivals({
+  stopCode,
+  arrivals: initialArrivals,
+}: ArrivalsProps) {
   const [arrivals, setArrivals] = useState<Prediction[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
@@ -138,17 +174,29 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
 
   // Format the lastUpdated timestamp for display
   const lastUpdatedDate = lastUpdated && new Date(lastUpdated);
-  const lastUpdatedString = lastUpdatedDate && lastUpdatedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const lastUpdatedString =
+    lastUpdatedDate &&
+    lastUpdatedDate.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
 
   return (
     <Box sx={{ p: 2 }}>
       {arrivals.length === 0 && (
         <Typography variant="h6" align="center" gutterBottom>
           No upcoming arrivals
-        </Typography>)}
+        </Typography>
+      )}
       <TransitionGroup>
         {arrivals.map((prediction, index) => (
-          <Collapse key={prediction.predictionId} in={false} timeout={500} unmountOnExit>
+          <Collapse
+            key={prediction.predictionId}
+            in={false}
+            timeout={500}
+            unmountOnExit
+          >
             <PredictionCard key={index} prediction={prediction} now={now} />
           </Collapse>
         ))}
@@ -165,11 +213,21 @@ export default function Arrivals({ stopCode, arrivals: initialArrivals }: Arriva
             Tired of waiting?
           </Typography>
           <Typography>
-            Join the Urbanist Coalition of Portland! Aside from projects like this website we are advocating to improve Portland{"'"}s transit network including more frequency. Anyone can get involved regardless of of their background! <MaterialLink href="https://urbanistportland.me" target="_blank" rel="noopener noreferrer">Learn more</MaterialLink>.
+            Join the Urbanist Coalition of Portland! Aside from projects like
+            this website we are advocating to improve Portland{"'"}s transit
+            network including more frequency. Anyone can get involved regardless
+            of of their background!{" "}
+            <MaterialLink
+              href="https://urbanistportland.me"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more
+            </MaterialLink>
+            .
           </Typography>
         </Box>
       </Box>
-    </Box >
+    </Box>
   );
 }
-

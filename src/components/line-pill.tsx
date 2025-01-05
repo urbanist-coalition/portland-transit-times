@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { isTooLight } from "@/lib/utils";
 import { Chip, useTheme } from "@mui/material";

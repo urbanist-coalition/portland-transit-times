@@ -3,8 +3,14 @@
 import { stopPredictions } from "@/lib/conduent";
 import { LineData, StopData } from "@/types";
 
-import { startOfDay, addSeconds, addDays, compareAsc, differenceInHours } from 'date-fns';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import {
+  startOfDay,
+  addSeconds,
+  addDays,
+  compareAsc,
+  differenceInHours,
+} from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { readJSON } from "@/lib/file-utils";
 import { fixCapitalization } from "@/lib/capitalization";
 
@@ -21,7 +27,7 @@ export async function stopByStopCode(stopCode: string): Promise<StopData> {
 }
 
 function toDate(secondsFromMidnight: number): Date {
-  const timeZone = 'America/New_York';
+  const timeZone = "America/New_York";
   const now = toZonedTime(new Date(), timeZone);
   const midnight = fromZonedTime(startOfDay(now), timeZone);
   const date = addSeconds(midnight, secondsFromMidnight);
@@ -39,15 +45,17 @@ function toDate(secondsFromMidnight: number): Date {
 }
 
 export interface Prediction {
-  predictionId: number
-  lineName: string
-  lineColor: string
-  destinationLabel: string
-  scheduledTime: Date
-  predictedTime: Date
+  predictionId: number;
+  lineName: string;
+  lineColor: string;
+  destinationLabel: string;
+  scheduledTime: Date;
+  predictedTime: Date;
 }
 
-export async function predictionsByStopCode(stopCode: string): Promise<Prediction[]> {
+export async function predictionsByStopCode(
+  stopCode: string
+): Promise<Prediction[]> {
   const stop = await stopByStopCode(stopCode);
   const schedule = await stopPredictions(stop.stopId);
   const lines = await getAllLines();
@@ -73,7 +81,8 @@ export async function predictionsByStopCode(stopCode: string): Promise<Predictio
     }
   }
 
-  predictions.sort(({ scheduledTime: a }, { scheduledTime: b }) => compareAsc(a, b));
+  predictions.sort(({ scheduledTime: a }, { scheduledTime: b }) =>
+    compareAsc(a, b)
+  );
   return predictions;
 }
-

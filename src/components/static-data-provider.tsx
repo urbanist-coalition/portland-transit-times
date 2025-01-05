@@ -14,11 +14,7 @@ interface Props {
   lines: Record<string, LineData>;
 }
 
-export const StaticDataProvider = ({
-  children,
-  stops,
-  lines,
-}: Props) => {
+export const StaticDataProvider = ({ children, stops, lines }: Props) => {
   return (
     <StaticDataContext.Provider value={{ stops, lines }}>
       {children}
@@ -27,4 +23,3 @@ export const StaticDataProvider = ({
 };
 
 export const useStaticData = () => useContext(StaticDataContext);
-

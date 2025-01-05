@@ -1,20 +1,36 @@
 "use client";
 
-import 'leaflet/dist/leaflet.css';
+import "leaflet/dist/leaflet.css";
 
-import { Box, Button, IconButton, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useEffect, useState } from "react";
-import MyLocationIcon from '@mui/icons-material/MyLocation';
-import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
-import MaterialLink from '@mui/material/Link';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from "react-leaflet";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
+import MaterialLink from "@mui/material/Link";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  Polyline,
+} from "react-leaflet";
 import L from "leaflet";
-import { renderToString } from 'react-dom/server';
-import { useStaticData } from '@/components/static-data-provider';
-import LinePill from './line-pill';
-import Link from 'next/link';
-import { Location, StopData } from '@/types';
-import { isTooLight, locationEquals } from '@/lib/utils';
+import { renderToString } from "react-dom/server";
+import { useStaticData } from "@/components/static-data-provider";
+import LinePill from "./line-pill";
+import Link from "next/link";
+import { Location, StopData } from "@/types";
+import { isTooLight, locationEquals } from "@/lib/utils";
 
 interface MapProps {
   location: Location | null;
@@ -32,9 +48,15 @@ const RecenterAutomatically = ({ location }: { location: Location | null }) => {
   }, [location, hadLocation, map]);
 
   return null;
-}
+};
 
-const CenterMeButton = ({ location, center }: { location: Location | null, center: Location }) => {
+const CenterMeButton = ({
+  location,
+  center,
+}: {
+  location: Location | null;
+  center: Location;
+}) => {
   const map = useMap();
 
   if (!location) return null;
@@ -48,23 +70,31 @@ const CenterMeButton = ({ location, center }: { location: Location | null, cente
     <Tooltip title="Center on your location" placement="top-start">
       <IconButton
         sx={{
-          position: 'absolute',
+          position: "absolute",
           bottom: 10,
           right: 10,
           // 400 is exactly the minimum needed to be above the map, found with manual binary search
-          zIndex: 400
+          zIndex: 400,
         }}
         onClick={centerOnLocation}
       >
-        {locationEquals(location, center) ?
+        {locationEquals(location, center) ? (
           <MyLocationIcon />
-          : <LocationSearchingIcon />}
+        ) : (
+          <LocationSearchingIcon />
+        )}
       </IconButton>
     </Tooltip>
   );
-}
+};
 
-function Pusher({ setZoom, setCenter }: { setZoom: (zoom: number) => void, setCenter: (center: Location) => void }) {
+function Pusher({
+  setZoom,
+  setCenter,
+}: {
+  setZoom: (zoom: number) => void;
+  setCenter: (center: Location) => void;
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -76,14 +106,13 @@ function Pusher({ setZoom, setCenter }: { setZoom: (zoom: number) => void, setCe
       setCenter(map.getCenter());
     }
 
-    map.on('zoomend', handleZoomEnd);
-    map.on('moveend', handleMoveEnd);
+    map.on("zoomend", handleZoomEnd);
+    map.on("moveend", handleMoveEnd);
     return () => {
-      map.off('zoomend', handleZoomEnd);
-      map.off('moveend', handleMoveEnd);
+      map.off("zoomend", handleZoomEnd);
+      map.off("moveend", handleMoveEnd);
     };
   }, [map, setZoom, setCenter]);
-
 
   return null;
 }
@@ -166,7 +195,7 @@ function StopIcon({
       ))}
     </svg>
   );
-};
+}
 
 export default function Map({ location, stopDistances }: MapProps) {
   const { stops, lines } = useStaticData();
@@ -192,13 +221,13 @@ export default function Map({ location, stopDistances }: MapProps) {
   const zoonSkew: Record<number, [number, number]> = {
     13: [-2, 2],
     14: [-1, 1],
-  }
+  };
 
   const iconSize = zoomIconSizes[zoom];
 
-
-  const theme = useTheme()
-  const baseMap = theme.palette.mode === "dark" ? 'dark_all' : 'rastertiles/voyager';
+  const theme = useTheme();
+  const baseMap =
+    theme.palette.mode === "dark" ? "dark_all" : "rastertiles/voyager";
   const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
 
   const myLocationStyle = { fill: theme.palette.primary.main };
@@ -210,11 +239,17 @@ export default function Map({ location, stopDistances }: MapProps) {
   });
 
   const placeDivIcon = (stop: StopData) => {
-    const colors = stop.lineIds.map(lineId => lines[lineId].lineColor);
+    const colors = stop.lineIds.map((lineId) => lines[lineId].lineColor);
     const [skewX, skewY] = zoonSkew[zoom] || [0, 0];
 
     return L.divIcon({
-      html: renderToString(<StopIcon colors={colors} size={iconSize} outlineColor={theme.palette.grey['700']} />),
+      html: renderToString(
+        <StopIcon
+          colors={colors}
+          size={iconSize}
+          outlineColor={theme.palette.grey["700"]}
+        />
+      ),
       className: "", // this must be blank or the icons will be in white boxes
       iconSize: [iconSize, iconSize],
       iconAnchor: [iconSize / 2 + skewX, iconSize / 2 + skewY],
@@ -231,42 +266,70 @@ export default function Map({ location, stopDistances }: MapProps) {
       attributionControl={false}
     >
       <TileLayer url={baseMapUrl} />
-      {location && (<Marker position={location} icon={myLocationDivIcon}>
-        <Popup>Your Location</Popup>
-      </Marker>)}
-      {zoom > 12 && Object.values(stops).map((stop, i) => (
-        <Marker riseOnHover={true} key={stop.stopCode} position={stop.location} icon={placeDivIcon(stop)}>
-          <Popup>
-            <Box style={{ textAlign: "center" }}>
-              <Typography variant="h6" color="textPrimary">
-                {stop.stopName}
-              </Typography>
-              <Typography variant="caption" color="textPrimary">
-                Code: {stop.stopCode}
-              </Typography><br />
-              {stopDistances && stopDistances[i] && (
-                <Typography variant="caption" color="textPrimary">
-                  {Math.round(stopDistances[i])} meters away
-                </Typography>
-              )}
-              {stop.lineIds && stop.lineIds.length > 0 && (
-                <Stack direction="row" spacing={1} m={1} justifyContent="center">
-                  {stop.lineIds.map(lineId => {
-                    const { lineName, lineColor } = lines[lineId];
-                    return <LinePill key={lineId} lineName={lineName} lineColor={lineColor} />;
-                  })}
-                </Stack>
-              )}
-              <Link href={`/stops/${stop.stopCode}`} passHref>
-                <Button variant="text">View Arrivals</Button>
-              </Link>
-            </Box>
-          </Popup>
+      {location && (
+        <Marker position={location} icon={myLocationDivIcon}>
+          <Popup>Your Location</Popup>
         </Marker>
-      ))}
-      {theme.palette.mode === "light" && Object.values(lines).filter(({ lineColor }) => isTooLight(lineColor)).map(({ lineId, points }) => (
-        <Polyline key={lineId} positions={points} color="black" weight={4} />
-      ))}
+      )}
+      {zoom > 12 &&
+        Object.values(stops).map((stop, i) => (
+          <Marker
+            riseOnHover={true}
+            key={stop.stopCode}
+            position={stop.location}
+            icon={placeDivIcon(stop)}
+          >
+            <Popup>
+              <Box style={{ textAlign: "center" }}>
+                <Typography variant="h6" color="textPrimary">
+                  {stop.stopName}
+                </Typography>
+                <Typography variant="caption" color="textPrimary">
+                  Code: {stop.stopCode}
+                </Typography>
+                <br />
+                {stopDistances && stopDistances[i] && (
+                  <Typography variant="caption" color="textPrimary">
+                    {Math.round(stopDistances[i])} meters away
+                  </Typography>
+                )}
+                {stop.lineIds && stop.lineIds.length > 0 && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    m={1}
+                    justifyContent="center"
+                  >
+                    {stop.lineIds.map((lineId) => {
+                      const { lineName, lineColor } = lines[lineId];
+                      return (
+                        <LinePill
+                          key={lineId}
+                          lineName={lineName}
+                          lineColor={lineColor}
+                        />
+                      );
+                    })}
+                  </Stack>
+                )}
+                <Link href={`/stops/${stop.stopCode}`} passHref>
+                  <Button variant="text">View Arrivals</Button>
+                </Link>
+              </Box>
+            </Popup>
+          </Marker>
+        ))}
+      {theme.palette.mode === "light" &&
+        Object.values(lines)
+          .filter(({ lineColor }) => isTooLight(lineColor))
+          .map(({ lineId, points }) => (
+            <Polyline
+              key={lineId}
+              positions={points}
+              color="black"
+              weight={4}
+            />
+          ))}
       {Object.values(lines).map(({ lineId, points, lineColor }) => (
         <Polyline key={lineId} positions={points} color={lineColor} />
       ))}
@@ -277,21 +340,30 @@ export default function Map({ location, stopDistances }: MapProps) {
       <Paper
         elevation={3}
         sx={{
-          position: 'absolute',
+          position: "absolute",
           bottom: 8,
           left: 8,
-          padding: '6px 12px',
+          padding: "6px 12px",
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
           zIndex: 400,
         }}
       >
         <Typography variant="body2" component="div" fontSize={10}>
-          &copy; <MaterialLink href="https://www.openstreetmap.org/copyright" color="inherit" underline="hover">
+          &copy;{" "}
+          <MaterialLink
+            href="https://www.openstreetmap.org/copyright"
+            color="inherit"
+            underline="hover"
+          >
             OpenStreetMap
-          </MaterialLink>{' '}
-          contributors | Map tiles by{' '}
-          <MaterialLink href="https://carto.com/" color="inherit" underline="hover">
+          </MaterialLink>{" "}
+          contributors | Map tiles by{" "}
+          <MaterialLink
+            href="https://carto.com/"
+            color="inherit"
+            underline="hover"
+          >
             Carto
           </MaterialLink>
         </Typography>

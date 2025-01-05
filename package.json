@@ -9,7 +9,9 @@
     "generate-json": "npm run generate-stop-name-overrides && tsx src/build-scripts/generate-json.ts",
     "build": "npm run generate-json && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -29,6 +31,11 @@
     "react-leaflet": "^5.0.0",
     "react-transition-group": "^4.4.5"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "prettier --check \"src/**/*.{ts,tsx}\""
+    }
+  },
   "devDependencies": {
     "@types/leaflet": "^1.9.15",
     "@types/node": "^20",
@@ -36,8 +43,15 @@
     "@types/react-dom": "^19",
     "eslint": "^8",
     "eslint-config-next": "15.0.4",
+    "husky": "^9.1.7",
     "json-stable-stringify": "^1.2.0",
+    "prettier": "^3.4.2",
     "tsx": "^4.19.2",
     "typescript": "^5"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "useTabs": false,
+    "trailingComma": "es5"
   }
 }

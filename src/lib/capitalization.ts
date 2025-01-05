@@ -6,19 +6,17 @@
 "server only";
 
 const knownAcronyms = [
-  'USM', // University of Southern Maine
-  'MMC', // Maine Medical Center
-  'JC', // JC Penney
+  "USM", // University of Southern Maine
+  "MMC", // Maine Medical Center
+  "JC", // JC Penney
 ];
 
 /**
  * Capitalizes each word in a string, but also:
  *   - Leaves known acronyms fully uppercase (if matched as its own token).
  */
-export function fixCapitalization(
-  input: string,
-): string {
-  // 1) Split into tokens (words, punctuation, spaces, etc.) 
+export function fixCapitalization(input: string): string {
+  // 1) Split into tokens (words, punctuation, spaces, etc.)
   //    so that we can process them individually without losing delimiters.
   const tokens = input.split(/(\s+|[^A-Za-z']+)/);
   // Explanation of the split regex:
@@ -53,10 +51,9 @@ export function fixCapitalization(
     //   Shaw's example used because we previously had an issue where the 's
     //   was capitalized so it was returning Shaw'S. This is fixed by
     //   our splitting regex above.
-    return upper.toLowerCase().replace(/\b\w/, char => char.toUpperCase());
+    return upper.toLowerCase().replace(/\b\w/, (char) => char.toUpperCase());
   });
 
   // 3) Rebuild the string from tokens
-  return processedTokens.join('');
+  return processedTokens.join("");
 }
-

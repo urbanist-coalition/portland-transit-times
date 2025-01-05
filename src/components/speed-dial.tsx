@@ -1,31 +1,41 @@
 "use client";
 
-import { SpeedDial, SpeedDialAction, SpeedDialIcon } from '@mui/material';
+import { SpeedDial, SpeedDialAction, SpeedDialIcon } from "@mui/material";
 import { Help, Home, Map } from "@mui/icons-material";
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function TransitSpeedDial() {
   const router = useRouter();
   const [isTouch, setIsTouch] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const actions = [{
-    icon: <Home />,
-    name: 'Home',
-    onClick: () => { router.push('/'); }
-  }, {
-    name: 'Help',
-    icon: <Help />,
-    onClick: () => { router.push('/help'); }
-  }, {
-    name: 'Map',
-    icon: <Map />,
-    onClick: () => { router.push('/map'); },
-  }];
+  const actions = [
+    {
+      icon: <Home />,
+      name: "Home",
+      onClick: () => {
+        router.push("/");
+      },
+    },
+    {
+      name: "Help",
+      icon: <Help />,
+      onClick: () => {
+        router.push("/help");
+      },
+    },
+    {
+      name: "Map",
+      icon: <Map />,
+      onClick: () => {
+        router.push("/map");
+      },
+    },
+  ];
 
   useEffect(() => {
-    setIsTouch('ontouchstart' in window);
+    setIsTouch("ontouchstart" in window);
   }, []);
 
   const handleOpen = () => setOpen(true);
@@ -34,7 +44,7 @@ export default function TransitSpeedDial() {
   return (
     <SpeedDial
       ariaLabel="SpeedDial"
-      sx={{ position: 'fixed', bottom: 16, right: 16 }}
+      sx={{ position: "fixed", bottom: 16, right: 16 }}
       icon={<SpeedDialIcon />}
       open={open}
       onOpen={handleOpen}

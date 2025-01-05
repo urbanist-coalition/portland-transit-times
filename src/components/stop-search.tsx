@@ -21,12 +21,15 @@ export default function StopSearch() {
         fullWidth
         options={Object.values(stops)}
         getOptionLabel={(option) => `${option.stopCode} - ${option.stopName}`}
-        renderInput={(params) => <TextField {...params} label="Stop Number/Name" />}
+        renderInput={(params) => (
+          <TextField {...params} label="Stop Number/Name" />
+        )}
         onChange={(_event, value) => {
           if (value && value.stopCode) {
             handleSelectStop(value.stopCode);
           }
         }}
       />
-    </Box>);
+    </Box>
+  );
 }

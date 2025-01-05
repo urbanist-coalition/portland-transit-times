@@ -4,7 +4,7 @@ import BackButton from "@/components/back-button";
 import { Box, Container, Typography } from "@mui/material";
 import dynamic from "next/dynamic";
 
-const DynamicMap = dynamic(() => import('@/components/map'), { ssr: false });
+const DynamicMap = dynamic(() => import("@/components/map"), { ssr: false });
 
 export default function MapPage() {
   return (

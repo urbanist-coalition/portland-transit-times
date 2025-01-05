@@ -21,11 +21,23 @@ function getRecentStops(stops: Record<string, StopData>): StopData[] {
 }
 
 function addRecentStop(stopCode: string) {
-  const recentStops = [{ stopCode }, ...getRecentStopCodes().filter((stop) => stop.stopCode !== stopCode)];
-  window.localStorage.setItem("recentStops", JSON.stringify(recentStops.slice(0, 10)));
+  const recentStops = [
+    { stopCode },
+    ...getRecentStopCodes().filter((stop) => stop.stopCode !== stopCode),
+  ];
+  window.localStorage.setItem(
+    "recentStops",
+    JSON.stringify(recentStops.slice(0, 10))
+  );
 }
 
-export function AddRecentStop({ stopCode, stopName }: { stopCode: string, stopName: string }) {
+export function AddRecentStop({
+  stopCode,
+  stopName,
+}: {
+  stopCode: string;
+  stopName: string;
+}) {
   useEffect(() => {
     addRecentStop(stopCode);
   }, [stopCode, stopName]);
@@ -43,29 +55,31 @@ export function RecentStops() {
   function goToStop(stopCode: string) {
     return () => {
       router.push(`/stops/${stopCode}`);
-    }
+    };
   }
 
-  return (<Box>
-    <Box mt={4}>
-      <Typography variant="h6" gutterBottom>
-        Recent Stops
-      </Typography>
-      <Stack
-        direction="row"
-        flexWrap="wrap"
-        rowGap={2} // Vertical spacing
-        columnGap={2} // Horizontal spacing
-      >
-        {recentStops.map(({ stopCode, stopName }) => (
-          <Chip
-            key={stopCode}
-            label={`${stopCode}: ${stopName}`}
-            onClick={goToStop(stopCode)}
-            sx={{ cursor: "pointer" }}
-          />
-        ))}
-      </Stack>
+  return (
+    <Box>
+      <Box mt={4}>
+        <Typography variant="h6" gutterBottom>
+          Recent Stops
+        </Typography>
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          rowGap={2} // Vertical spacing
+          columnGap={2} // Horizontal spacing
+        >
+          {recentStops.map(({ stopCode, stopName }) => (
+            <Chip
+              key={stopCode}
+              label={`${stopCode}: ${stopName}`}
+              onClick={goToStop(stopCode)}
+              sx={{ cursor: "pointer" }}
+            />
+          ))}
+        </Stack>
+      </Box>
     </Box>
-  </Box>);
+  );
 }

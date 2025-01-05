@@ -2,7 +2,7 @@ import { fixCapitalization } from "@/lib/capitalization";
 import { stopPredictions, topography } from "@/lib/conduent";
 import { readJSON, writeJSON } from "@/lib/file-utils";
 
-/** A record of directions by stopCode and lineName, designed to be JSON serialized. 
+/** A record of directions by stopCode and lineName, designed to be JSON serialized.
  *
  * For example:
  * {
@@ -18,10 +18,13 @@ type StopDestinations = Record<string, Record<string, boolean>>;
 type DestinationsByStopCode = Record<string, StopDestinations>;
 
 async function asyncWait(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function tryWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+async function tryWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3
+): Promise<T> {
   let retries = 0;
   while (true) {
     try {
@@ -53,13 +56,19 @@ const stopCodeOverrides: Record<string, string> = {
   // Preble St ext. + Marginal Way
   "423": "Preble St ext. + Marginal Way (Inbound)",
   "693": "Preble St ext. + Marginal Way (Outbound)",
-}
+};
 
 function flatDestinations(stopDestinations: StopDestinations): string[] {
-  return Object.keys(stopDestinations).flatMap(line => Object.keys(stopDestinations[line]));
+  return Object.keys(stopDestinations).flatMap((line) =>
+    Object.keys(stopDestinations[line])
+  );
 }
 
-function ruleBasedOverrides(stopName: string, stopCodes: [string, string], destinationsByStopCode: DestinationsByStopCode): Record<string, string> {
+function ruleBasedOverrides(
+  stopName: string,
+  stopCodes: [string, string],
+  destinationsByStopCode: DestinationsByStopCode
+): Record<string, string> {
   const [stopCodeA, stopCodeB] = stopCodes;
   const aDestinations = flatDestinations(destinationsByStopCode[stopCodeA]);
   const bDestinations = flatDestinations(destinationsByStopCode[stopCodeB]);
@@ -68,29 +77,36 @@ function ruleBasedOverrides(stopName: string, stopCodes: [string, string], desti
   //   that is Inbound and it's duplicate must be Outbound. We can't always use destinations because some require passing through
   //   the center of the city to get to so whether or not it is inbound or outbound will be effected by where the stop is. Because
   //   PULSE is the center we can safely use it.
-  if (aDestinations.includes('PULSE')) {
+  if (aDestinations.includes("PULSE")) {
     return {
       [stopCodeA]: `${stopName} (Inbound)`,
       [stopCodeB]: `${stopName} (Outbound)`,
-    }
+    };
   }
 
-  if (bDestinations.includes('PULSE')) {
+  if (bDestinations.includes("PULSE")) {
     return {
       [stopCodeA]: `${stopName} (Outbound)`,
       [stopCodeB]: `${stopName} (Inbound)`,
-    }
+    };
   }
 
   // If either stop only has one direction you can differentiate the names by adding the direction
   //   to the stop name. Even if the other stop serves multiple destinations it still disambiguates them.
-  if (aDestinations.length === 1 || bDestinations.length === 1) return {
-    [stopCodeA]: aDestinations.length === 1 ? `${stopName} ⇨ ${aDestinations[0]}` : stopName,
-    [stopCodeB]: bDestinations.length === 1 ? `${stopName} ⇨ ${bDestinations[0]}` : stopName,
-  };
+  if (aDestinations.length === 1 || bDestinations.length === 1)
+    return {
+      [stopCodeA]:
+        aDestinations.length === 1
+          ? `${stopName} ⇨ ${aDestinations[0]}`
+          : stopName,
+      [stopCodeB]:
+        bDestinations.length === 1
+          ? `${stopName} ⇨ ${bDestinations[0]}`
+          : stopName,
+    };
 
   // If we get here that means we need a stopCodeOverrides entry, print the data to help with that.
-  console.log("Ambiguous stop name:", stopName)
+  console.log("Ambiguous stop name:", stopName);
   for (const destination of aDestinations) {
     console.log("  A", stopCodeA, destination);
   }
@@ -101,7 +117,11 @@ function ruleBasedOverrides(stopName: string, stopCodes: [string, string], desti
   throw new Error(`Ambiguous stop name: ${stopName}`);
 }
 
-function nameOverrides(stopName: string, stopCodes: string[], destinationsByStopCode: DestinationsByStopCode): Record<string, string> {
+function nameOverrides(
+  stopName: string,
+  stopCodes: string[],
+  destinationsByStopCode: DestinationsByStopCode
+): Record<string, string> {
   // Some stops have the same name but serve buses going in different directions on different sides of the street
   //   We want to distinguish these by the destination, however some of these stops serve multiple destinations
   //   in which case we use Inbound/Outbound. We want to sometimes make the Inbound/Outbound distinction based on
@@ -110,16 +130,27 @@ function nameOverrides(stopName: string, stopCodes: string[], destinationsByStop
 
   if (stopCodes.length === 1) return {}; // No need to remap anything here
 
-
   // Stops that were not caught by the rules are manually disambiguated with stopCodeOverrides.
-  const nOverrides = stopCodes.filter(stopCode => stopCodeOverrides[stopCode]).length;
+  const nOverrides = stopCodes.filter(
+    (stopCode) => stopCodeOverrides[stopCode]
+  ).length;
   // If we have an override for every stop except one (one stop can keep it's original name), use them
-  if (nOverrides >= stopCodes.length - 1) return stopCodes.reduce((acc, stopCode) => ({ ...acc, [stopCode]: stopCodeOverrides[stopCode] }), {});
-
+  if (nOverrides >= stopCodes.length - 1)
+    return stopCodes.reduce(
+      (acc, stopCode) => ({ ...acc, [stopCode]: stopCodeOverrides[stopCode] }),
+      {}
+    );
 
   // The rules below can only handle pairs
-  if (stopCodes.length > 2) throw new Error(`Stop name '${stopName}' has more than two stop codes [${stopCodes.join(", ")}]`);
-  const overrides = ruleBasedOverrides(stopName, stopCodes as [string, string], destinationsByStopCode);
+  if (stopCodes.length > 2)
+    throw new Error(
+      `Stop name '${stopName}' has more than two stop codes [${stopCodes.join(", ")}]`
+    );
+  const overrides = ruleBasedOverrides(
+    stopName,
+    stopCodes as [string, string],
+    destinationsByStopCode
+  );
 
   // Fix capitalization of what comes out of the rules
   //   Overrides will not have their cases fixed downstream so we can use overrides to
@@ -141,20 +172,27 @@ async function main(refreshPredictions = false) {
   }
 
   // Persist this, we can only get predictions when there are buses around
-  const lineDirectionsByStopCode: DestinationsByStopCode = await readJSON("stop-predictions", {}, true);
+  const lineDirectionsByStopCode: DestinationsByStopCode = await readJSON(
+    "stop-predictions",
+    {},
+    true
+  );
   if (refreshPredictions) {
     for (const { idPointArret, stopCode } of topo.topo[0].pointArret) {
-      const prediction = await tryWithRetry(() => stopPredictions(idPointArret));
+      const prediction = await tryWithRetry(() =>
+        stopPredictions(idPointArret)
+      );
 
-      if (!lineDirectionsByStopCode[stopCode]) lineDirectionsByStopCode[stopCode] = {};
+      if (!lineDirectionsByStopCode[stopCode])
+        lineDirectionsByStopCode[stopCode] = {};
       for (const { idLigne, destination } of prediction.listeHoraires) {
-
         const lineName = linesById[idLigne];
         if (!lineName) continue;
 
-        if (!lineDirectionsByStopCode[stopCode][lineName]) lineDirectionsByStopCode[stopCode][lineName] = {};
+        if (!lineDirectionsByStopCode[stopCode][lineName])
+          lineDirectionsByStopCode[stopCode][lineName] = {};
         for (const { libelle } of destination) {
-          lineDirectionsByStopCode[stopCode][lineName][libelle] = true
+          lineDirectionsByStopCode[stopCode][lineName][libelle] = true;
         }
       }
     }
@@ -169,7 +207,10 @@ async function main(refreshPredictions = false) {
 
   const stopNameOverrides: Record<string, string> = {};
   for (const [stopName, stopCodes] of Object.entries(stopsByName)) {
-    Object.assign(stopNameOverrides, nameOverrides(stopName, stopCodes, lineDirectionsByStopCode));
+    Object.assign(
+      stopNameOverrides,
+      nameOverrides(stopName, stopCodes, lineDirectionsByStopCode)
+    );
   }
 
   await writeJSON("stop-name-overrides", stopNameOverrides);
