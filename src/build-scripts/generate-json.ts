@@ -8,6 +8,21 @@ import { readJSON, writeJSON } from "@/lib/file-utils";
 import { fixCapitalization } from "@/lib/capitalization";
 import { locationEquals } from "@/lib/utils";
 
+// Replace "OB" or "O/B" and "IB" or "I/B" with "(Outbound)" and "(Inbound)" respectively.
+//   In the stop names we disambiguate we use (Outbound) and (Inbound)
+//   We apply this to stops labeled by the API for consistency. These are applied here
+//   instead of in generate-stop-name-overrides because the overrides replace
+//   stop names entirely, mostly for purposes of disambiguation.
+//
+//   I feel it is clearer to new users to use the full word. The only
+//   reason not to would be to prevent stop names from getting too long but
+//   I think the clarity outweighs the length issue.
+function replaceDirectionalTerms(input: string): string {
+  return input
+    .replace(/\b(OB|O\/B)\b/g, "(Outbound)")
+    .replace(/\b(IB|I\/B)\b/g, "(Inbound)");
+}
+
 interface StaticData {
   stops: Record<string, StopData>;
 }
@@ -56,7 +71,7 @@ async function generateStaticData() {
     topoData.pointArret.map(async (stop) => {
       const stopName =
         stopNameOverrides[stop.stopCode] ||
-        fixCapitalization(stop.nomCommercial);
+        replaceDirectionalTerms(fixCapitalization(stop.nomCommercial));
 
       stops[stop.stopCode] = {
         stopId: stop.idPointArret,

@@ -9,6 +9,9 @@ const knownAcronyms = [
   "USM", // University of Southern Maine
   "MMC", // Maine Medical Center
   "JC", // JC Penney
+  "CBHS", // Casco Bay High School
+  "IB", // Inbound
+  "OB", // Outbound
 ];
 
 /**
