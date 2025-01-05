@@ -67,3 +67,10 @@ export function locationEquals(a: Location | undefined, b: Location): boolean {
   if (!a) return false;
   return a.lat === b.lat && a.lng === b.lng;
 }
+
+export function filterMap<T, R>(
+  arr: T[],
+  f: (t: T) => R | undefined | null
+): R[] {
+  return arr.map(f).filter((r): r is R => r !== undefined && r !== null);
+}

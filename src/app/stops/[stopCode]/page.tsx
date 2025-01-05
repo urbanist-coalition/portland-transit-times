@@ -7,6 +7,7 @@ import {
   predictionsByStopCode,
   stopByStopCode,
 } from "@/lib/actions";
+import { filterMap } from "@/lib/utils";
 import { Container, Typography, Box, Stack } from "@mui/material";
 
 export default async function StopsStopCodePage({
@@ -28,16 +29,17 @@ export default async function StopsStopCodePage({
         </Typography>
         {stop.lineIds && stop.lineIds.length > 0 && (
           <Stack direction="row" spacing={1} mb={2}>
-            {stop.lineIds.map((lineId) => {
-              const { lineName, lineColor } = lines[lineId];
-              return (
-                <LinePill
-                  key={lineId}
-                  lineName={lineName}
-                  lineColor={lineColor}
-                />
-              );
-            })}
+            {filterMap(stop.lineIds, (i) => lines[i])
+              .map(({ lineId, lineName, lineColor }) => {
+                return (
+                  <LinePill
+                    key={lineId}
+                    lineName={lineName}
+                    lineColor={lineColor}
+                  />
+                );
+              })
+              .filter(Boolean)}
           </Stack>
         )}
       </Box>

@@ -30,7 +30,7 @@ import { useStaticData } from "@/components/static-data-provider";
 import LinePill from "./line-pill";
 import Link from "next/link";
 import { Location, StopData } from "@/types";
-import { isTooLight, locationEquals } from "@/lib/utils";
+import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
 
 interface MapProps {
   location: Location | null;
@@ -223,8 +223,6 @@ export default function Map({ location, stopDistances }: MapProps) {
     14: [-1, 1],
   };
 
-  const iconSize = zoomIconSizes[zoom];
-
   const theme = useTheme();
   const baseMap =
     theme.palette.mode === "dark" ? "dark_all" : "rastertiles/voyager";
@@ -239,7 +237,10 @@ export default function Map({ location, stopDistances }: MapProps) {
   });
 
   const placeDivIcon = (stop: StopData) => {
-    const colors = stop.lineIds.map((lineId) => lines[lineId].lineColor);
+    const colors = filterMap(stop.lineIds, (i) => lines[i]).map(
+      ({ lineColor }) => lineColor
+    );
+    const iconSize = zoomIconSizes[zoom] || 10;
     const [skewX, skewY] = zoonSkew[zoom] || [0, 0];
 
     return L.divIcon({
@@ -300,16 +301,17 @@ export default function Map({ location, stopDistances }: MapProps) {
                     m={1}
                     justifyContent="center"
                   >
-                    {stop.lineIds.map((lineId) => {
-                      const { lineName, lineColor } = lines[lineId];
-                      return (
-                        <LinePill
-                          key={lineId}
-                          lineName={lineName}
-                          lineColor={lineColor}
-                        />
-                      );
-                    })}
+                    {filterMap(stop.lineIds, (i) => lines[i]).map(
+                      ({ lineId, lineName, lineColor }) => {
+                        return (
+                          <LinePill
+                            key={lineId}
+                            lineName={lineName}
+                            lineColor={lineColor}
+                          />
+                        );
+                      }
+                    )}
                   </Stack>
                 )}
                 <Link href={`/stops/${stop.stopCode}`} passHref>

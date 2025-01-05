@@ -63,6 +63,11 @@ export async function predictionsByStopCode(
   const predictions: Prediction[] = [];
   for (const ligneHoraire of schedule.listeHoraires) {
     const line = lines[String(ligneHoraire.idLigne)];
+    if (!line) {
+      console.warn(`No line data for line ${ligneHoraire.idLigne}`);
+      continue;
+    }
+
     for (const destination of ligneHoraire.destination) {
       for (const horaire of destination.horaires) {
         // From observing the API it seems that if this is set 0 the bus is not arriving

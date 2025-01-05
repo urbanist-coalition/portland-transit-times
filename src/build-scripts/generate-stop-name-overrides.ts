@@ -59,9 +59,14 @@ const stopCodeOverrides: Record<string, string> = {
 };
 
 function flatDestinations(stopDestinations: StopDestinations): string[] {
-  return Object.keys(stopDestinations).flatMap((line) =>
-    Object.keys(stopDestinations[line])
-  );
+  return Object.keys(stopDestinations).flatMap((line) => {
+    const destinations = stopDestinations[line];
+    if (destinations === undefined) {
+      throw new Error(`Missing destinations for line ${line}`);
+    }
+
+    return Object.keys(destinations);
+  });
 }
 
 function ruleBasedOverrides(
@@ -70,8 +75,18 @@ function ruleBasedOverrides(
   destinationsByStopCode: DestinationsByStopCode
 ): Record<string, string> {
   const [stopCodeA, stopCodeB] = stopCodes;
-  const aDestinations = flatDestinations(destinationsByStopCode[stopCodeA]);
-  const bDestinations = flatDestinations(destinationsByStopCode[stopCodeB]);
+
+  const aDestinationMap = destinationsByStopCode[stopCodeA];
+  if (!aDestinationMap) {
+    throw new Error(`Missing destinations for stop code ${stopCodeA}`);
+  }
+  const aDestinations = flatDestinations(aDestinationMap);
+
+  const bDestinationMap = destinationsByStopCode[stopCodeB];
+  if (!bDestinationMap) {
+    throw new Error(`Missing destinations for stop code ${stopCodeB}`);
+  }
+  const bDestinations = flatDestinations(bDestinationMap);
 
   // PULSE is the center of the universe, a lot of buses branch out from PULSE, if either stop serves a line with a destination of PULSE
   //   that is Inbound and it's duplicate must be Outbound. We can't always use destinations because some require passing through
