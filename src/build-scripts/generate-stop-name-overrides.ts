@@ -47,8 +47,8 @@ const stopCodeOverrides: Record<string, string> = {
   "183": "Congress & Weymouth (Outbound)",
   "184": "Congress & Weymouth (Inbound)",
   // Congress & Park
-  "167": "Congress & Park (Outbound)",
-  "168": "Congress & Park (Inbound)",
+  "167": "Congress & Park (Inbound)",
+  "168": "Congress & Park (Outbound)",
   // Congress & Forest
   //   This one is particularly confusing because 251 is Forest & Congress, around the corner
   "1054": "Congress & Forest (Inbound)",
