@@ -67,11 +67,11 @@ const CenterMeButton = ({
   }
 
   return (
-    <Tooltip title="Center on your location" placement="top-start">
+    <Tooltip title="Center on your location" placement="bottom-start">
       <IconButton
         sx={{
           position: "absolute",
-          bottom: 10,
+          top: 10,
           right: 10,
           // 400 is exactly the minimum needed to be above the map, found with manual binary search
           zIndex: 400,
@@ -222,15 +222,22 @@ export default function Map({ location, stopDistances }: MapProps) {
     13: [-2, 2],
     14: [-1, 1],
   };
+  const iconSize = zoomIconSizes[zoom] || 10;
+  const [skewX, skewY] = zoonSkew[zoom] || [0, 0];
 
   const theme = useTheme();
   const baseMap =
     theme.palette.mode === "dark" ? "dark_all" : "rastertiles/voyager";
   const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
 
-  const myLocationStyle = { fill: theme.palette.primary.main };
   const myLocationDivIcon = L.divIcon({
-    html: renderToString(<MyLocationIcon style={myLocationStyle} />),
+    html: renderToString(
+      <StopIcon
+        colors={[theme.palette.secondary.main]}
+        size={iconSize + 6}
+        outlineColor="white"
+      />
+    ),
     className: "", // this must be blank or the icons will be in white boxes
     iconSize: [18, 18],
     iconAnchor: [9, 9],
@@ -240,8 +247,6 @@ export default function Map({ location, stopDistances }: MapProps) {
     const colors = filterMap(stop.lineIds, (i) => lines[i]).map(
       ({ lineColor }) => lineColor
     );
-    const iconSize = zoomIconSizes[zoom] || 10;
-    const [skewX, skewY] = zoonSkew[zoom] || [0, 0];
 
     return L.divIcon({
       html: renderToString(
@@ -266,12 +271,27 @@ export default function Map({ location, stopDistances }: MapProps) {
       zoomControl={false}
       attributionControl={false}
     >
+      <Typography
+        zIndex={400}
+        position="absolute"
+        top={4}
+        m={1}
+        variant="h5"
+        p={0.5}
+        pr={1}
+        pl={1}
+        borderRadius={1}
+        sx={{
+          backgroundColor:
+            theme.palette.mode === "dark"
+              ? theme.palette.grey["600"]
+              : theme.palette.grey["300"],
+        }}
+      >
+        Select a Stop
+      </Typography>
       <TileLayer url={baseMapUrl} />
-      {location && (
-        <Marker position={location} icon={myLocationDivIcon}>
-          <Popup>Your Location</Popup>
-        </Marker>
-      )}
+      {location && <Marker position={location} icon={myLocationDivIcon} />}
       {zoom > 12 &&
         Object.values(stops).map((stop, i) => (
           <Marker
@@ -280,13 +300,13 @@ export default function Map({ location, stopDistances }: MapProps) {
             position={stop.location}
             icon={placeDivIcon(stop)}
           >
-            <Popup>
-              <Box style={{ textAlign: "center" }}>
+            <Popup closeButton={false}>
+              <Box sx={{ textAlign: "center" }}>
                 <Typography variant="h6" color="textPrimary">
                   {stop.stopName}
                 </Typography>
                 <Typography variant="caption" color="textPrimary">
-                  Code: {stop.stopCode}
+                  Stop Number: {stop.stopCode}
                 </Typography>
                 <br />
                 {stopDistances && stopDistances[i] && (

@@ -2,14 +2,12 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v13-appRouter";
 import "./globals.css";
-import { Box, Container, ThemeProvider, Typography } from "@mui/material";
+import { ThemeProvider } from "@mui/material";
 import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { StaticDataProvider } from "@/components/static-data-provider";
 import SpeedDial from "@/components/speed-dial";
 import { getAllLines, getAllStops } from "@/lib/actions";
-
-import MaterialLink from "@mui/material/Link";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -59,30 +57,6 @@ export default async function RootLayout({
           <ThemeProvider theme={theme}>
             <StaticDataProvider stops={stops} lines={lines}>
               {children}
-              <footer>
-                <Container maxWidth="sm" sx={{ pb: 4 }}>
-                  <Box textAlign="center">
-                    <Typography
-                      variant="caption"
-                      textAlign="center"
-                      component="div"
-                      mb={1}
-                    >
-                      Made with ❤️ by the{" "}
-                      <MaterialLink href="https://urbanistportland.me">
-                        Urbanist Coalition of Portland
-                      </MaterialLink>
-                      . Not affiliated with GPMetro.
-                    </Typography>
-                    <Box
-                      component="img"
-                      src="/UCP_logo.png"
-                      alt="UCP Logo"
-                      width={32}
-                    />
-                  </Box>
-                </Container>
-              </footer>
               <SpeedDial />
             </StaticDataProvider>
           </ThemeProvider>

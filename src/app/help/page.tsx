@@ -1,4 +1,5 @@
 import BackButton from "@/components/back-button";
+import Footer from "@/components/footer";
 import {
   Accordion,
   AccordionDetails,
@@ -112,6 +113,7 @@ export default function Help() {
           invaluable.
         </AccordionDetails>
       </Accordion>
+      <Footer />
     </Container>
   );
 }

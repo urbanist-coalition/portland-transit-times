@@ -2,6 +2,7 @@ import { Container, Typography, Box, Button } from "@mui/material";
 import NextLink from "next/link";
 import { RecentStops } from "@/components/recent-stops";
 import StopSearch from "@/components/stop-search";
+import Footer from "@/components/footer";
 
 export default function HomePage() {
   return (
@@ -32,6 +33,7 @@ export default function HomePage() {
 
       <StopSearch />
       <RecentStops />
+      <Footer />
     </Container>
   );
 }

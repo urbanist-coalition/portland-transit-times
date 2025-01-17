@@ -1,5 +1,6 @@
 import Arrivals from "@/components/arrivals";
 import BackButton from "@/components/back-button";
+import Footer from "@/components/footer";
 import LinePill from "@/components/line-pill";
 import { AddRecentStop } from "@/components/recent-stops";
 import {
@@ -45,6 +46,7 @@ export default async function StopsStopCodePage({
       </Box>
       <Arrivals stopCode={stopCode} arrivals={predictions} />
       <AddRecentStop stopCode={stopCode} stopName={stop.stopName} />
+      <Footer />
     </Container>
   );
 }

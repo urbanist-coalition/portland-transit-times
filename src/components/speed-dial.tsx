@@ -29,7 +29,7 @@ export default function TransitSpeedDial() {
       name: "Map",
       icon: <Map />,
       onClick: () => {
-        router.push("/map");
+        router.push("/by-location");
       },
     },
   ];
