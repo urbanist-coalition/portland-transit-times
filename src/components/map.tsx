@@ -329,11 +329,17 @@ export default function Map({ location, stopDistances }: MapProps) {
               key={lineId}
               positions={points}
               color="black"
-              weight={4}
+              weight={5}
             />
           ))}
       {Object.values(lines).map(({ lineId, points, lineColor }) => (
-        <Polyline key={lineId} positions={points} color={lineColor} />
+        <Polyline
+          key={lineId}
+          positions={points}
+          color={lineColor}
+          opacity={isTooLight(lineColor) ? 1 : 0.5}
+          weight={4}
+        />
       ))}
       <RecenterAutomatically location={location} />
       <CenterMeButton location={location} center={center} />
