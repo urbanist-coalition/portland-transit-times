@@ -1,22 +1,10 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v13-appRouter";
 import "./globals.css";
 import { ThemeProvider } from "@mui/material";
 import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import SpeedDial from "@/components/speed-dial";
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
 
 export const metadata: Metadata = {
   title: "UCP Transit Times",
@@ -47,7 +35,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="UCP Transit" />
         <link rel="manifest" href="/site.webmanifest" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
             {children}
