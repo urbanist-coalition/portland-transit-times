@@ -39,6 +39,5 @@ export async function getServiceAlerts(): Promise<ServiceAlert[]> {
     "https://gpmetro.org/RSSFeed.aspx?ModID=63&CID=All-0"
   );
 
-  console.log(feed.items.map((item) => validate(item)));
   return feed.items.filter((item) => validate(item));
 }

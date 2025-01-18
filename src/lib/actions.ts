@@ -1,7 +1,7 @@
 "use server";
 
 import { stopPredictions, vehicles } from "@/lib/conduent";
-import { LineData, StopData, VehicleData } from "@/types";
+import { VehicleData } from "@/types";
 
 import {
   startOfDay,
@@ -11,20 +11,8 @@ import {
   differenceInHours,
 } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
-import { readJSON } from "@/lib/file-utils";
 import { fixCapitalization } from "@/lib/capitalization";
-
-export async function getAllStops(): Promise<Record<string, StopData>> {
-  return readJSON("all-stops");
-}
-
-export async function getAllLines(): Promise<Record<string, LineData>> {
-  return readJSON("all-lines");
-}
-
-export async function stopByStopCode(stopCode: string): Promise<StopData> {
-  return readJSON(`stops/${stopCode}`);
-}
+import { allLines, allStops } from "@/constants";
 
 function toDate(secondsFromMidnight: number): Date {
   const timeZone = "America/New_York";
@@ -56,13 +44,17 @@ export interface Prediction {
 export async function predictionsByStopCode(
   stopCode: string
 ): Promise<Prediction[]> {
-  const stop = await stopByStopCode(stopCode);
+  const stop = allStops[stopCode];
+
+  if (!stop) {
+    throw new Error(`No stop found with code ${stopCode}`);
+  }
+
   const schedule = await stopPredictions(stop.stopId);
-  const lines = await getAllLines();
 
   const predictions: Prediction[] = [];
   for (const ligneHoraire of schedule.listeHoraires) {
-    const line = lines[String(ligneHoraire.idLigne)];
+    const line = allLines[String(ligneHoraire.idLigne)];
     if (!line) {
       console.warn(`No line data for line ${ligneHoraire.idLigne}`);
       continue;
@@ -93,8 +85,7 @@ export async function predictionsByStopCode(
 }
 
 export async function getVehicles(): Promise<VehicleData[]> {
-  const lines = await getAllLines();
-  const lineNames = Object.values(lines).map(({ lineName }) => lineName);
+  const lineNames = Object.values(allLines).map(({ lineName }) => lineName);
   return (await vehicles(lineNames)).vehicule.map(
     ({ id, localisation, conduite: { idLigne } }) => ({
       vehicleId: id,

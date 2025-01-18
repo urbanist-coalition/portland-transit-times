@@ -3,9 +3,9 @@
 import { StopData } from "@/types";
 import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useStaticData } from "@/components/static-data-provider";
 import { distance } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import { allStops } from "@/constants";
 
 type LocationInfo =
   | {
@@ -27,13 +27,12 @@ type LocationInfo =
 const DynamicMap = dynamic(() => import("@/components/map"), { ssr: false });
 
 export default function ByLocation() {
-  const { stops } = useStaticData();
   const [locationInfo, setLocationInfo] = useState<LocationInfo>({
     status: "fetching",
   });
 
   useEffect(() => {
-    const stopsArray = Object.values(stops);
+    const stopsArray = Object.values(allStops);
     function fetchLocation() {
       if (
         locationInfo.status === "error" &&
@@ -112,7 +111,7 @@ export default function ByLocation() {
     fetchLocation();
     const interval = setInterval(fetchLocation, 10000);
     return () => clearTimeout(interval);
-  }, [stops, locationInfo.status, locationInfo.message]);
+  }, [locationInfo.status, locationInfo.message]);
 
   const location =
     locationInfo.status === "loaded" ? locationInfo.location : null;

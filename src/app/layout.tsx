@@ -5,9 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@mui/material";
 import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
-import { StaticDataProvider } from "@/components/static-data-provider";
 import SpeedDial from "@/components/speed-dial";
-import { getAllLines, getAllStops } from "@/lib/actions";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -30,9 +28,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const stops = await getAllStops();
-  const lines = await getAllLines();
-
   return (
     <html lang="en">
       <head>
@@ -55,10 +50,8 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
-            <StaticDataProvider stops={stops} lines={lines}>
-              {children}
-              <SpeedDial />
-            </StaticDataProvider>
+            {children}
+            <SpeedDial />
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

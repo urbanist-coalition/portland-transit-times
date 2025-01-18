@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 
 function absolutePath(name: string, persistent = false): string {
-  if (persistent) return path.join(process.cwd(), "public/data", name);
-  return path.join(process.cwd(), "public/_data", name);
+  if (persistent) return path.join(process.cwd(), "src/data", name);
+  return path.join(process.cwd(), "src/_data", name);
 }
 
 function exists(pathname: string): Promise<boolean> {

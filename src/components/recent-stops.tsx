@@ -1,10 +1,10 @@
 "use client";
 
+import { allStops } from "@/constants";
 import { StopData } from "@/types";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useStaticData } from "@/components/static-data-provider";
 
 interface StopCode {
   stopCode: string;
@@ -46,11 +46,10 @@ export function AddRecentStop({
 
 export function RecentStops() {
   const router = useRouter();
-  const { stops } = useStaticData();
   const [recentStops, setRecentStops] = useState<StopData[]>([]);
   useEffect(() => {
-    setRecentStops(getRecentStops(stops));
-  }, [stops]);
+    setRecentStops(getRecentStops(allStops));
+  }, []);
 
   function goToStop(stopCode: string) {
     return () => {

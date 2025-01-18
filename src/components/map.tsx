@@ -26,13 +26,13 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { renderToString } from "react-dom/server";
-import { useStaticData } from "@/components/static-data-provider";
-import LinePill from "./line-pill";
+import LinePill from "@/components/line-pill";
 import Link from "next/link";
 import { Location, StopData, VehicleData } from "@/types";
 import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
 import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
+import { allLines, allStops } from "@/constants";
 
 interface MapProps {
   location: Location | null;
@@ -200,7 +200,6 @@ function StopIcon({
 }
 
 export default function Map({ location, stopDistances }: MapProps) {
-  const { stops, lines } = useStaticData();
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
   const [vehicles, setVehicles] = useState<VehicleData[]>([]);
@@ -254,7 +253,7 @@ export default function Map({ location, stopDistances }: MapProps) {
   });
 
   const placeDivIcon = (stop: StopData) => {
-    const colors = filterMap(stop.lineIds, (i) => lines[i]).map(
+    const colors = filterMap(stop.lineIds, (i) => allLines[i]).map(
       ({ lineColor }) => lineColor
     );
 
@@ -272,7 +271,7 @@ export default function Map({ location, stopDistances }: MapProps) {
   };
 
   const vehicleIcon = (lineId: number) => {
-    const line = lines[lineId];
+    const line = allLines[lineId];
 
     return L.divIcon({
       // Wrap the bus icon in a styled div (circle) for the outline and background
@@ -344,7 +343,7 @@ export default function Map({ location, stopDistances }: MapProps) {
       ))}
       {location && <Marker position={location} icon={myLocationDivIcon} />}
       {zoom > 12 &&
-        Object.values(stops).map((stop, i) => (
+        Object.values(allStops).map((stop, i) => (
           <Marker
             riseOnHover={true}
             key={stop.stopCode}
@@ -372,7 +371,7 @@ export default function Map({ location, stopDistances }: MapProps) {
                     m={1}
                     justifyContent="center"
                   >
-                    {filterMap(stop.lineIds, (i) => lines[i]).map(
+                    {filterMap(stop.lineIds, (i) => allLines[i]).map(
                       ({ lineId, lineName, lineColor }) => {
                         return (
                           <LinePill
@@ -393,7 +392,7 @@ export default function Map({ location, stopDistances }: MapProps) {
           </Marker>
         ))}
       {theme.palette.mode === "light" &&
-        Object.values(lines)
+        Object.values(allLines)
           .filter(({ lineColor }) => isTooLight(lineColor))
           .map(({ lineId, points }) => (
             <Polyline
@@ -403,7 +402,7 @@ export default function Map({ location, stopDistances }: MapProps) {
               weight={5}
             />
           ))}
-      {Object.values(lines).map(({ lineId, points, lineColor }) => (
+      {Object.values(allLines).map(({ lineId, points, lineColor }) => (
         <Polyline
           key={lineId}
           positions={points}
