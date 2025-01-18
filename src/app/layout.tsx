@@ -5,6 +5,7 @@ import { ThemeProvider } from "@mui/material";
 import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import SpeedDial from "@/components/speed-dial";
+import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 
 export const metadata: Metadata = {
   title: "UCP Transit Times",
@@ -17,7 +18,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link
           rel="icon"
@@ -38,6 +39,7 @@ export default async function RootLayout({
       <body>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
+            <InitColorSchemeScript attribute="class" />
             {children}
             <SpeedDial />
           </ThemeProvider>

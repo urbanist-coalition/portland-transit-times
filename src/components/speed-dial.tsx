@@ -1,7 +1,13 @@
 "use client";
 
-import { SpeedDial, SpeedDialAction, SpeedDialIcon } from "@mui/material";
-import { Help, Home, Map } from "@mui/icons-material";
+import {
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon,
+  useColorScheme,
+  useMediaQuery,
+} from "@mui/material";
+import { DarkMode, Help, Home, LightMode, Map } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -33,6 +39,39 @@ export default function TransitSpeedDial() {
       },
     },
   ];
+
+  const { mode, systemMode, setMode } = useColorScheme();
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
+
+  const currentMode = mode === "system" ? systemMode : mode;
+
+  if (currentMode === "light") {
+    actions.push({
+      name: "Dark",
+      icon: <DarkMode />,
+      onClick: () => {
+        if (systemMode === "dark" || prefersDark) {
+          setMode("system");
+        } else {
+          setMode("dark");
+        }
+      },
+    });
+  }
+
+  if (currentMode === "dark") {
+    actions.push({
+      name: "Light",
+      icon: <LightMode />,
+      onClick: () => {
+        if (systemMode === "light" || !prefersDark) {
+          setMode("system");
+        } else {
+          setMode("light");
+        }
+      },
+    });
+  }
 
   useEffect(() => {
     setIsTouch("ontouchstart" in window);

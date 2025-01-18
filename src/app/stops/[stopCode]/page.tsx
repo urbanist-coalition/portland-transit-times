@@ -22,7 +22,7 @@ export default async function StopsStopCodePage({
         <Typography variant="h4" component="h1" gutterBottom>
           Stop Not Found
         </Typography>
-        <Typography variant="body1" gutterBottom>
+        <Typography variant="body1" gutterBottom color="textPrimary">
           We couldn{"'"}t find a stop with the code {stopCode}. Please try
           again.
         </Typography>
@@ -37,7 +37,12 @@ export default async function StopsStopCodePage({
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Box mb={2}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography
+          variant="h4"
+          component="h1"
+          gutterBottom
+          color="textPrimary"
+        >
           <BackButton />
           {stop.stopName}
           <SaveStop stopCode={stopCode} />
