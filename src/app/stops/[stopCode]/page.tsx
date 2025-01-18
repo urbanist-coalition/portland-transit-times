@@ -2,7 +2,7 @@ import Arrivals from "@/components/arrivals";
 import BackButton from "@/components/back-button";
 import Footer from "@/components/footer";
 import LinePill from "@/components/line-pill";
-import { AddRecentStop } from "@/components/recent-stops";
+import { AddRecentStop, SaveStop } from "@/components/quick-stops";
 import { allLines, allStops } from "@/constants";
 import { predictionsByStopCode } from "@/lib/actions";
 import { filterMap } from "@/lib/utils";
@@ -40,6 +40,7 @@ export default async function StopsStopCodePage({
         <Typography variant="h4" component="h1" gutterBottom>
           <BackButton />
           {stop.stopName}
+          <SaveStop stopCode={stopCode} />
         </Typography>
         {stop.lineIds && stop.lineIds.length > 0 && (
           <Stack direction="row" spacing={1} mb={2}>
@@ -58,7 +59,7 @@ export default async function StopsStopCodePage({
         )}
       </Box>
       <Arrivals stopCode={stopCode} arrivals={predictions} />
-      <AddRecentStop stopCode={stopCode} stopName={stop.stopName} />
+      <AddRecentStop stopCode={stopCode} />
       <Footer />
     </Container>
   );

@@ -1,6 +1,6 @@
 import { Container, Typography, Box, Button } from "@mui/material";
 import NextLink from "next/link";
-import { RecentStops } from "@/components/recent-stops";
+import { QuickStops } from "@/components/quick-stops";
 import StopSearch from "@/components/stop-search";
 import Footer from "@/components/footer";
 import { getServiceAlerts } from "@/lib/service-alerts";
@@ -37,7 +37,7 @@ export default async function HomePage() {
       </Box>
 
       <StopSearch />
-      <RecentStops />
+      <QuickStops />
       <Footer />
     </Container>
   );
