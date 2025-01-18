@@ -1,5 +1,6 @@
 import { ServiceAlert } from "@/types";
 import Ajv, { JSONSchemaType } from "ajv";
+import addFormats from "ajv-formats";
 import Parser from "rss-parser";
 
 const parser: Parser<object, object> = new Parser();
@@ -19,7 +20,7 @@ const serviceAlertSchema: JSONSchemaType<ServiceAlert> = {
       type: "object",
       properties: {
         url: { type: "string", nullable: false },
-        length: { type: "number", nullable: true },
+        length: { type: "string", nullable: true },
         type: { type: "string", nullable: true },
       },
       nullable: true,
@@ -28,7 +29,9 @@ const serviceAlertSchema: JSONSchemaType<ServiceAlert> = {
   },
   required: ["title", "content", "isoDate"],
 };
+
 const ajv = new Ajv();
+addFormats(ajv);
 const validate = ajv.compile(serviceAlertSchema);
 
 export async function getServiceAlerts(): Promise<ServiceAlert[]> {
@@ -36,5 +39,6 @@ export async function getServiceAlerts(): Promise<ServiceAlert[]> {
     "https://gpmetro.org/RSSFeed.aspx?ModID=63&CID=All-0"
   );
 
+  console.log(feed.items.map((item) => validate(item)));
   return feed.items.filter((item) => validate(item));
 }

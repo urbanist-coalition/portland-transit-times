@@ -3,13 +3,18 @@ import NextLink from "next/link";
 import { RecentStops } from "@/components/recent-stops";
 import StopSearch from "@/components/stop-search";
 import Footer from "@/components/footer";
+import { getServiceAlerts } from "@/lib/service-alerts";
+import ServiceAlerts from "@/components/service-alerts";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const serviceAlerts = await getServiceAlerts();
+
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
         Portland, ME Transit
       </Typography>
+      <ServiceAlerts serviceAlerts={serviceAlerts} />
       <Typography variant="body1" gutterBottom>
         Find your stop to keep up to date with <strong>real time</strong>{" "}
         arrivals!

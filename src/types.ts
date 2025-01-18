@@ -30,7 +30,8 @@ export interface ServiceAlert {
   isoDate: string;
   enclosure?: {
     url: string;
-    length?: number;
+    // rss-parser's type has this as a number but it is returning a string
+    length?: string;
     type?: string;
   };
 }
