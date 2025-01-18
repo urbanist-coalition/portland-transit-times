@@ -183,7 +183,7 @@ export default function Arrivals({
     });
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ pt: 2, pb: 2 }}>
       {arrivals.length === 0 && (
         <Typography variant="h6" align="center" gutterBottom>
           No upcoming arrivals
@@ -208,7 +208,7 @@ export default function Arrivals({
         <Link href="/" passHref>
           <Button variant="outlined">Switch Stops</Button>
         </Link>
-        <Box textAlign="left">
+        <Box textAlign="left" mt={2}>
           <Typography mt={2} variant="h6" gutterBottom>
             Tired of waiting?
           </Typography>
