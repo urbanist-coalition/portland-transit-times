@@ -99,7 +99,7 @@ async function main() {
     writeJSON("src/_data/all-lines.json", lines),
     // Must be public because github actions uses this to check
     //   if the live app is out of date and needs a rebuild
-    writeJSON("public/_data/data-hash", { hash }),
+    writeJSON("public/_data/data-hash.json", { hash }),
   ]);
   console.log(hash);
 }
