@@ -29,8 +29,10 @@ import { renderToString } from "react-dom/server";
 import { useStaticData } from "@/components/static-data-provider";
 import LinePill from "./line-pill";
 import Link from "next/link";
-import { Location, StopData } from "@/types";
+import { Location, StopData, VehicleData } from "@/types";
 import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
+import { getVehicles } from "@/lib/actions";
+import { DirectionsBus } from "@mui/icons-material";
 
 interface MapProps {
   location: Location | null;
@@ -201,6 +203,16 @@ export default function Map({ location, stopDistances }: MapProps) {
   const { stops, lines } = useStaticData();
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
+  const [vehicles, setVehicles] = useState<VehicleData[]>([]);
+
+  useEffect(() => {
+    function updateVehicles() {
+      getVehicles().then(setVehicles);
+    }
+    updateVehicles();
+    const interval = setInterval(updateVehicles, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const zoomIconSizes: Record<number, number> = {
     13: 10,
@@ -239,8 +251,6 @@ export default function Map({ location, stopDistances }: MapProps) {
       />
     ),
     className: "", // this must be blank or the icons will be in white boxes
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
   });
 
   const placeDivIcon = (stop: StopData) => {
@@ -257,8 +267,39 @@ export default function Map({ location, stopDistances }: MapProps) {
         />
       ),
       className: "", // this must be blank or the icons will be in white boxes
-      iconSize: [iconSize, iconSize],
       iconAnchor: [iconSize / 2 + skewX, iconSize / 2 + skewY],
+    });
+  };
+
+  const vehicleIcon = (lineId: number) => {
+    const line = lines[lineId];
+
+    return L.divIcon({
+      // Wrap the bus icon in a styled div (circle) for the outline and background
+      html: renderToString(
+        <Box
+          style={{
+            background: "white",
+            border: "1px solid black",
+            borderRadius: "50%",
+            width: iconSize + 4, // Adjust to taste
+            height: iconSize + 4,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <DirectionsBus
+            style={{
+              stroke: "black",
+              fill: line?.lineColor || "black",
+              width: iconSize,
+              height: iconSize,
+            }}
+          />
+        </Box>
+      ),
+      className: "", // Important for a transparent background in Leaflet
     });
   };
 
@@ -291,6 +332,16 @@ export default function Map({ location, stopDistances }: MapProps) {
         Select a Stop
       </Typography>
       <TileLayer url={baseMapUrl} />
+      {vehicles.map(({ vehicleId, lineId, location }) => (
+        <Marker
+          key={vehicleId}
+          position={location}
+          icon={vehicleIcon(lineId)}
+          // This looks a bit weird but it is better for the buses to be behind the stops
+          //   so stops don't get hidden. -5 isn't enough but -10 seems to work
+          zIndexOffset={-10}
+        />
+      ))}
       {location && <Marker position={location} icon={myLocationDivIcon} />}
       {zoom > 12 &&
         Object.values(stops).map((stop, i) => (

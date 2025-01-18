@@ -2,11 +2,24 @@ import Ajv, { JSONSchemaType } from "ajv";
 
 async function conduentFetch<T>(
   path: string,
-  schema: JSONSchemaType<T>
+  schema: JSONSchemaType<T>,
+  queryParams: Record<string, unknown> = {}
 ): Promise<T> {
   const baseUrl = "https://swiv.gptd.cadavl.com/SWIV/GPTD/proxy/restWS";
   const now = Date.now();
-  const response = await fetch(`${baseUrl}/${path}?_tmp=${now}`, {
+
+  const url = new URL(`${baseUrl}/${path}`);
+
+  // Conduent API requires a "_tmp" query parameter with the current timestamp
+  url.searchParams.set("_tmp", now.toString());
+
+  for (const [key, value] of Object.entries(queryParams)) {
+    if (value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  const response = await fetch(url.toString(), {
     credentials: "omit",
     headers: {
       "User-Agent":
@@ -28,14 +41,17 @@ async function conduentFetch<T>(
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
+  // 5) Validate the JSON response against the provided schema
   const data = await response.json();
   const ajv = new Ajv();
   const validate = ajv.compile(schema);
   const valid = validate(data);
   if (!valid) {
+    console.error(JSON.stringify(data, null, 2));
     console.error(validate.errors);
     throw new Error("Invalid data");
   }
+
   return data;
 }
 
@@ -340,4 +356,102 @@ const schema: JSONSchemaType<TopographyResponse> = {
 
 export async function topography(): Promise<TopographyResponse> {
   return conduentFetch("topo", schema);
+}
+
+interface Conduite {
+  idLigne: number; // Line ID
+  vitesse: number; // Speed
+  destination: string; // Destination
+  avanceRetard: string; // Early or late in human-readable format e.g. "3 min early", "on time", "33 min late"
+  arretSuiv?: {
+    nomCommercial: string; // Stop name
+    estimationTemps: number; // e.g. 0
+  }; // next stop
+}
+
+/** Interface for each item in the 'vehicule' array. */
+interface VehiculeItem {
+  localisation: Location;
+  conduite: Conduite;
+  id: number; // Vehicle ID
+  vehiculeLoad: string; // Occupancy as a percentage e.g. "8%"
+  type: "Bus"; // Vehicle type e.g. "Bus"
+  numeroEquipement: string; // Equipment number of bus (probably for use by the agency) e.g. "2033"
+}
+
+interface VehiclesResponse {
+  vehicule: VehiculeItem[];
+}
+
+const vehiclesResponseSchema: JSONSchemaType<VehiclesResponse> = {
+  $schema: "http://json-schema.org/draft-07/schema#",
+  type: "object",
+  properties: {
+    vehicule: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          localisation: locationSchema,
+          conduite: {
+            type: "object",
+            properties: {
+              idLigne: { type: "number" },
+              vitesse: { type: "number" },
+              destination: { type: "string" },
+              avanceRetard: { type: "string" },
+              arretSuiv: {
+                type: "object",
+                properties: {
+                  nomCommercial: { type: "string" },
+                  estimationTemps: { type: "number" },
+                },
+                required: ["nomCommercial", "estimationTemps"],
+                additionalProperties: false,
+                nullable: true,
+              },
+            },
+            required: ["idLigne", "vitesse", "destination", "avanceRetard"],
+            additionalProperties: false,
+          },
+          id: { type: "number" },
+          vehiculeLoad: { type: "string" },
+          type: { type: "string" },
+          numeroEquipement: { type: "string" },
+        },
+        required: [
+          "localisation",
+          "conduite",
+          "id",
+          "vehiculeLoad",
+          "type",
+          "numeroEquipement",
+        ],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["vehicule"],
+  additionalProperties: false,
+};
+
+// When requesting vehicle data conduent wants a base64-encoded string of the bus lines to grab them for
+// The raw string looks like "GPTD:1___GPTD:2___GPTD:9A" and then base64 encoded with no padding
+export function encodeLignesParam(linesNames: string[]): string {
+  const combined = linesNames
+    .map((lineName) => `GPTD:${lineName}`) // "GPTD:1","GPTD:2","GPTD:9A", etc.
+    .join("___"); // "GPTD:1___GPTD:2___GPTD:9A"
+
+  // Convert to Base64 (and remove any trailing '=' padding)
+  const base64 = Buffer.from(combined, "utf-8")
+    .toString("base64")
+    .replace(/=+$/, "");
+
+  // Example final result: "R1BURDoxX19fR1BURDoyX19fR1BURDo5QQ"
+  return base64;
+}
+
+export async function vehicles(lineNames: string[]): Promise<VehiclesResponse> {
+  const lignes = encodeLignesParam(lineNames);
+  return conduentFetch("topo/vehicules", vehiclesResponseSchema, { lignes });
 }

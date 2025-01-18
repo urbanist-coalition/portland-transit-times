@@ -19,6 +19,12 @@ export interface StopData {
   lineIds: number[];
 }
 
+export interface VehicleData {
+  vehicleId: number;
+  lineId: number;
+  location: Location;
+}
+
 // Based on the item type from rss-parser but with mandatory title, content, and isoDate
 export interface ServiceAlert {
   title: string;

@@ -1,7 +1,7 @@
 "use server";
 
-import { stopPredictions } from "@/lib/conduent";
-import { LineData, StopData } from "@/types";
+import { stopPredictions, vehicles } from "@/lib/conduent";
+import { LineData, StopData, VehicleData } from "@/types";
 
 import {
   startOfDay,
@@ -90,4 +90,16 @@ export async function predictionsByStopCode(
     compareAsc(a, b)
   );
   return predictions;
+}
+
+export async function getVehicles(): Promise<VehicleData[]> {
+  const lines = await getAllLines();
+  const lineNames = Object.values(lines).map(({ lineName }) => lineName);
+  return (await vehicles(lineNames)).vehicule.map(
+    ({ id, localisation, conduite: { idLigne } }) => ({
+      vehicleId: id,
+      lineId: idLigne,
+      location: localisation,
+    })
+  );
 }
