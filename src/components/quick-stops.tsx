@@ -78,7 +78,7 @@ export function QuickStopsProvider({
     //   This will trigger useEffect again but we are guarunteed to have at least one stop
     //   so the first if will return on the second call.
     setSavedStops(legacySavedStops);
-    setSavedStops(legacyRecentStops);
+    setRecentStops(legacyRecentStops);
   }, [savedStops, recentStops]);
 
   useEffect(() => {
