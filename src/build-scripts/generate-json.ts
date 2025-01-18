@@ -17,9 +17,14 @@ import { locationEquals } from "@/lib/utils";
 //   reason not to would be to prevent stop names from getting too long but
 //   I think the clarity outweighs the length issue.
 function replaceDirectionalTerms(input: string): string {
-  return input
-    .replace(/\b(OB|O\/B)\b/g, "(Outbound)")
-    .replace(/\b(IB|I\/B)\b/g, "(Inbound)");
+  return (
+    input
+      .replace(/\b(OB|O\/B)\b/g, "(Outbound)")
+      .replace(/\b(IB|I\/B)\b/g, "(Inbound)")
+      // Replace "Outbound" and "Inbound" not already in parentheses
+      .replace(/\bOutbound\b(?!\s*\))/g, "(Outbound)")
+      .replace(/\bInbound\b(?!\s*\))/g, "(Inbound)")
+  );
 }
 
 interface StaticData {
