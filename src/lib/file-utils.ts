@@ -3,9 +3,8 @@
 import fs from "fs";
 import path from "path";
 
-function absolutePath(name: string, persistent = false): string {
-  if (persistent) return path.join(process.cwd(), "src/data", name);
-  return path.join(process.cwd(), "src/_data", name);
+function absolutePath(name: string): string {
+  return path.join(process.cwd(), name);
 }
 
 function exists(pathname: string): Promise<boolean> {
@@ -29,12 +28,8 @@ async function mkdirIfNotExists(pathname: string): Promise<string> {
   return pathname;
 }
 
-export async function writeJSON(
-  name: string,
-  data: object,
-  persistent = false
-): Promise<void> {
-  const pathname = absolutePath(`${name}.json`, persistent);
+export async function writeJSON(name: string, data: object): Promise<void> {
+  const pathname = absolutePath(name);
   await mkdirIfNotExists(path.dirname(pathname));
   await new Promise<void>((resolve, reject) => {
     fs.writeFile(pathname, JSON.stringify(data, null, 2), (err) => {
@@ -46,10 +41,9 @@ export async function writeJSON(
 
 export async function readJSON<T>(
   name: string,
-  defaultValue: T | undefined = undefined,
-  persistent = false
+  defaultValue: T | undefined = undefined
 ): Promise<T> {
-  const pathname = absolutePath(`${name}.json`, persistent);
+  const pathname = absolutePath(name);
   if (!(await exists(pathname))) {
     if (defaultValue === undefined)
       throw new Error(`File not found: ${pathname}`);

@@ -188,9 +188,8 @@ async function main(refreshPredictions = false) {
 
   // Persist this, we can only get predictions when there are buses around
   const lineDirectionsByStopCode: DestinationsByStopCode = await readJSON(
-    "stop-predictions",
-    {},
-    true
+    "data/stop-predictions.json",
+    {}
   );
   if (refreshPredictions) {
     for (const { idPointArret, stopCode } of topo.topo[0].pointArret) {
@@ -211,7 +210,7 @@ async function main(refreshPredictions = false) {
         }
       }
     }
-    writeJSON("stop-predictions", lineDirectionsByStopCode, true);
+    writeJSON("data/stop-predictions.json", lineDirectionsByStopCode);
   }
 
   const stopsByName: Record<string, string[]> = {};
@@ -228,7 +227,7 @@ async function main(refreshPredictions = false) {
     );
   }
 
-  await writeJSON("stop-name-overrides", stopNameOverrides);
+  await writeJSON("src/_data/stop-name-overrides.json", stopNameOverrides);
 }
 
 main(process.argv[2] === "--refresh").catch(console.error);

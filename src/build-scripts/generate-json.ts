@@ -1,4 +1,3 @@
-import path from "path";
 import crypto from "crypto";
 import stringify from "json-stable-stringify";
 
@@ -40,7 +39,7 @@ async function generateStaticData() {
   const topoData = data.topo[0];
 
   const stopNameOverrides: Record<string, string> = await readJSON(
-    "stop-name-overrides",
+    "src/_data/stop-name-overrides.json",
     {}
   );
 
@@ -95,14 +94,12 @@ async function main() {
   const { stops, lines } = data;
   const hash = computeDataHash(data);
   await Promise.all([
-    writeJSON("all-stops", stops),
-    Promise.all(
-      Object.entries(data.stops).map(([stopCode, stopData]) =>
-        writeJSON(path.join("stops", stopCode), stopData)
-      )
-    ),
-    writeJSON("all-lines", lines),
-    writeJSON("data-hash", { hash }),
+    // Must be in src so we can import
+    writeJSON("src/_data/all-stops.json", stops),
+    writeJSON("src/_data/all-lines.json", lines),
+    // Must be public because github actions uses this to check
+    //   if the live app is out of date and needs a rebuild
+    writeJSON("public/_data/data-hash", { hash }),
   ]);
   console.log(hash);
 }
