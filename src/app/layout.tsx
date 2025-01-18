@@ -6,6 +6,8 @@ import { theme } from "@/theme";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import SpeedDial from "@/components/speed-dial";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
+import { QuickStopsProvider } from "@/components/quick-stops";
+import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
   title: "UCP Transit Times",
@@ -17,6 +19,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const savedStops: string[] = JSON.parse(
+    cookieStore.get("savedStops")?.value || "[]"
+  );
+  const recentStops: string[] = JSON.parse(
+    cookieStore.get("recentStops")?.value || "[]"
+  );
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -39,9 +49,14 @@ export default async function RootLayout({
       <body>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
-            <InitColorSchemeScript attribute="class" />
-            {children}
-            <SpeedDial />
+            <QuickStopsProvider
+              savedStops={savedStops}
+              recentStops={recentStops}
+            >
+              <InitColorSchemeScript attribute="class" />
+              {children}
+              <SpeedDial />
+            </QuickStopsProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

@@ -1,11 +1,26 @@
 "use client";
 
+/**
+ * @file This file implements a cookie-based feature for user-saved stops and saving recent stops.
+ * Cookies are used so we can server side render components with information about saved stops.
+ * For example, the Quick Stop selector will have stops immediately on the first render, instead
+ * of having the page render and saved stops populating later. Also, the saved stop star will be
+ * properly filled in on the first render instead of possibly flashing empty before filling in.
+ *
+ * The way this works is implementing a single context that takes in the saved stops, and reacts to
+ * any changes to saved stops and stores them in a cookie. In src/app/layout.tsx, we use can load
+ * the cookies, pass them into the context, and wrap our app in this context. This means that we
+ * can use components with awareness of saved stops on the first render anywhere in the app.
+ */
+
 import { allStops } from "@/constants";
 import { StopData } from "@/types";
 import { History, Star, StarOutline } from "@mui/icons-material";
 import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+
+import { createContext, useContext } from "react";
 
 const MAX_QUICK_STOPS = 10;
 
@@ -13,93 +28,153 @@ interface StopCode {
   stopCode: string;
 }
 
-function toStopData(stopCodes: StopCode[]): StopData[] {
+interface QuickStopsContextValue {
+  savedStops: string[];
+  setSavedStops: Dispatch<SetStateAction<string[]>>;
+  recentStops: string[];
+  setRecentStops: Dispatch<SetStateAction<string[]>>;
+}
+
+const QuickStopsContext = createContext<QuickStopsContextValue>({
+  savedStops: [],
+  setSavedStops: () => {},
+  recentStops: [],
+  setRecentStops: () => {},
+});
+
+interface QuickStopsProviderProps {
+  children: React.ReactNode;
+  savedStops: string[];
+  recentStops: string[];
+}
+
+export function QuickStopsProvider({
+  children,
+  savedStops: initialSavedStops,
+  recentStops: initialRecentStops,
+}: QuickStopsProviderProps) {
+  const [savedStops, setSavedStops] = useState(initialSavedStops);
+  const [recentStops, setRecentStops] = useState(initialRecentStops);
+
+  // Migrate legacy saved and recent stops from localStorage
+  useEffect(() => {
+    // If we already have some saved and recent stops, do nothing
+    if (savedStops.length > 0 || recentStops.length > 0) return;
+
+    // Load from localStorage and extract stopCode
+    const legacySavedStops = JSON.parse(
+      window.localStorage.getItem("savedStops") || "[]"
+    ).map(({ stopCode }: StopCode) => stopCode);
+
+    const legacyRecentStops = JSON.parse(
+      window.localStorage.getItem("recentStops") || "[]"
+    ).map(({ stopCode }: StopCode) => stopCode);
+
+    // If we have no legacy stops, do nothing
+    //   This won't update savedStops or recentStops so it won't fire twice
+    if (legacySavedStops.length === 0 && legacyRecentStops.length === 0) return;
+
+    // Otherwise, set the saved and recent
+    //   This will trigger useEffect again but we are guarunteed to have at least one stop
+    //   so the first if will return on the second call.
+    setSavedStops(legacySavedStops);
+    setSavedStops(legacyRecentStops);
+  }, [savedStops, recentStops]);
+
+  useEffect(() => {
+    document.cookie = `savedStops=${JSON.stringify(savedStops)}; path=/; SameSite=Strict`;
+  }, [savedStops]);
+
+  useEffect(() => {
+    document.cookie = `recentStops=${JSON.stringify(recentStops)}; path=/; SameSite=Strict`;
+  }, [recentStops]);
+
+  return (
+    <QuickStopsContext.Provider
+      value={{
+        savedStops,
+        setSavedStops,
+        recentStops,
+        setRecentStops,
+      }}
+    >
+      {children}
+    </QuickStopsContext.Provider>
+  );
+}
+
+export function useQuickStops() {
+  return useContext(QuickStopsContext);
+}
+
+function toStopData(stopCodes: string[]): StopData[] {
   return stopCodes
-    .map(({ stopCode }) => allStops[stopCode])
+    .map((stopCode) => allStops[stopCode])
     .filter((stop): stop is StopData => Boolean(stop));
 }
 
-function getRecentStopCodes(): StopCode[] {
-  return JSON.parse(window.localStorage.getItem("recentStops") || "[]");
-}
-
-function addRecentStop(stopCode: string) {
-  const recentStops = [
-    { stopCode },
-    ...getRecentStopCodes().filter((stop) => stop.stopCode !== stopCode),
-  ];
-  window.localStorage.setItem(
-    "recentStops",
-    JSON.stringify(recentStops.slice(0, MAX_QUICK_STOPS))
-  );
-}
-
-function getSavedStopCodes(): StopCode[] {
-  return JSON.parse(window.localStorage.getItem("savedStops") || "[]");
-}
-
-function addSavedStop(stopCode: string) {
-  const savedStops = [
-    { stopCode },
-    ...getSavedStopCodes().filter((stop) => stop.stopCode !== stopCode),
-  ];
-  window.localStorage.setItem("savedStops", JSON.stringify(savedStops));
-}
-
-function removeSavedStop(stopCode: string) {
-  const savedStops = getSavedStopCodes().filter(
-    (stop) => stop.stopCode !== stopCode
-  );
-  window.localStorage.setItem("savedStops", JSON.stringify(savedStops));
-}
-
 export function AddRecentStop({ stopCode }: StopCode) {
+  const { savedStops, setRecentStops } = useQuickStops();
   useEffect(() => {
-    addRecentStop(stopCode);
-  }, [stopCode]);
+    if (savedStops.includes(stopCode)) return;
+
+    // Make this a function so this useEffect doesn't need to depend on recentStops which would cause an infinite loop
+    setRecentStops((recentStops) =>
+      // Add the stop to the front of the list, remove it from the rest of the list, and clip it to the max length
+      [
+        stopCode,
+        ...recentStops.filter((recentStopCode) => recentStopCode !== stopCode),
+      ].slice(0, MAX_QUICK_STOPS)
+    );
+    // This reacts to savedStops so if a user is on a stop's page that has this component and unsaves that stop this
+    //   will get triggered and add the stop to the front of recentStops
+  }, [savedStops, setRecentStops, stopCode]);
   return null;
 }
 
 export function SaveStop({ stopCode }: StopCode) {
-  const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    const savedStops = getSavedStopCodes();
-    setSaved(savedStops.some((stop) => stop.stopCode === stopCode));
-  });
+  const { savedStops, setSavedStops, recentStops, setRecentStops } =
+    useQuickStops();
+  const saved = savedStops.includes(stopCode);
 
-  const save = () => {
+  const toggleSaved = () => {
     if (saved) {
-      removeSavedStop(stopCode);
-    } else {
-      addSavedStop(stopCode);
+      return setSavedStops(savedStops.filter((code) => code !== stopCode));
     }
-    setSaved(!saved);
+    // add to saved stops
+    setSavedStops([
+      stopCode,
+      ...savedStops.filter((code) => code !== stopCode),
+    ]);
+    // remove from recent stops, we don't want recent stops filled up with saved stops
+    //   when the stop is unsaved it will be added to the front of recentStops
+    setRecentStops(
+      recentStops.filter((recentStopCode) => recentStopCode !== stopCode)
+    );
   };
 
   return (
-    <IconButton onClick={save}>{saved ? <Star /> : <StarOutline />}</IconButton>
+    <IconButton onClick={toggleSaved}>
+      {saved ? <Star /> : <StarOutline />}
+    </IconButton>
   );
 }
 
-// Note: This component only works if AddRecentStop and SaveStop are never on the same page as this component
-//   it doesn't re-render when the saved stops change
 export function QuickStops() {
   const router = useRouter();
-  const [savedStops, setSavedStops] = useState<StopData[]>([]);
-  const [recentStops, setRecentStops] = useState<StopData[]>([]);
+  const { savedStops, recentStops } = useQuickStops();
 
-  const clippedRecentStops = recentStops
+  const savedStopsData = toStopData(savedStops);
+  const recentStopsData = toStopData(recentStops);
+
+  const clippedRecentStops = recentStopsData
     // Filter out stops that are already saved
     .filter(
-      ({ stopCode }) => !savedStops.some((stop) => stop.stopCode === stopCode)
+      ({ stopCode }) =>
+        !savedStops.some((savedStopCode) => savedStopCode === stopCode)
     )
     // We only want up to MAX_QUICK_STOPS items in total so clip these
     .slice(0, MAX_QUICK_STOPS - savedStops.length);
-
-  useEffect(() => {
-    setSavedStops(toStopData(getSavedStopCodes()));
-    setRecentStops(toStopData(getRecentStopCodes()));
-  }, []);
 
   function goToStop(stopCode: string) {
     return () => {
@@ -119,7 +194,7 @@ export function QuickStops() {
           rowGap={2} // Vertical spacing
           columnGap={2} // Horizontal spacing
         >
-          {savedStops.map(({ stopCode, stopName }) => (
+          {savedStopsData.map(({ stopCode, stopName }) => (
             <Chip
               key={stopCode}
               label={`${stopCode}: ${stopName}`}

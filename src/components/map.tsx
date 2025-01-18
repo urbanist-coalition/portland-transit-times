@@ -281,7 +281,7 @@ export default function Map({ location, stopDistances }: MapProps) {
             background: "white",
             border: "1px solid black",
             borderRadius: "50%",
-            width: iconSize + 4, // Adjust to taste
+            width: iconSize + 4,
             height: iconSize + 4,
             display: "flex",
             alignItems: "center",
