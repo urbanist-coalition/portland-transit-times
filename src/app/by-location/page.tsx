@@ -5,7 +5,7 @@ import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
 import { distance } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { allStops } from "@/constants";
+import { allStops } from "@/data/all-stops";
 
 type LocationInfo =
   | {

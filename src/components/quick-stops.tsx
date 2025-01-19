@@ -13,7 +13,7 @@
  * can use components with awareness of saved stops on the first render anywhere in the app.
  */
 
-import { allStops } from "@/constants";
+import { allStops } from "@/data/all-stops";
 import { StopData } from "@/types";
 import { History, Star, StarOutline } from "@mui/icons-material";
 import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";

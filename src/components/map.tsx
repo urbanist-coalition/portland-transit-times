@@ -32,7 +32,8 @@ import { Location, StopData, VehicleData } from "@/types";
 import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
 import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
-import { allLines, allStops } from "@/constants";
+import { allStops } from "@/data/all-stops";
+import { allLines } from "@/data/all-lines";
 
 interface MapProps {
   location: Location | null;

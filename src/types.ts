@@ -4,10 +4,13 @@ export interface Location {
   cap?: number;
 }
 
-export interface LineData {
+export interface LineDataSlim {
   lineId: number;
   lineName: string;
   lineColor: string;
+}
+
+export interface LineData extends LineDataSlim {
   points: Location[][];
 }
 

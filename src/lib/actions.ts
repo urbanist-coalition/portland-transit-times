@@ -12,7 +12,8 @@ import {
 } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { fixCapitalization } from "@/lib/capitalization";
-import { allLines, allStops } from "@/constants";
+import { allStops } from "@/data/all-stops";
+import { allLinesSlim } from "@/data/all-lines-slim";
 
 function toDate(secondsFromMidnight: number): Date {
   const timeZone = "America/New_York";
@@ -54,7 +55,7 @@ export async function predictionsByStopCode(
 
   const predictions: Prediction[] = [];
   for (const ligneHoraire of schedule.listeHoraires) {
-    const line = allLines[String(ligneHoraire.idLigne)];
+    const line = allLinesSlim[String(ligneHoraire.idLigne)];
     if (!line) {
       console.warn(`No line data for line ${ligneHoraire.idLigne}`);
       continue;
@@ -85,7 +86,7 @@ export async function predictionsByStopCode(
 }
 
 export async function getVehicles(): Promise<VehicleData[]> {
-  const lineNames = Object.values(allLines).map(({ lineName }) => lineName);
+  const lineNames = Object.values(allLinesSlim).map(({ lineName }) => lineName);
   return (await vehicles(lineNames)).vehicule.map(
     ({ id, localisation, conduite: { idLigne } }) => ({
       vehicleId: id,

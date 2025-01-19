@@ -98,9 +98,23 @@ async function main() {
   const data = await generateStaticData();
   const { stops, lines } = data;
   const hash = computeDataHash(data);
+
+  const linesSlim = Object.fromEntries(
+    Object.entries(lines).map(([lineId, line]) => [
+      lineId,
+      {
+        lineId: line.lineId,
+        lineName: line.lineName,
+        lineColor: line.lineColor,
+      },
+    ])
+  );
+
   await Promise.all([
     // Must be in src so we can import
     writeJSON("src/_data/all-stops.json", stops),
+    // lines without points
+    writeJSON("src/_data/all-lines-slim.json", linesSlim),
     writeJSON("src/_data/all-lines.json", lines),
     // Must be public because github actions uses this to check
     //   if the live app is out of date and needs a rebuild

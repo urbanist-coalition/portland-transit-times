@@ -4,7 +4,8 @@ import Footer from "@/components/footer";
 import LinePill from "@/components/line-pill";
 import { AddRecentStop, SaveStop } from "@/components/quick-stops";
 import ServiceAlerts from "@/components/service-alerts";
-import { allLines, allStops } from "@/constants";
+import { allStops } from "@/data/all-stops";
+import { allLinesSlim } from "@/data/all-lines-slim";
 import { predictionsByStopCode } from "@/lib/actions";
 import { getServiceAlerts } from "@/lib/service-alerts";
 import { filterMap } from "@/lib/utils";
@@ -55,7 +56,7 @@ export default async function StopsStopCodePage({
         <ServiceAlerts serviceAlerts={serviceAlerts} />
         {stop.lineIds && stop.lineIds.length > 0 && (
           <Stack direction="row" spacing={1} mb={2}>
-            {filterMap(stop.lineIds, (i) => allLines[i])
+            {filterMap(stop.lineIds, (i) => allLinesSlim[i])
               .map(({ lineId, lineName, lineColor }) => {
                 return (
                   <LinePill

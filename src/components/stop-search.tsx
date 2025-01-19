@@ -1,6 +1,6 @@
 "use client";
 
-import { allStops } from "@/constants";
+import { allStops } from "@/data/all-stops";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 
