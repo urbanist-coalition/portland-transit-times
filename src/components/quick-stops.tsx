@@ -58,28 +58,32 @@ export function QuickStopsProvider({
 
   // Migrate legacy saved and recent stops from localStorage
   useEffect(() => {
-    // If we already have some saved and recent stops, do nothing
-    if (savedStops.length > 0 || recentStops.length > 0) return;
-
-    // Load from localStorage and extract stopCode
     const legacySavedStops = JSON.parse(
       window.localStorage.getItem("savedStops") || "[]"
     ).map(({ stopCode }: StopCode) => stopCode);
+    window.localStorage.removeItem("savedStops");
 
+    if (legacySavedStops.length === 0) return;
+
+    // Never overwrite saved stops if they already exist
+    setSavedStops((currentSavedStops) =>
+      currentSavedStops.length === 0 ? legacySavedStops : currentSavedStops
+    );
+  }, []);
+
+  useEffect(() => {
     const legacyRecentStops = JSON.parse(
       window.localStorage.getItem("recentStops") || "[]"
     ).map(({ stopCode }: StopCode) => stopCode);
+    window.localStorage.removeItem("recentStops");
 
-    // If we have no legacy stops, do nothing
-    //   This won't update savedStops or recentStops so it won't fire twice
-    if (legacySavedStops.length === 0 && legacyRecentStops.length === 0) return;
+    if (legacyRecentStops.length === 0) return;
 
-    // Otherwise, set the saved and recent
-    //   This will trigger useEffect again but we are guarunteed to have at least one stop
-    //   so the first if will return on the second call.
-    setSavedStops(legacySavedStops);
-    setRecentStops(legacyRecentStops);
-  }, [savedStops, recentStops]);
+    // Never overwrite recent stops if they already exist
+    setRecentStops((currentRecentStops) =>
+      currentRecentStops.length === 0 ? legacyRecentStops : currentRecentStops
+    );
+  }, []);
 
   useEffect(() => {
     document.cookie = `savedStops=${JSON.stringify(savedStops)}; path=/; SameSite=Strict`;
