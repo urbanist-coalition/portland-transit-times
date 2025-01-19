@@ -1,3 +1,4 @@
+import { Instagram } from "@mui/icons-material";
 import { Box, Container, Typography } from "@mui/material";
 import MaterialLink from "@mui/material/Link";
 
@@ -18,7 +19,26 @@ export default function Footer() {
             </MaterialLink>
             . Not affiliated with GPMetro.
           </Typography>
-          <Box component="img" src="/UCP_logo.png" alt="UCP Logo" width={32} />
+          <Typography variant="caption">
+            <MaterialLink
+              href=""
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 0.5, // Adds some spacing between the icon and text
+              }}
+            >
+              <Instagram /> Follow us on Instagram
+            </MaterialLink>
+          </Typography>
+          <Box
+            component="img"
+            src="/UCP_logo.png"
+            alt="UCP Logo"
+            width={32}
+            mt={1}
+          />
         </Box>
       </Container>
     </footer>
