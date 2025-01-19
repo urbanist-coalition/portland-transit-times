@@ -21,7 +21,7 @@ export default function Footer() {
           </Typography>
           <Typography variant="caption">
             <MaterialLink
-              href=""
+              href="https://www.instagram.com/urbanistportland.me/"
               sx={{
                 display: "flex",
                 alignItems: "center",
