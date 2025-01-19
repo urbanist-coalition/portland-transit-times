@@ -17,7 +17,6 @@ export default async function StopsStopCodePage({
 }) {
   const { stopCode } = await params;
   const stop = allStops[stopCode];
-  const serviceAlerts = await getServiceAlerts();
 
   if (!stop) {
     return (
@@ -35,7 +34,10 @@ export default async function StopsStopCodePage({
     );
   }
 
-  const predictions = await predictionsByStopCode(stopCode);
+  const [serviceAlerts, predictions] = await Promise.all([
+    getServiceAlerts(),
+    predictionsByStopCode(stopCode),
+  ]);
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
