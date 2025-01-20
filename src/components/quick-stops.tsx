@@ -86,11 +86,15 @@ export function QuickStopsProvider({
   }, []);
 
   useEffect(() => {
-    document.cookie = `savedStops=${JSON.stringify(savedStops)}; path=/; SameSite=Strict`;
+    const expires = new Date();
+    expires.setFullYear(9999); // Set expiration to the year 9999
+    document.cookie = `savedStops=${JSON.stringify(savedStops)}; path=/; SameSite=Strict; expires=${expires.toUTCString()}`;
   }, [savedStops]);
 
   useEffect(() => {
-    document.cookie = `recentStops=${JSON.stringify(recentStops)}; path=/; SameSite=Strict`;
+    const expires = new Date();
+    expires.setFullYear(9999); // Set expiration to the year 9999
+    document.cookie = `recentStops=${JSON.stringify(recentStops)}; path=/; SameSite=Strict; expires=${expires.toUTCString()}`;
   }, [recentStops]);
 
   return (
