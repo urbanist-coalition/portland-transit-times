@@ -2,6 +2,7 @@
 
 import { allStops } from "@/data/all-stops";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function StopSearch() {
@@ -22,6 +23,14 @@ export default function StopSearch() {
         getOptionLabel={(option) => `${option.stopCode} - ${option.stopName}`}
         renderInput={(params) => (
           <TextField {...params} label="Stop Number/Name" />
+        )}
+        // Links prefetch the stops that show up in the dropdown
+        renderOption={({ key, ...props }, option) => (
+          <Link key={key} href={`/stops/${option.stopCode}`}>
+            <Box component="li" {...props}>
+              {option.stopCode} - {option.stopName}
+            </Box>
+          </Link>
         )}
         onChange={(_event, value) => {
           if (value && value.stopCode) {

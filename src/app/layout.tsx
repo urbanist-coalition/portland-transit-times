@@ -20,12 +20,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const savedStops: string[] = JSON.parse(
-    cookieStore.get("savedStops")?.value || "[]"
-  );
-  const recentStops: string[] = JSON.parse(
-    cookieStore.get("recentStops")?.value || "[]"
-  );
+
+  const savedStopsRaw = cookieStore.get("savedStops");
+  const savedStops =
+    savedStopsRaw && (JSON.parse(savedStopsRaw.value) as string[]);
+
+  const recentStopsRaw = cookieStore.get("recentStops");
+  const recentStops =
+    recentStopsRaw && (JSON.parse(recentStopsRaw.value) as string[]);
 
   return (
     <html lang="en" suppressHydrationWarning>

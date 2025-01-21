@@ -17,12 +17,31 @@ import { allStops } from "@/data/all-stops";
 import { StopData } from "@/types";
 import { History, Star, StarOutline } from "@mui/icons-material";
 import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 import { createContext, useContext } from "react";
 
 const MAX_QUICK_STOPS = 10;
+
+function getCookieValue(name: string) {
+  // Split the string of all cookies into individual "name=value" strings
+  const allCookies = document.cookie.split("; ");
+
+  // Find a cookie that starts with "name="
+  const targetCookie = allCookies.find((cookie) =>
+    cookie.startsWith(`${name}=`)
+  );
+  if (!targetCookie) {
+    return null;
+  }
+
+  // Return everything after "name="
+  // You may want to decode in case the cookie was URI-encoded
+  const value = targetCookie.substring(name.length + 1);
+  return decodeURIComponent(value);
+}
 
 interface StopCode {
   stopCode: string;
@@ -44,8 +63,25 @@ const QuickStopsContext = createContext<QuickStopsContextValue>({
 
 interface QuickStopsProviderProps {
   children: React.ReactNode;
-  savedStops: string[];
-  recentStops: string[];
+  savedStops?: string[];
+  recentStops?: string[];
+}
+
+function syncStopList(
+  stops: string[] | undefined,
+  key: string,
+  setStops: Dispatch<SetStateAction<string[] | undefined>>
+) {
+  if (!stops) {
+    // In case for whatever reason the back end couldn't read the cookie, check for it on the front end
+    const existingStops = getCookieValue(key);
+    if (existingStops) setStops(JSON.parse(existingStops));
+    // Exit early so we never overwrite with an empty array
+    return;
+  }
+  // One year in seconds
+  const maxAge = 365 * 24 * 60 * 60;
+  document.cookie = `${key}=${JSON.stringify(stops)}; path=/; SameSite=Lax; max-age=${maxAge}`;
 }
 
 export function QuickStopsProvider({
@@ -56,54 +92,21 @@ export function QuickStopsProvider({
   const [savedStops, setSavedStops] = useState(initialSavedStops);
   const [recentStops, setRecentStops] = useState(initialRecentStops);
 
-  // Migrate legacy saved and recent stops from localStorage
   useEffect(() => {
-    const legacySavedStops = JSON.parse(
-      window.localStorage.getItem("savedStops") || "[]"
-    ).map(({ stopCode }: StopCode) => stopCode);
-    window.localStorage.removeItem("savedStops");
-
-    if (legacySavedStops.length === 0) return;
-
-    // Never overwrite saved stops if they already exist
-    setSavedStops((currentSavedStops) =>
-      currentSavedStops.length === 0 ? legacySavedStops : currentSavedStops
-    );
-  }, []);
-
-  useEffect(() => {
-    const legacyRecentStops = JSON.parse(
-      window.localStorage.getItem("recentStops") || "[]"
-    ).map(({ stopCode }: StopCode) => stopCode);
-    window.localStorage.removeItem("recentStops");
-
-    if (legacyRecentStops.length === 0) return;
-
-    // Never overwrite recent stops if they already exist
-    setRecentStops((currentRecentStops) =>
-      currentRecentStops.length === 0 ? legacyRecentStops : currentRecentStops
-    );
-  }, []);
-
-  useEffect(() => {
-    const expires = new Date();
-    expires.setFullYear(9999); // Set expiration to the year 9999
-    document.cookie = `savedStops=${JSON.stringify(savedStops)}; path=/; SameSite=Strict; expires=${expires.toUTCString()}`;
+    syncStopList(savedStops, "savedStops", setSavedStops);
   }, [savedStops]);
 
   useEffect(() => {
-    const expires = new Date();
-    expires.setFullYear(9999); // Set expiration to the year 9999
-    document.cookie = `recentStops=${JSON.stringify(recentStops)}; path=/; SameSite=Strict; expires=${expires.toUTCString()}`;
+    syncStopList(recentStops, "recentStops", setRecentStops);
   }, [recentStops]);
 
   return (
     <QuickStopsContext.Provider
       value={{
-        savedStops,
-        setSavedStops,
-        recentStops,
-        setRecentStops,
+        savedStops: savedStops || [],
+        setSavedStops: setSavedStops as Dispatch<SetStateAction<string[]>>,
+        recentStops: recentStops || [],
+        setRecentStops: setRecentStops as Dispatch<SetStateAction<string[]>>,
       }}
     >
       {children}
@@ -203,22 +206,26 @@ export function QuickStops() {
           columnGap={2} // Horizontal spacing
         >
           {savedStopsData.map(({ stopCode, stopName }) => (
-            <Chip
-              key={stopCode}
-              label={`${stopCode}: ${stopName}`}
-              onClick={goToStop(stopCode)}
-              sx={{ cursor: "pointer" }}
-              icon={<Star />}
-            />
+            <Link key={stopCode} href={`/stops/${stopCode}`}>
+              <Chip
+                key={stopCode}
+                label={`${stopCode}: ${stopName}`}
+                onClick={goToStop(stopCode)}
+                sx={{ cursor: "pointer" }}
+                icon={<Star />}
+              />
+            </Link>
           ))}
           {clippedRecentStops.map(({ stopCode, stopName }) => (
-            <Chip
-              key={stopCode}
-              label={`${stopCode}: ${stopName}`}
-              onClick={goToStop(stopCode)}
-              sx={{ cursor: "pointer" }}
-              icon={<History />}
-            />
+            <Link key={stopCode} href={`/stops/${stopCode}`}>
+              <Chip
+                key={stopCode}
+                label={`${stopCode}: ${stopName}`}
+                onClick={goToStop(stopCode)}
+                sx={{ cursor: "pointer" }}
+                icon={<History />}
+              />
+            </Link>
           ))}
         </Stack>
       </Box>
