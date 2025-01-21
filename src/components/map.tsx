@@ -7,10 +7,7 @@ import {
   Button,
   IconButton,
   Paper,
-  Skeleton,
   Stack,
-  styled,
-  SwipeableDrawer,
   Tooltip,
   Typography,
   useTheme,
@@ -37,8 +34,6 @@ import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
 import { allStops } from "@/data/all-stops";
 import { allLines } from "@/data/all-lines";
-
-const drawerBleeding = 56;
 
 interface MapProps {
   location: Location | null;
@@ -205,26 +200,6 @@ function StopIcon({
   );
 }
 
-const StyledBox = styled("div")(({ theme }) => ({
-  backgroundColor: "#fff",
-  ...theme.applyStyles("dark", {
-    backgroundColor: theme.palette.grey[800],
-  }),
-}));
-
-const Puller = styled("div")(({ theme }) => ({
-  width: 30,
-  height: 6,
-  backgroundColor: theme.palette.grey[300],
-  borderRadius: 3,
-  position: "absolute",
-  top: 8,
-  left: "calc(50% - 15px)",
-  ...theme.applyStyles("dark", {
-    backgroundColor: theme.palette.grey[700],
-  }),
-}));
-
 export default function Map({ location, stopDistances }: MapProps) {
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
@@ -328,22 +303,12 @@ export default function Map({ location, stopDistances }: MapProps) {
     });
   };
 
-  const [open, setOpen] = useState(false);
-
-  const toggleDrawer = (newOpen: boolean) => () => {
-    setOpen(newOpen);
-  };
-
-  // This is used only for the example
-  const container =
-    window !== undefined ? () => window.document.body : undefined;
-
   return (
     <MapContainer
       center={[43.6632339, -70.2864549]}
       zoom={13}
       scrollWheelZoom={true}
-      style={{ height: `calc(100%, - ${drawerBleeding})`, width: "100%" }}
+      style={{ height: "100%", width: "100%" }}
       zoomControl={false}
       attributionControl={false}
     >
@@ -482,38 +447,6 @@ export default function Map({ location, stopDistances }: MapProps) {
           </MaterialLink>
         </Typography>
       </Paper>
-      <SwipeableDrawer
-        container={container}
-        anchor="bottom"
-        open={open}
-        onClose={toggleDrawer(false)}
-        onOpen={toggleDrawer(true)}
-        swipeAreaWidth={drawerBleeding}
-        disableSwipeToOpen={false}
-        ModalProps={{
-          keepMounted: true,
-        }}
-      >
-        <StyledBox
-          sx={{
-            position: "absolute",
-            top: -drawerBleeding,
-            borderTopLeftRadius: 8,
-            borderTopRightRadius: 8,
-            visibility: "visible",
-            right: 0,
-            left: 0,
-          }}
-        >
-          <Puller />
-          <Typography sx={{ p: 2, color: "text.secondary" }}>
-            51 results
-          </Typography>
-        </StyledBox>
-        <StyledBox sx={{ px: 2, pb: 2, height: "100%", overflow: "auto" }}>
-          <Skeleton variant="rectangular" height="100%" />
-        </StyledBox>
-      </SwipeableDrawer>
     </MapContainer>
   );
 }
