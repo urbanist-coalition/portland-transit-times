@@ -49,9 +49,9 @@ interface StopCode {
 
 interface QuickStopsContextValue {
   savedStops: string[];
-  setSavedStops: Dispatch<SetStateAction<string[]>>;
+  setSavedStops: Dispatch<SetStateAction<string[] | undefined>>;
   recentStops: string[];
-  setRecentStops: Dispatch<SetStateAction<string[]>>;
+  setRecentStops: Dispatch<SetStateAction<string[] | undefined>>;
 }
 
 const QuickStopsContext = createContext<QuickStopsContextValue>({
@@ -104,9 +104,9 @@ export function QuickStopsProvider({
     <QuickStopsContext.Provider
       value={{
         savedStops: savedStops || [],
-        setSavedStops: setSavedStops as Dispatch<SetStateAction<string[]>>,
+        setSavedStops,
         recentStops: recentStops || [],
-        setRecentStops: setRecentStops as Dispatch<SetStateAction<string[]>>,
+        setRecentStops,
       }}
     >
       {children}
@@ -134,7 +134,9 @@ export function AddRecentStop({ stopCode }: StopCode) {
       // Add the stop to the front of the list, remove it from the rest of the list, and clip it to the max length
       [
         stopCode,
-        ...recentStops.filter((recentStopCode) => recentStopCode !== stopCode),
+        ...(recentStops || []).filter(
+          (recentStopCode) => recentStopCode !== stopCode
+        ),
       ].slice(0, MAX_QUICK_STOPS)
     );
     // This reacts to savedStops so if a user is on a stop's page that has this component and unsaves that stop this
