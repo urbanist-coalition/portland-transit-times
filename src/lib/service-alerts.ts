@@ -35,9 +35,15 @@ addFormats(ajv);
 const validate = ajv.compile(serviceAlertSchema);
 
 export async function getServiceAlerts(): Promise<ServiceAlert[]> {
-  const feed = await parser.parseURL(
-    "https://gpmetro.org/RSSFeed.aspx?ModID=63&CID=All-0"
-  );
+  try {
+    const feed = await parser.parseURL(
+      "https://gpmetro.org/RSSFeed.aspx?ModID=63&CID=All-0"
+    );
 
-  return feed.items.filter((item) => validate(item));
+    return feed.items.filter((item) => validate(item));
+    // Don't throw an error if service alerts are not working
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 }
