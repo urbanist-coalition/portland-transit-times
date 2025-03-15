@@ -210,7 +210,7 @@ export default function Map({ location, stopDistances }: MapProps) {
       getVehicles().then(setVehicles);
     }
     updateVehicles();
-    const interval = setInterval(updateVehicles, 10000);
+    const interval = setInterval(updateVehicles, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -271,8 +271,10 @@ export default function Map({ location, stopDistances }: MapProps) {
     });
   };
 
-  const vehicleIcon = (lineId: number) => {
-    const line = allLines[lineId];
+  const vehicleIcon = (lineName: string) => {
+    const line = Object.values(allLines).find(
+      (line) => line.lineName === lineName
+    );
 
     return L.divIcon({
       // Wrap the bus icon in a styled div (circle) for the outline and background
@@ -332,11 +334,11 @@ export default function Map({ location, stopDistances }: MapProps) {
         Select a Stop
       </Typography>
       <TileLayer url={baseMapUrl} />
-      {vehicles.map(({ vehicleId, lineId, location }) => (
+      {vehicles.map(({ vehicleId, lineName, location }) => (
         <Marker
           key={vehicleId}
           position={location}
-          icon={vehicleIcon(lineId)}
+          icon={vehicleIcon(lineName)}
           // This looks a bit weird but it is better for the buses to be behind the stops
           //   so stops don't get hidden. -5 isn't enough but -10 seems to work
           zIndexOffset={-10}

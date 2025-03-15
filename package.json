@@ -22,16 +22,20 @@
     "@next/third-parties": "^15.1.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "csv-parse": "^5.6.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "gtfs-realtime-bindings": "^1.1.1",
+    "ioredis": "^5.6.0",
     "leaflet": "^1.9.4",
     "leaflet-defaulticon-compatibility": "^0.1.2",
-    "next": "15.0.4",
+    "next": "^15.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
     "react-transition-group": "^4.4.5",
-    "rss-parser": "^3.13.0"
+    "rss-parser": "^3.13.0",
+    "unzipper": "^0.12.3"
   },
   "husky": {
     "hooks": {
@@ -39,11 +43,13 @@
     }
   },
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.8",
     "@next/bundle-analyzer": "^15.1.5",
     "@types/leaflet": "^1.9.15",
-    "@types/node": "^20",
+    "@types/node": "^22.13.10",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/unzipper": "^0.10.11",
     "eslint": "^8",
     "eslint-config-next": "15.0.4",
     "husky": "^9.1.7",

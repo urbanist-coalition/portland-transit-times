@@ -1,6 +1,6 @@
 "use server";
 
-import { stopPredictions, vehicles } from "@/lib/conduent";
+import { stopPredictions } from "@/lib/conduent";
 import { VehicleData } from "@/types";
 
 import {
@@ -14,6 +14,7 @@ import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { fixCapitalization } from "@/lib/capitalization";
 import { allStops } from "@/data/all-stops";
 import { allLinesSlim } from "@/data/all-lines-slim";
+import { getRedisClient } from "./redis";
 
 function toDate(secondsFromMidnight: number): Date {
   const timeZone = "America/New_York";
@@ -86,12 +87,7 @@ export async function predictionsByStopCode(
 }
 
 export async function getVehicles(): Promise<VehicleData[]> {
-  const lineNames = Object.values(allLinesSlim).map(({ lineName }) => lineName);
-  return (await vehicles(lineNames)).vehicule.map(
-    ({ id, localisation, conduite: { idLigne } }) => ({
-      vehicleId: id,
-      lineId: idLigne,
-      location: localisation,
-    })
-  );
+  const redis = getRedisClient();
+  const cachedVehicles = await redis.get("vehicles");
+  return cachedVehicles ? JSON.parse(cachedVehicles) : [];
 }

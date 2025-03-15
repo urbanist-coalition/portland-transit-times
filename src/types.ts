@@ -24,7 +24,7 @@ export interface StopData {
 
 export interface VehicleData {
   vehicleId: number;
-  lineId: number;
+  lineName: string;
   location: Location;
 }
 
