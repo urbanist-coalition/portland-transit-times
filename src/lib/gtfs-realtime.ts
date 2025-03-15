@@ -1,7 +1,8 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
-import { getRedisClient } from "./redis";
+import { getRedisClient } from "@/lib/redis";
 
 export async function loadVehiclePositions() {
+  console.log("Loading vehicle positions...");
   const client = getRedisClient();
 
   const response = await fetch(

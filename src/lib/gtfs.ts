@@ -84,6 +84,7 @@ interface Trip {
  * saves data to Redis, and then cleans up the temp folder.
  */
 export async function loadTripIdToRouteID() {
+  console.log("Loading trip_id -> route_id mapping...");
   const client = getRedisClient();
 
   // Download & extract to a temp directory

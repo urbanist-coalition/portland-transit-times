@@ -1,13 +1,15 @@
-import { loadTripIdToRouteID } from "./lib/gtfs";
-import { loadVehiclePositions } from "./lib/gtfs-realtime";
+import { CronJob } from "cron";
+
+import { loadTripIdToRouteID } from "@/lib/gtfs";
+import { loadVehiclePositions } from "@/lib/gtfs-realtime";
 
 async function main() {
+  // This must run at least once on startup
   await loadTripIdToRouteID();
+  // This will run every day at midnight
+  new CronJob("0 0 0 * * *", loadTripIdToRouteID).start();
 
-  while (true) {
-    await loadVehiclePositions();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
+  new CronJob("* * * * * *", loadVehiclePositions).start();
 }
 
 main();
