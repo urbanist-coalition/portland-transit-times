@@ -1,7 +1,7 @@
 import { CronJob } from "cron";
 
 import { loadTripIdToRouteID } from "@/lib/gtfs";
-import { loadVehiclePositions } from "@/lib/gtfs-realtime";
+import { loadServiceAlerts, loadVehiclePositions } from "@/lib/gtfs-realtime";
 
 async function main() {
   // This must run at least once on startup
@@ -10,6 +10,9 @@ async function main() {
   new CronJob("0 0 0 * * *", loadTripIdToRouteID).start();
 
   new CronJob("* * * * * *", loadVehiclePositions).start();
+
+  // This will run every hour
+  new CronJob("0 0 * * * *", loadServiceAlerts).start();
 }
 
 main();

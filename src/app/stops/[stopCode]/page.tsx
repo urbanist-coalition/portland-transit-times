@@ -7,7 +7,7 @@ import ServiceAlerts from "@/components/service-alerts";
 import { allStops } from "@/data/all-stops";
 import { allLinesSlim } from "@/data/all-lines-slim";
 import { predictionsByStopCode } from "@/lib/actions";
-import { getServiceAlerts } from "@/lib/service-alerts";
+import { getServiceAlerts } from "@/lib/actions";
 import { filterMap } from "@/lib/utils";
 import { Container, Typography, Box, Stack } from "@mui/material";
 

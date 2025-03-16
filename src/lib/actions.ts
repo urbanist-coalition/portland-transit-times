@@ -1,7 +1,7 @@
 "use server";
 
 import { stopPredictions } from "@/lib/conduent";
-import { VehicleData } from "@/types";
+import { ServiceAlert, VehicleData } from "@/types";
 
 import {
   startOfDay,
@@ -90,4 +90,10 @@ export async function getVehicles(): Promise<VehicleData[]> {
   const redis = getRedisClient();
   const cachedVehicles = await redis.get("vehicles");
   return cachedVehicles ? JSON.parse(cachedVehicles) : [];
+}
+
+export async function getServiceAlerts(): Promise<ServiceAlert[]> {
+  const redis = getRedisClient();
+  const cachedAlerts = await redis.get("service_alerts");
+  return cachedAlerts ? JSON.parse(cachedAlerts) : [];
 }

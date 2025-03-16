@@ -3,8 +3,8 @@ import NextLink from "next/link";
 import { QuickStops } from "@/components/quick-stops";
 import StopSearch from "@/components/stop-search";
 import Footer from "@/components/footer";
-import { getServiceAlerts } from "@/lib/service-alerts";
 import ServiceAlerts from "@/components/service-alerts";
+import { getServiceAlerts } from "@/lib/actions";
 
 export default async function HomePage() {
   const serviceAlerts = await getServiceAlerts();
