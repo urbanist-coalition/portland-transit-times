@@ -42,3 +42,12 @@ next-env.d.ts
 /_data
 /public/_data
 /src/_data
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfbackend
+crash.log
+.terraform/
+.terraform.lock.hcl
+
