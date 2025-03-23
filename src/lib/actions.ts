@@ -14,7 +14,7 @@ import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { fixCapitalization } from "@/lib/capitalization";
 import { allStops } from "@/data/all-stops";
 import { allLinesSlim } from "@/data/all-lines-slim";
-import { getRedisClient } from "./redis";
+import model from "./redis";
 
 function toDate(secondsFromMidnight: number): Date {
   const timeZone = "America/New_York";
@@ -87,13 +87,9 @@ export async function predictionsByStopCode(
 }
 
 export async function getVehicles(): Promise<VehicleData[]> {
-  const redis = getRedisClient();
-  const cachedVehicles = await redis.get("vehicles");
-  return cachedVehicles ? JSON.parse(cachedVehicles) : [];
+  return model.getVehicles();
 }
 
 export async function getServiceAlerts(): Promise<ServiceAlert[]> {
-  const redis = getRedisClient();
-  const cachedAlerts = await redis.get("service_alerts");
-  return cachedAlerts ? JSON.parse(cachedAlerts) : [];
+  return model.getServiceAlerts();
 }

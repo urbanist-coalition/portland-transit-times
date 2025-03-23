@@ -1,17 +1,7 @@
+import { ServiceAlert, VehicleData } from "@/types";
 import { Redis, RedisOptions } from "ioredis";
 
-// Create a singleton instance
-let redisInstance: Redis | null = null;
-
-/**
- * Creates and returns a Redis client instance
- * Maintains a singleton pattern to avoid multiple connections
- */
-export function getRedisClient(options: RedisOptions = {}): Redis {
-  if (redisInstance) {
-    return redisInstance;
-  }
-
+function getRedisClient(options: RedisOptions = {}): Redis {
   // Get the Redis URL from environment variables or use default
   const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
@@ -42,18 +32,67 @@ export function getRedisClient(options: RedisOptions = {}): Redis {
     console.log("Redis client reconnecting...");
   });
 
-  // Store instance for reuse
-  redisInstance = client;
   return client;
 }
 
-/**
- * Closes the Redis connection
- */
-export async function closeRedisConnection(): Promise<void> {
-  if (redisInstance) {
-    await redisInstance.quit();
-    redisInstance = null;
-    console.log("Redis connection closed");
+class Model {
+  private redis: Redis;
+  private serviceAlertKey = "service_alerts";
+  private vehicleKey = "vehicles";
+  private tripRouteKey = "trip_route";
+
+  constructor() {
+    this.redis = getRedisClient();
+  }
+  async set(key: string, value: string): Promise<string> {
+    return this.redis.set(key, value);
+  }
+  async get(key: string): Promise<string | null> {
+    return this.redis.get(key);
+  }
+
+  async getServiceAlerts(): Promise<ServiceAlert[]> {
+    const result = await this.redis.get(this.serviceAlertKey);
+    return result ? JSON.parse(result) : [];
+  }
+
+  async setServiceAlerts(alerts: ServiceAlert[]): Promise<void> {
+    await this.redis.set(
+      this.serviceAlertKey,
+      JSON.stringify(alerts),
+      "EX",
+      60 * 60
+    );
+  }
+
+  async getVehicles(): Promise<VehicleData[]> {
+    const result = await this.redis.get(this.vehicleKey);
+    return result ? JSON.parse(result) : [];
+  }
+
+  async setVehicles(vehicles: VehicleData[]): Promise<void> {
+    await this.redis.set(
+      this.vehicleKey,
+      JSON.stringify(vehicles),
+      "EX",
+      60 * 60
+    );
+  }
+
+  async getTripRouteID(tripID: string): Promise<string | null> {
+    return this.redis.get(`${this.tripRouteKey}:${tripID}`);
+  }
+
+  async setTripRouteID(trips: [string, string][]): Promise<void> {
+    const ttl = 48 * 60 * 60; // 48h in seconds
+    const redisPipeline = this.redis.pipeline();
+    for (const [trip_id, route_id] of trips) {
+      redisPipeline.set(`${this.tripRouteKey}:${trip_id}`, route_id, "EX", ttl);
+    }
+    await redisPipeline.exec();
   }
 }
+
+const model = new Model();
+
+export default model;

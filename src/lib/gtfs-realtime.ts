@@ -1,10 +1,10 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
-import { getRedisClient } from "@/lib/redis";
-import { ServiceAlert } from "@/types";
+import model from "@/lib/redis";
+import { ServiceAlert, VehicleData, vehicleDataSchema } from "@/types";
+import Ajv from "ajv";
 
 export async function loadVehiclePositions() {
   console.log("Loading vehicle positions...");
-  const client = getRedisClient();
 
   const response = await fetch(
     "https://gtfsrt.gptd.cadavl.com/ProfilGtfsRt2_0RSProducer-GPTD/VehiclePosition.pb"
@@ -20,18 +20,31 @@ export async function loadVehiclePositions() {
     new Uint8Array(buffer)
   );
 
-  const vehicles = await Promise.all(
-    feed.entity.map(async ({ vehicle }) => ({
-      vehicleId: vehicle?.vehicle?.id,
-      lineName: await client.get(`trip_route:${vehicle?.trip?.tripId}`),
-      location: {
-        lat: vehicle?.position?.latitude,
-        lng: vehicle?.position?.longitude,
-      },
-    }))
-  );
+  const validate = new Ajv().compile(vehicleDataSchema);
 
-  await client.set("vehicles", JSON.stringify(vehicles));
+  const vehicles = (
+    await Promise.all(
+      feed.entity.map(async ({ vehicle }): Promise<VehicleData | null> => {
+        const vehicleData = {
+          vehicleId: vehicle?.vehicle?.id,
+          lineName: await model.getTripRouteID(vehicle?.trip?.tripId || ""),
+          location: {
+            lat: vehicle?.position?.latitude,
+            lng: vehicle?.position?.longitude,
+          },
+        };
+
+        if (!validate(vehicleData)) {
+          console.warn("Invalid vehicle data:", validate.errors);
+          return null;
+        }
+
+        return vehicleData;
+      })
+    )
+  ).filter((vehicle): vehicle is VehicleData => vehicle !== null);
+
+  await model.setVehicles(vehicles);
 }
 
 function mapAlertEntityToServiceAlert(
@@ -57,7 +70,6 @@ function mapAlertEntityToServiceAlert(
 
 export async function loadServiceAlerts() {
   console.log("Loading service alerts...");
-  const client = getRedisClient();
 
   const response = await fetch(
     "https://gtfsrt.gptd.cadavl.com/ProfilGtfsRt2_0RSProducer-GPTD/Alert.pb"
@@ -73,6 +85,8 @@ export async function loadServiceAlerts() {
     new Uint8Array(buffer)
   );
 
-  const alerts = feed.entity.map(mapAlertEntityToServiceAlert).filter(Boolean);
-  await client.set("service_alerts", JSON.stringify(alerts), "EX", 60 * 60);
+  const alerts = feed.entity
+    .map(mapAlertEntityToServiceAlert)
+    .filter((alert): alert is ServiceAlert => alert !== null);
+  await model.setServiceAlerts(alerts);
 }

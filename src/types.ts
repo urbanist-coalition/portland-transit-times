@@ -1,3 +1,5 @@
+import { JSONSchemaType } from "ajv";
+
 export interface Location {
   lat: number;
   lng: number;
@@ -23,10 +25,28 @@ export interface StopData {
 }
 
 export interface VehicleData {
-  vehicleId: number;
+  vehicleId: string;
   lineName: string;
   location: Location;
 }
+
+export const vehicleDataSchema: JSONSchemaType<VehicleData> = {
+  type: "object",
+  properties: {
+    vehicleId: { type: "string" },
+    lineName: { type: "string" },
+    location: {
+      type: "object",
+      properties: {
+        lat: { type: "number" },
+        lng: { type: "number" },
+        cap: { type: "number", nullable: true },
+      },
+      required: ["lat", "lng"],
+    },
+  },
+  required: ["vehicleId", "lineName", "location"],
+};
 
 // Very simplified from gtfs-realtime-bindings
 export interface ServiceAlert {

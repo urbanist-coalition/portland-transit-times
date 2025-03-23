@@ -7,7 +7,7 @@ import https from "node:https";
 import os from "node:os";
 import unzipper from "unzipper";
 
-import { getRedisClient } from "@/lib/redis";
+import model from "@/lib/redis";
 
 /**
  * Download the GTFS ZIP and extract it to a new temporary directory.
@@ -85,7 +85,6 @@ interface Trip {
  */
 export async function loadTripIdToRouteID() {
   console.log("Loading trip_id -> route_id mapping...");
-  const client = getRedisClient();
 
   // Download & extract to a temp directory
   const tempDir = await downloadGTFS();
@@ -95,14 +94,9 @@ export async function loadTripIdToRouteID() {
     const tripsFile = join(tempDir, "trips.txt");
     const trips: Trip[] = await csvParse<Trip>(tripsFile);
 
-    // Save results into Redis
-    const ttl = 48 * 60 * 60; // 48h in seconds
-    const redisPipeline = client.pipeline();
-
-    for (const trip of trips) {
-      redisPipeline.set(`trip_route:${trip.trip_id}`, trip.route_id, "EX", ttl);
-    }
-    await redisPipeline.exec();
+    await model.setTripRouteID(
+      trips.map(({ trip_id, route_id }) => [trip_id, route_id])
+    );
   } finally {
     // Clean up: remove the entire temp folder
     await rm(tempDir, { recursive: true, force: true });
