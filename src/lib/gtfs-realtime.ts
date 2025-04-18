@@ -2,13 +2,12 @@ import GtfsRealtimeBindings from "gtfs-realtime-bindings";
 import model from "@/lib/redis";
 import { ServiceAlert, VehicleData, vehicleDataSchema } from "@/types";
 import Ajv from "ajv";
+import { GPMETRO } from "./gtfs/types";
 
 export async function loadVehiclePositions() {
   console.log("Loading vehicle positions...");
 
-  const response = await fetch(
-    "https://gtfsrt.gptd.cadavl.com/ProfilGtfsRt2_0RSProducer-GPTD/VehiclePosition.pb"
-  );
+  const response = await fetch(GPMETRO.vehicleURL);
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -71,9 +70,7 @@ function mapAlertEntityToServiceAlert(
 export async function loadServiceAlerts() {
   console.log("Loading service alerts...");
 
-  const response = await fetch(
-    "https://gtfsrt.gptd.cadavl.com/ProfilGtfsRt2_0RSProducer-GPTD/Alert.pb"
-  );
+  const response = await fetch(GPMETRO.alertsURL);
 
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -90,3 +87,23 @@ export async function loadServiceAlerts() {
     .filter((alert): alert is ServiceAlert => alert !== null);
   await model.setServiceAlerts(alerts);
 }
+
+async function main() {
+  console.log("Loading service alerts...");
+
+  const response = await fetch(GPMETRO.tripUpdatesURL);
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const buffer = await response.arrayBuffer();
+
+  const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
+    new Uint8Array(buffer)
+  );
+
+  console.log(feed.entity.map((x) => x.tripUpdate?.trip.start)); // Example usage of the delay property
+}
+
+main();

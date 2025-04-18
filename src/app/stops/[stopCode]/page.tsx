@@ -4,12 +4,11 @@ import Footer from "@/components/footer";
 import LinePill from "@/components/line-pill";
 import { AddRecentStop, SaveStop } from "@/components/quick-stops";
 import ServiceAlerts from "@/components/service-alerts";
-import { allStops } from "@/data/all-stops";
-import { allLinesSlim } from "@/data/all-lines-slim";
-import { predictionsByStopCode } from "@/lib/actions";
+import { getLinesSlim, getStop, getStopTimes } from "@/lib/actions";
 import { getServiceAlerts } from "@/lib/actions";
 import { filterMap } from "@/lib/utils";
 import { Container, Typography, Box, Stack } from "@mui/material";
+import { subMinutes } from "date-fns";
 
 export default async function StopsStopCodePage({
   params,
@@ -17,7 +16,8 @@ export default async function StopsStopCodePage({
   params: Promise<{ stopCode: string }>;
 }) {
   const { stopCode } = await params;
-  const stop = allStops[stopCode];
+  const stop = await getStop(stopCode);
+  const linesSlim = await getLinesSlim();
 
   if (!stop) {
     return (
@@ -37,7 +37,7 @@ export default async function StopsStopCodePage({
 
   const [serviceAlerts, predictions] = await Promise.all([
     getServiceAlerts(),
-    predictionsByStopCode(stopCode),
+    getStopTimes(stopCode, subMinutes(new Date(), 15)),
   ]);
 
   return (
@@ -56,7 +56,7 @@ export default async function StopsStopCodePage({
         <ServiceAlerts serviceAlerts={serviceAlerts} />
         {stop.lineIds && stop.lineIds.length > 0 && (
           <Stack direction="row" spacing={1} mb={2}>
-            {filterMap(stop.lineIds, (i) => allLinesSlim[i])
+            {filterMap(stop.lineIds, (lineId) => linesSlim[lineId])
               .map(({ lineId, lineName, lineColor }) => {
                 return (
                   <LinePill

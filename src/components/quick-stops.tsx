@@ -13,7 +13,6 @@
  * can use components with awareness of saved stops on the first render anywhere in the app.
  */
 
-import { allStops } from "@/data/all-stops";
 import { StopData } from "@/types";
 import { History, Star, StarOutline } from "@mui/icons-material";
 import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";
@@ -119,9 +118,13 @@ export function useQuickStops() {
 }
 
 function toStopData(stopCodes: string[]): StopData[] {
-  return stopCodes
-    .map((stopCode) => allStops[stopCode])
-    .filter((stop): stop is StopData => Boolean(stop));
+  return (
+    stopCodes
+      // TODO: inject allStops here
+      // .map((stopCode) => allStops[stopCode])
+      .map(() => null as StopData | null) // Placeholder for actual stop data
+      .filter((stop): stop is StopData => Boolean(stop))
+  );
 }
 
 export function AddRecentStop({ stopCode }: StopCode) {

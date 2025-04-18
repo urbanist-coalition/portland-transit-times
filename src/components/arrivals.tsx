@@ -1,6 +1,6 @@
 "use client";
 
-import { Prediction, predictionsByStopCode } from "@/lib/actions";
+import { predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -18,6 +18,7 @@ import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, format, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
+import { StopTimeData } from "@/types";
 
 const FORMAT = "h:mm a";
 
@@ -49,7 +50,7 @@ function ScheduleTime({ time }: { time: string }) {
 }
 
 interface PredictionCardProps {
-  prediction: Prediction;
+  prediction: StopTimeData;
   now: number;
 }
 
@@ -105,7 +106,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
             >
               {prediction.lineName}
             </Box>
-            to {prediction.destinationLabel}
+            to {prediction.headsign}
           </Typography>
 
           <Typography variant="body2">
@@ -139,14 +140,14 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
 
 interface ArrivalsProps {
   stopCode: string;
-  arrivals: Prediction[];
+  arrivals: StopTimeData[];
 }
 
 export default function Arrivals({
   stopCode,
   arrivals: initialArrivals,
 }: ArrivalsProps) {
-  const [arrivals, setArrivals] = useState<Prediction[]>(initialArrivals);
+  const [arrivals, setArrivals] = useState<StopTimeData[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
@@ -192,7 +193,7 @@ export default function Arrivals({
       <TransitionGroup>
         {arrivals.map((prediction, index) => (
           <Collapse
-            key={prediction.predictionId}
+            key={prediction.scheduledTime}
             in={false}
             timeout={500}
             unmountOnExit

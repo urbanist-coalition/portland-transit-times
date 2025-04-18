@@ -7,7 +7,7 @@ export interface Location {
 }
 
 export interface LineDataSlim {
-  lineId: number;
+  lineId: string;
   lineName: string;
   lineColor: string;
 }
@@ -17,17 +17,30 @@ export interface LineData extends LineDataSlim {
 }
 
 export interface StopData {
-  stopId: number;
+  stopId: string;
   stopName: string;
   stopCode: string;
   location: Location;
-  lineIds: number[];
+  lineIds: string[];
 }
 
 export interface VehicleData {
   vehicleId: string;
   lineName: string;
   location: Location;
+}
+
+export interface StopTimeData {
+  serviceDate: string;
+  serviceId: string;
+  tripId: string;
+  stopId: string;
+  routeId: string;
+  headsign: string;
+  lineColor: string;
+  lineName: string;
+  scheduledTime: number;
+  predictedTime: number;
 }
 
 export const vehicleDataSchema: JSONSchemaType<VehicleData> = {

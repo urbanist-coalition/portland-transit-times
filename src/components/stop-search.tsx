@@ -1,6 +1,6 @@
 "use client";
 
-import { allStops } from "@/data/all-stops";
+import { StopData } from "@/types";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,9 @@ export default function StopSearch() {
       </Typography>
       <Autocomplete
         fullWidth
-        options={Object.values(allStops)}
+        // TODO: inject allStops here
+        // options={Object.values(allStops)}
+        options={[] as StopData[]}
         getOptionLabel={(option) => `${option.stopCode} - ${option.stopName}`}
         renderInput={(params) => (
           <TextField {...params} label="Stop Number/Name" />

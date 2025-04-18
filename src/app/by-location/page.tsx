@@ -1,11 +1,11 @@
 "use client";
 
-import { StopData } from "@/types";
+import { StopData, LineData } from "@/types";
 import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
 import { distance } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { allStops } from "@/data/all-stops";
+import { getLines, getStops } from "@/lib/actions";
 
 type LocationInfo =
   | {
@@ -27,12 +27,23 @@ type LocationInfo =
 const DynamicMap = dynamic(() => import("@/components/map"), { ssr: false });
 
 export default function ByLocation() {
+  const [allLines, setAllLines] = useState<Record<string, LineData>>({});
+  useEffect(() => {
+    getLines().then(setAllLines);
+  }, []);
+
+  const [allStops, setAllStops] = useState<Record<string, StopData>>({});
+  useEffect(() => {
+    getStops().then(setAllStops);
+  }, []);
+
   const [locationInfo, setLocationInfo] = useState<LocationInfo>({
     status: "fetching",
   });
 
   useEffect(() => {
     const stopsArray = Object.values(allStops);
+    if (stopsArray.length === 0) return;
     function fetchLocation() {
       if (
         locationInfo.status === "error" &&
@@ -111,7 +122,7 @@ export default function ByLocation() {
     fetchLocation();
     const interval = setInterval(fetchLocation, 10000);
     return () => clearTimeout(interval);
-  }, [locationInfo.status, locationInfo.message]);
+  }, [allStops, locationInfo.status, locationInfo.message]);
 
   const location =
     locationInfo.status === "loaded" ? locationInfo.location : null;
@@ -119,7 +130,12 @@ export default function ByLocation() {
     locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
   return (
     <Box style={{ height: "100dvh", width: "100vw" }}>
-      <DynamicMap location={location} stopDistances={stopDistances} />
+      <DynamicMap
+        location={location}
+        stopDistances={stopDistances}
+        allLines={allLines}
+        allStops={allStops}
+      />
     </Box>
   );
 }

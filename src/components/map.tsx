@@ -28,16 +28,16 @@ import L from "leaflet";
 import { renderToString } from "react-dom/server";
 import LinePill from "@/components/line-pill";
 import Link from "next/link";
-import { Location, StopData, VehicleData } from "@/types";
+import { LineData, Location, StopData, VehicleData } from "@/types";
 import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
 import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
-import { allStops } from "@/data/all-stops";
-import { allLines } from "@/data/all-lines";
 
 interface MapProps {
   location: Location | null;
   stopDistances?: number[];
+  allLines: Record<string, LineData>;
+  allStops: Record<string, StopData>;
 }
 
 const RecenterAutomatically = ({ location }: { location: Location | null }) => {
@@ -200,7 +200,12 @@ function StopIcon({
   );
 }
 
-export default function Map({ location, stopDistances }: MapProps) {
+export default function Map({
+  location,
+  stopDistances,
+  allLines,
+  allStops,
+}: MapProps) {
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
   const [vehicles, setVehicles] = useState<VehicleData[]>([]);
