@@ -1,11 +1,15 @@
 services:
-  redis:
-    image: redis:latest
-    container_name: transit_redis
-    ports:
-      - "6379:6379"
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
     volumes:
-      - redis_data:/data
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
 
 volumes:
-  redis_data:
+  db_data:
+

@@ -28,16 +28,17 @@ import L from "leaflet";
 import { renderToString } from "react-dom/server";
 import LinePill from "@/components/line-pill";
 import Link from "next/link";
-import { LineData, Location, StopData, VehicleData } from "@/types";
+import { Location } from "@/types";
 import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
-import { getVehicles } from "@/lib/actions";
+import { getVehicles, StopWithRoutes, VehicleWithRoute } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
+import { Route } from "@prisma/client";
 
 interface MapProps {
   location: Location | null;
   stopDistances?: number[];
-  allLines: Record<string, LineData>;
-  allStops: Record<string, StopData>;
+  allLines: Record<string, Route>;
+  allStops: Record<string, StopWithRoutes>;
 }
 
 const RecenterAutomatically = ({ location }: { location: Location | null }) => {
@@ -208,7 +209,7 @@ export default function Map({
 }: MapProps) {
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
-  const [vehicles, setVehicles] = useState<VehicleData[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleWithRoute[]>([]);
 
   useEffect(() => {
     function updateVehicles() {
@@ -258,9 +259,9 @@ export default function Map({
     className: "", // this must be blank or the icons will be in white boxes
   });
 
-  const placeDivIcon = (stop: StopData) => {
-    const colors = filterMap(stop.lineIds, (i) => allLines[i]).map(
-      ({ lineColor }) => lineColor
+  const placeDivIcon = (stop: StopWithRoutes) => {
+    const colors = filterMap(stop.routes, (i) => allLines[i]).map(
+      ({ routeColor }) => routeColor
     );
 
     return L.divIcon({
@@ -278,7 +279,7 @@ export default function Map({
 
   const vehicleIcon = (lineName: string) => {
     const line = Object.values(allLines).find(
-      (line) => line.lineName === lineName
+      (line) => line.routeShortName === lineName
     );
 
     return L.divIcon({
@@ -299,7 +300,7 @@ export default function Map({
           <DirectionsBus
             style={{
               stroke: "black",
-              fill: line?.lineColor || "black",
+              fill: line?.routeColor || "black",
               width: iconSize,
               height: iconSize,
             }}
@@ -339,11 +340,11 @@ export default function Map({
         Select a Stop
       </Typography>
       <TileLayer url={baseMapUrl} />
-      {vehicles.map(({ vehicleId, lineName, location }) => (
+      {vehicles.map(({ vehicleId, route: { routeShortName }, location }) => (
         <Marker
           key={vehicleId}
           position={location}
-          icon={vehicleIcon(lineName)}
+          icon={vehicleIcon(routeShortName)}
           // This looks a bit weird but it is better for the buses to be behind the stops
           //   so stops don't get hidden. -5 isn't enough but -10 seems to work
           zIndexOffset={-10}
@@ -354,7 +355,7 @@ export default function Map({
         Object.values(allStops).map((stop, i) => (
           <Marker
             riseOnHover={true}
-            key={stop.stopCode}
+            key={stop.stopId}
             position={stop.location}
             icon={placeDivIcon(stop)}
           >
@@ -372,20 +373,20 @@ export default function Map({
                     {Math.round(stopDistances[i])} meters away
                   </Typography>
                 )}
-                {stop.lineIds && stop.lineIds.length > 0 && (
+                {stop.routes && stop.routes.length > 0 && (
                   <Stack
                     direction="row"
                     spacing={1}
                     m={1}
                     justifyContent="center"
                   >
-                    {filterMap(stop.lineIds, (i) => allLines[i]).map(
-                      ({ lineId, lineName, lineColor }) => {
+                    {filterMap(stop.routes, (i) => allLines[i]).map(
+                      ({ routeId, routeShortName, routeColor }) => {
                         return (
                           <LinePill
-                            key={lineId}
-                            lineName={lineName}
-                            lineColor={lineColor}
+                            key={routeId}
+                            lineName={routeShortName}
+                            lineColor={routeColor}
                           />
                         );
                       }
@@ -401,21 +402,21 @@ export default function Map({
         ))}
       {theme.palette.mode === "light" &&
         Object.values(allLines)
-          .filter(({ lineColor }) => isTooLight(lineColor))
-          .map(({ lineId, points }) => (
+          .filter(({ routeColor }) => isTooLight(routeColor))
+          .map(({ routeId, shapes }) => (
             <Polyline
-              key={lineId}
-              positions={points}
+              key={routeId}
+              positions={shapes}
               color="black"
               weight={5}
             />
           ))}
-      {Object.values(allLines).map(({ lineId, points, lineColor }) => (
+      {Object.values(allLines).map(({ routeId, shapes, routeColor }) => (
         <Polyline
-          key={lineId}
-          positions={points}
-          color={lineColor}
-          opacity={isTooLight(lineColor) ? 1 : 0.5}
+          key={routeId}
+          positions={shapes}
+          color={routeColor}
+          opacity={isTooLight(routeColor) ? 1 : 0.5}
           weight={4}
         />
       ))}

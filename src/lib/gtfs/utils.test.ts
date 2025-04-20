@@ -14,13 +14,13 @@ describe("gtfsTimestamp()", () => {
   it("converts a local GTFS time to the correct Unix epoch (America/New_York)", () => {
     const ts = gtfsTimestamp(DATE, "12:34:56", "America/New_York");
     // 2023‑10‑01 12:34:56 in New York == 2023‑10‑01 16:34:56 Z
-    expect(ts).toBe(new Date("2023-10-01T16:34:56.000Z").getTime());
+    expect(ts.toISOString()).toBe("2023-10-01T16:34:56.000Z");
   });
 
   it("handles times beyond 24:00 by rolling into the next service day", () => {
     // 25:15:00 => 01:15 next calendar day
     const ts = gtfsTimestamp(DATE, "25:15:00", "America/New_York");
-    expect(ts).toBe(new Date("2023-10-02T05:15:00.000Z").getTime());
+    expect(ts.toISOString()).toBe("2023-10-02T05:15:00.000Z");
   });
 
   it("produces the SAME result regardless of the server’s TZ", () => {
@@ -31,7 +31,7 @@ describe("gtfsTimestamp()", () => {
     jest.resetModules(); // make Node pick up the new TZ
     const eu = gtfsTimestamp(DATE, "00:00:00", "America/New_York");
 
-    expect(west).toBe(eu);
+    expect(west.toISOString()).toBe(eu.toISOString());
   });
 
   it("throws on malformed GTFS time strings", () => {

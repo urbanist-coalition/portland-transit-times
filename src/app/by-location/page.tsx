@@ -1,11 +1,11 @@
 "use client";
 
-import { StopData, LineData } from "@/types";
 import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
 import { distance } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { getLines, getStops } from "@/lib/actions";
+import { getLines, getStops, StopWithRoutes } from "@/lib/actions";
+import { Route } from "@prisma/client";
 
 type LocationInfo =
   | {
@@ -16,7 +16,7 @@ type LocationInfo =
       status: "loaded";
       location: { lat: number; lng: number };
       stopDistances: number[];
-      closestStops: [StopData, number][];
+      closestStops: [StopWithRoutes, number][];
       message?: undefined;
     }
   | {
@@ -27,12 +27,13 @@ type LocationInfo =
 const DynamicMap = dynamic(() => import("@/components/map"), { ssr: false });
 
 export default function ByLocation() {
-  const [allLines, setAllLines] = useState<Record<string, LineData>>({});
+  const [allLines, setAllLines] = useState<Record<string, Route>>({});
   useEffect(() => {
     getLines().then(setAllLines);
   }, []);
+  console.log("beep", allLines);
 
-  const [allStops, setAllStops] = useState<Record<string, StopData>>({});
+  const [allStops, setAllStops] = useState<Record<string, StopWithRoutes>>({});
   useEffect(() => {
     getStops().then(setAllStops);
   }, []);
@@ -82,7 +83,8 @@ export default function ByLocation() {
             stopDistances,
             closestStops: stopsArray
               .map(
-                (stop, idx) => [stop, stopDistances[idx]] as [StopData, number]
+                (stop, idx) =>
+                  [stop, stopDistances[idx]] as [StopWithRoutes, number]
               )
               .toSorted((a, b) => a[1] - b[1])
               .slice(0, 5),

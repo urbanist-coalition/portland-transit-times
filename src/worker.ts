@@ -1,15 +1,16 @@
 import { CronJob } from "cron";
 
 import { loadStatic } from "@/lib/loaders/static";
-import { loadServiceAlerts, loadVehiclePositions } from "@/lib/gtfs-realtime";
+import {
+  loadServiceAlerts,
+  loadVehiclePositions,
+  loadTripUpdates,
+} from "@/lib/gtfs-realtime";
 import { GPMETRO } from "@/lib/constants";
-import { RedisModel } from "@/lib/model";
 
 async function main() {
-  const model = new RedisModel();
-
   async function loadStaticGPMetro() {
-    await loadStatic(GPMETRO, model);
+    await loadStatic(GPMETRO);
   }
 
   // This must run at least once on startup
@@ -19,6 +20,8 @@ async function main() {
   new CronJob("0 0 0 * * *", loadStaticGPMetro).start();
 
   new CronJob("* * * * * *", loadVehiclePositions).start();
+
+  new CronJob("* * * * * *", loadTripUpdates).start();
 
   // This will run every hour
   new CronJob("0 0 * * * *", loadServiceAlerts).start();

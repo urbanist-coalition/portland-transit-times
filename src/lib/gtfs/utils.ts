@@ -60,12 +60,12 @@ function getSecondsSinceMidnight(timeOfDay: string): number {
  * @param timeOfDay – Local time-of-day `HH:MM:SS` (may exceed 24 h).
  * @param timeZone – IANA TZ name (e.g. *"America/New_York"*).
  *
- * @returns Milliseconds since 1970-01-01 T00:00:00 Z.
+ * @returns date object representing the GTFS time in UTC.
  *
  * @example
  * // Trip that departs at 01:15 the *next* calendar day:
  * gtfsTimestamp("20231001", "25:15:00", "America/New_York");
- * // → 1696226100000  (2023-10-02 05:15:00 UTC)
+ * // →
  *
  * @see getSecondsSinceMidnight
  */
@@ -73,9 +73,9 @@ export function gtfsTimestamp(
   serviceDate: string,
   timeOfDay: string,
   timeZone: string
-): number {
-  const secondsSinceMidnight = getSecondsSinceMidnight(serviceDate);
+): Date {
+  const secondsSinceMidnight = getSecondsSinceMidnight(timeOfDay);
   // `toDate` creates a Date at *local midnight* in the given TZ.
-  const date = toDate(timeOfDay, { timeZone });
-  return addSeconds(date, secondsSinceMidnight).getTime();
+  const date = toDate(serviceDate, { timeZone });
+  return addSeconds(date, secondsSinceMidnight);
 }

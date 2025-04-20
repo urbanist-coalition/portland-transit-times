@@ -1,0 +1,103 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator json {
+  provider = "prisma-json-types-generator"
+}
+
+model ServiceAlert {
+  id          String @id
+  header      String
+  description String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Vehicle {
+  vehicleId String @id
+  tripId    String
+  trip      Trip   @relation(fields: [tripId], references: [tripId])
+  /// [Location]
+  location  Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Trip {
+  tripId       String @id
+  routeId      String
+  route        Route  @relation(fields: [routeId], references: [routeId])
+  tripHeadsign String
+
+  stopTimeInstances StopTimeInstance[]
+  stopTimes         StopTime[]
+  vehicles          Vehicle[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Route {
+  routeId        String @id
+  routeShortName String
+  routeColor     String
+  routeTextColor String
+  /// [Location[][]]
+  shapes         Json
+
+  trips Trip[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Stop {
+  stopId   String @id
+  stopName String
+  stopCode String
+  /// [Location]
+  location Json
+
+  stopTimes StopTime[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StopTime {
+  stopId String
+  stop   Stop   @relation(fields: [stopId], references: [stopId])
+  tripId String
+  trip   Trip   @relation(fields: [tripId], references: [tripId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([stopId, tripId])
+}
+
+// A stop time instance is more than a stop time.
+// It is a stop time for a specific trip on a specific date.
+model StopTimeInstance {
+  serviceDate      String
+  tripId           String
+  stopId           String
+  scheduledArrival DateTime
+  estimatedArrival DateTime
+
+  trip Trip @relation(fields: [tripId], references: [tripId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([serviceDate, tripId, stopId])
+  @@index([stopId, estimatedArrival(sort: Desc)])
+}

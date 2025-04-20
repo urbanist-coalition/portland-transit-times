@@ -74,3 +74,19 @@ export function filterMap<T, R>(
 ): R[] {
   return arr.map(f).filter((r): r is R => r !== undefined && r !== null);
 }
+
+export async function concurrentWindow<T, R>(
+  arr: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+
+  while (results.length < arr.length) {
+    const promises = arr
+      .slice(results.length, results.length + limit)
+      .map((item) => fn(item));
+    results.push(...(await Promise.all(promises)));
+  }
+  return results;
+}

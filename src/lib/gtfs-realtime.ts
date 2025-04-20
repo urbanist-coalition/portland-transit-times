@@ -1,8 +1,7 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
-import model from "@/lib/redis";
-import { ServiceAlert, VehicleData, vehicleDataSchema } from "@/types";
-import Ajv from "ajv";
-import { GPMETRO } from "./gtfs/types";
+import { GPMETRO } from "@/lib/constants";
+import { Prisma, ServiceAlert } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 export async function loadVehiclePositions() {
   console.log("Loading vehicle positions...");
@@ -19,36 +18,40 @@ export async function loadVehiclePositions() {
     new Uint8Array(buffer)
   );
 
-  const validate = new Ajv().compile(vehicleDataSchema);
+  const vehiclesData: Prisma.VehicleCreateManyInput[] = [];
+  for (const entity of feed.entity) {
+    if (!entity.vehicle) continue;
 
-  const vehicles = (
-    await Promise.all(
-      feed.entity.map(async ({ vehicle }): Promise<VehicleData | null> => {
-        const vehicleData = {
-          vehicleId: vehicle?.vehicle?.id,
-          lineName: await model.getTripRouteID(vehicle?.trip?.tripId || ""),
-          location: {
-            lat: vehicle?.position?.latitude,
-            lng: vehicle?.position?.longitude,
-          },
-        };
+    const vehicleId = entity.vehicle?.vehicle?.id;
+    const tripId = entity.vehicle?.trip?.tripId;
+    const lat = entity.vehicle?.position?.latitude;
+    const lng = entity.vehicle?.position?.longitude;
 
-        if (!validate(vehicleData)) {
-          console.warn("Invalid vehicle data:", validate.errors);
-          return null;
-        }
+    if (!vehicleId || !tripId || !lat || !lng) {
+      console.warn("Invalid vehicle data:", entity);
+      continue;
+    }
 
-        return vehicleData;
-      })
-    )
-  ).filter((vehicle): vehicle is VehicleData => vehicle !== null);
+    const vehicleData = {
+      vehicleId,
+      tripId,
+      location: { lat, lng },
+    };
 
-  await model.setVehicles(vehicles);
+    vehiclesData.push(vehicleData);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.vehicle.deleteMany();
+    await tx.vehicle.createMany({
+      data: vehiclesData,
+    });
+  });
 }
 
 function mapAlertEntityToServiceAlert(
   entity: GtfsRealtimeBindings.transit_realtime.IFeedEntity
-): ServiceAlert | null {
+) {
   const alert = entity.alert;
   if (!alert) return null;
 
@@ -62,8 +65,8 @@ function mapAlertEntityToServiceAlert(
 
   return {
     id: entity.id,
-    headerText: headerEn.text,
-    descriptionText: descEn.text,
+    header: headerEn.text,
+    description: descEn.text,
   };
 }
 
@@ -85,25 +88,65 @@ export async function loadServiceAlerts() {
   const alerts = feed.entity
     .map(mapAlertEntityToServiceAlert)
     .filter((alert): alert is ServiceAlert => alert !== null);
-  await model.setServiceAlerts(alerts);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.serviceAlert.deleteMany();
+    await tx.serviceAlert.createMany({
+      data: alerts,
+    });
+  });
 }
 
-async function main() {
-  console.log("Loading service alerts...");
+export async function loadTripUpdates() {
+  console.log("Loading trip updates...");
 
   const response = await fetch(GPMETRO.tripUpdatesURL);
-
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-
   const buffer = await response.arrayBuffer();
-
   const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
     new Uint8Array(buffer)
   );
 
-  console.log(feed.entity.map((x) => x.tripUpdate?.trip.start)); // Example usage of the delay property
-}
+  for (const entity of feed.entity) {
+    console.log("Loading trip updates...");
+    const tripUpdate = entity.tripUpdate;
+    if (!tripUpdate) continue;
 
-main();
+    const tripId = tripUpdate.trip?.tripId;
+    const startDate = tripUpdate.trip?.startDate;
+    if (!tripId || !startDate) continue;
+
+    const stopTimeUpdates = tripUpdate.stopTimeUpdate || [];
+
+    await Promise.all(
+      stopTimeUpdates.map(async (stopTimeUpdate) => {
+        const arrival = stopTimeUpdate.arrival?.time;
+        const delay = stopTimeUpdate.arrival?.delay;
+        const stopId = stopTimeUpdate.stopId;
+
+        if (!arrival || !delay || !stopId) {
+          console.warn("Invalid stop time update data:", stopTimeUpdate);
+          return;
+        }
+
+        const arrivalNumber =
+          typeof arrival === "number" ? arrival : arrival.toNumber();
+
+        await prisma.stopTimeInstance.update({
+          where: {
+            serviceDate_tripId_stopId: {
+              serviceDate: startDate,
+              tripId,
+              stopId,
+            },
+          },
+          data: {
+            estimatedArrival: new Date((arrivalNumber + delay) * 1000),
+          },
+        });
+      })
+    );
+  }
+}

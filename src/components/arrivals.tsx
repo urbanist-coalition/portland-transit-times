@@ -1,6 +1,6 @@
 "use client";
 
-import { predictionsByStopCode } from "@/lib/actions";
+import { predictionsByStopCode, StopTimeInstanceData } from "@/lib/actions";
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -18,7 +18,6 @@ import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, format, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
-import { StopTimeData } from "@/types";
 
 const FORMAT = "h:mm a";
 
@@ -50,13 +49,13 @@ function ScheduleTime({ time }: { time: string }) {
 }
 
 interface PredictionCardProps {
-  prediction: StopTimeData;
+  prediction: StopTimeInstanceData;
   now: number;
 }
 
 function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
-  const tooLight = isTooLight(prediction.lineColor);
+  const tooLight = isTooLight(prediction.trip.route.routeColor);
 
   const delta = differenceInMinutes(
     // Times are displayed to the user rounded to the start of the minute
@@ -66,8 +65,8 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     //   to 1 minute. Even though the rounding is more accurate it looks wrong to the user.
     //   Sub-minute accuracy is not relevant in the context of bus predictions so it is better
     //   that the delta looks correct.
-    startOfMinute(prediction.predictedTime),
-    startOfMinute(prediction.scheduledTime)
+    startOfMinute(prediction.scheduledArrival),
+    startOfMinute(prediction.estimatedArrival)
   );
 
   let statusMessage = "On Time";
@@ -88,7 +87,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
         borderLeft:
           tooLight && theme.palette.mode === "light"
             ? undefined
-            : `8px solid ${prediction.lineColor}`,
+            : `8px solid ${prediction.trip.route.routeColor}`,
         mb: 2, // margin bottom for spacing
       }}
     >
@@ -100,24 +99,24 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               sx={{
                 color: tooLight
                   ? theme.palette.text.primary
-                  : prediction.lineColor,
+                  : prediction.trip.route.routeColor,
                 mr: 1,
               }}
             >
-              {prediction.lineName}
+              {prediction.trip.route.routeShortName}
             </Box>
-            to {prediction.headsign}
+            to {prediction.trip.tripHeadsign}
           </Typography>
 
           <Typography variant="body2">
             <ScheduleLabel title="Scheduled:" />{" "}
-            <ScheduleTime time={_format(prediction.scheduledTime)} />
+            <ScheduleTime time={_format(prediction.scheduledArrival)} />
           </Typography>
 
           <Typography variant="body2" component="div">
             <ScheduleLabel title="Predicted:" />{" "}
             <ScheduleTime
-              time={formatPredictedTime(prediction.predictedTime, now)}
+              time={formatPredictedTime(prediction.estimatedArrival, now)}
             />
             <Chip
               label={statusMessage}
@@ -140,14 +139,15 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
 
 interface ArrivalsProps {
   stopCode: string;
-  arrivals: StopTimeData[];
+  arrivals: StopTimeInstanceData[];
 }
 
 export default function Arrivals({
   stopCode,
   arrivals: initialArrivals,
 }: ArrivalsProps) {
-  const [arrivals, setArrivals] = useState<StopTimeData[]>(initialArrivals);
+  const [arrivals, setArrivals] =
+    useState<StopTimeInstanceData[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
@@ -193,7 +193,7 @@ export default function Arrivals({
       <TransitionGroup>
         {arrivals.map((prediction, index) => (
           <Collapse
-            key={prediction.scheduledTime}
+            key={prediction.scheduledArrival.toISOString()}
             in={false}
             timeout={500}
             unmountOnExit
