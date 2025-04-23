@@ -1,5 +1,4 @@
 import { fixCapitalization } from "@/lib/capitalization";
-import { GPMETRO } from "@/lib/constants";
 import { GTFSStatic } from "@/lib/gtfs/static";
 import { getOne, indexBy } from "@/lib/utils";
 
@@ -18,6 +17,7 @@ import { getOne, indexBy } from "@/lib/utils";
 type StopDestinations = Record<string, Record<string, boolean>>;
 type DestinationsByStopId = Record<string, StopDestinations>;
 
+// Hardcoded overrides for stop names that are ambiguous and can't be disambiguated by the destinations.
 const stopIdOverrides: Record<string, string> = {
   // PTC
   "0:422": "PTC (Outbound)",
@@ -52,6 +52,14 @@ function flatDestinations(stopDestinations: StopDestinations): string[] {
   });
 }
 
+/**
+ * This function is used to disambiguate stop names that are the same but serve different routes.
+ * It takes in a stop name, a list of stop IDs, and a map of destinations by stop ID.
+ * It returns a mapping of stop IDs to their new names.
+ *
+ * It tries its best to use the destinations to disambiguate the stop names, but if it can't,
+ * it will print a warning and return an empty object, leaving the stop names unchanged.
+ */
 function ruleBasedOverrides(
   stopName: string,
   stopIds: [string, string],
@@ -61,13 +69,15 @@ function ruleBasedOverrides(
 
   const aDestinationMap = destinationsByStopId[stopIdA];
   if (!aDestinationMap) {
-    throw new Error(`Missing destinations for stop ${stopIdA} - ${stopName}`);
+    console.warn(`Missing destinations for stop ${stopIdA} - ${stopName}`);
+    return {};
   }
   const aDestinations = flatDestinations(aDestinationMap);
 
   const bDestinationMap = destinationsByStopId[stopIdB];
   if (!bDestinationMap) {
-    throw new Error(`Missing destinations for stop ${stopIdB} - ${stopName}`);
+    console.warn(`Missing destinations for stop ${stopIdB} - ${stopName}`);
+    return {};
   }
   const bDestinations = flatDestinations(bDestinationMap);
 
@@ -104,15 +114,14 @@ function ruleBasedOverrides(
     };
 
   // If we get here that means we need a stopIdOverrides entry, print the data to help with that.
-  console.log("Ambiguous stop name:", stopName);
+  console.warn("Ambiguous stop name:", stopName);
   for (const destination of aDestinations) {
-    console.log("  A", stopIdA, destination);
+    console.warn("  A", stopIdA, destination);
   }
   for (const destination of bDestinations) {
-    console.log("  B", stopIdB, destination);
+    console.warn("  B", stopIdB, destination);
   }
-
-  throw new Error(`Ambiguous stop name: ${stopName}`);
+  return {};
 }
 
 function nameOverrides(
@@ -159,10 +168,7 @@ function nameOverrides(
   return overrides;
 }
 
-async function main() {
-  const gtfsStatic = new GTFSStatic(GPMETRO);
-  await gtfsStatic.load();
-
+export async function generateStopNameOverrides(gtfsStatic: GTFSStatic) {
   const trips = await gtfsStatic.getTrips();
   const tripsById = indexBy(trips, "trip_id");
   const stopTimes = await gtfsStatic.getStopTimes();
@@ -198,6 +204,7 @@ async function main() {
     );
   }
 
+  return stopNameOverrides;
   console.log(stopNameOverrides);
 }
 

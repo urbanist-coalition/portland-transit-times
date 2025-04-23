@@ -78,3 +78,19 @@ export function filterMap<T, R>(
 export function stopCodeToStopId(stopCode: string): string {
   return `0:${stopCode}`;
 }
+
+export function indexBy<T, K extends keyof T>(
+  array: T[],
+  key: K
+): Map<T[K], T[]> {
+  const index = new Map<T[K], T[]>();
+  for (const item of array) {
+    const current = index.get(item[key]) || [];
+    index.set(item[key], [...current, item]);
+  }
+  return index;
+}
+
+export function getOne<T, K>(index: Map<K, T[]>, key: K): T | undefined {
+  return (index.get(key) || [])[0];
+}
