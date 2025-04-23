@@ -6,7 +6,7 @@ import {
   LiveStopTimeInstance,
   RouteWithShape,
   Stop,
-  VehiclePosition,
+  VehiclePositions,
   getModel,
 } from "@/lib/model";
 import { stopCodeToStopId } from "@/lib/utils";
@@ -22,7 +22,7 @@ export async function predictionsByStopCode(
   );
 }
 
-export async function getVehicles(): Promise<VehiclePosition[]> {
+export async function getVehicles(): Promise<VehiclePositions> {
   return getModel().getVehiclePositions();
 }
 

@@ -12,7 +12,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
 import MaterialLink from "@mui/material/Link";
@@ -200,6 +200,32 @@ function StopIcon({
   );
 }
 
+export function useLiveVehicles(intervalMs = 1000) {
+  const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
+  const prevRef = useRef<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function updateVehicles() {
+      const newVehicles = await getVehicles();
+      if (!cancelled && prevRef.current !== newVehicles.lastUpdated) {
+        prevRef.current = newVehicles.lastUpdated;
+        setVehicles(newVehicles.vehicles);
+      }
+    }
+
+    updateVehicles();
+    const interval = setInterval(updateVehicles, intervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [intervalMs]);
+
+  return vehicles;
+}
+
 export default function Map({
   location,
   stopDistances,
@@ -208,16 +234,7 @@ export default function Map({
 }: MapProps) {
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
-  const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
-
-  useEffect(() => {
-    function updateVehicles() {
-      getVehicles().then(setVehicles);
-    }
-    updateVehicles();
-    const interval = setInterval(updateVehicles, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const vehicles = useLiveVehicles();
 
   const zoomIconSizes: Record<number, number> = {
     13: 10,

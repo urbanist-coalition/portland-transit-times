@@ -32,6 +32,10 @@ export class GTFSRealtimeLoader {
     const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(
       new Uint8Array(buffer)
     );
+    const maybeTimestamp = feed.header?.timestamp;
+    const lastUpdated = maybeTimestamp
+      ? this.longToNumber(maybeTimestamp)
+      : Math.floor(Date.now() / 1000);
 
     const vehiclesData: VehiclePosition[] = [];
     for (const entity of feed.entity) {
@@ -67,7 +71,10 @@ export class GTFSRealtimeLoader {
 
       vehiclesData.push(vehicleData);
     }
-    await this.model.setVehiclePositions(vehiclesData);
+    await this.model.setVehiclePositions({
+      vehicles: vehiclesData,
+      lastUpdated,
+    });
   }
 
   private mapAlertEntityToServiceAlert(

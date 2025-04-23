@@ -54,6 +54,11 @@ export interface VehiclePosition {
   route: Route;
 }
 
+export interface VehiclePositions {
+  vehicles: VehiclePosition[];
+  lastUpdated: number;
+}
+
 export enum StopTimeStatus {
   scheduled = "SCHEDULED",
   skipped = "SKIPPED",
@@ -103,8 +108,8 @@ export interface Model {
   getAlerts(): Promise<Alert[]>;
   setAlerts(alerts: Alert[]): Promise<void>;
 
-  getVehiclePositions(): Promise<VehiclePosition[]>;
-  setVehiclePositions(vehicles: VehiclePosition[]): Promise<void>;
+  getVehiclePositions(): Promise<VehiclePositions>;
+  setVehiclePositions(vehicles: VehiclePositions): Promise<void>;
 
   getStopTimeInstances(
     stopId: string,
@@ -257,12 +262,12 @@ export class RedisModel implements Model {
     await this.redis.set(this.alertKey, JSON.stringify(alerts));
   }
 
-  async getVehiclePositions(): Promise<VehiclePosition[]> {
+  async getVehiclePositions(): Promise<VehiclePositions> {
     const vehiclePositions = await this.redis.get(this.vehiclePositionKey);
     return vehiclePositions ? JSON.parse(vehiclePositions) : [];
   }
 
-  async setVehiclePositions(vehicles: VehiclePosition[]): Promise<void> {
+  async setVehiclePositions(vehicles: VehiclePositions): Promise<void> {
     await this.redis.set(this.vehiclePositionKey, JSON.stringify(vehicles));
   }
 

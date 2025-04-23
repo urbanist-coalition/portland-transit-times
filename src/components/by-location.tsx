@@ -1,10 +1,10 @@
 "use client";
 
 import { Box } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { distance } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { Stop, RouteWithShape } from "@/lib/model";
+import { Stop, RouteWithShape, Location } from "@/lib/model";
 
 type LocationInfo =
   | {
@@ -30,10 +30,13 @@ interface ByLocationProps {
   allStops: Record<string, Stop>;
 }
 
+const MIN_MOVE = 15; // Ignore moves < 15 m (below GPS jitter on phones)
+
 export default function ByLocation({ allLines, allStops }: ByLocationProps) {
   const [locationInfo, setLocationInfo] = useState<LocationInfo>({
     status: "fetching",
   });
+  const lastPositionRef = useRef<Location | null>(null);
 
   useEffect(() => {
     const stopsArray = Object.values(allStops);
@@ -57,8 +60,28 @@ export default function ByLocation({ allLines, allStops }: ByLocationProps) {
       return;
     }
 
-    navigator.geolocation.watchPosition(
+    const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        // To cut down on rendering from jitter, only update if it moves by enough
+        const prev = lastPositionRef.current;
+        if (prev) {
+          const moved = distance(
+            prev.lat,
+            prev.lng,
+            position.coords.latitude,
+            position.coords.longitude
+          ); // metres
+          const threshold = Math.max(MIN_MOVE, position.coords.accuracy);
+          if (moved < threshold) {
+            // Too small – ignore this jitter
+            return;
+          }
+        }
+        lastPositionRef.current = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
         const stopDistances = stopsArray.map((stop) =>
           distance(
             stop.location.lat,
@@ -109,6 +132,10 @@ export default function ByLocation({ allLines, allStops }: ByLocationProps) {
         });
       }
     );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
   }, [allStops, locationInfo.status, locationInfo.message]);
 
   const location =
