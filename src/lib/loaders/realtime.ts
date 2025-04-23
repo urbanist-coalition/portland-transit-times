@@ -1,5 +1,4 @@
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
-import { GPMETRO } from "@/lib/constants";
 import {
   Alert,
   StopTimeStatus,
@@ -7,18 +6,22 @@ import {
   StopTimeUpdate,
   Model,
 } from "@/lib/model";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+import { GTFSSystem } from "@/lib/gtfs/types";
 
 export class GTFSRealtimeLoader {
+  system: GTFSSystem;
   model: Model;
-  constructor(model: Model) {
+
+  constructor(system: GTFSSystem, model: Model) {
+    this.system = system;
     this.model = model;
   }
 
   async loadVehiclePositions() {
     console.log("Loading vehicle positions...");
 
-    const response = await fetch(GPMETRO.vehicleURL);
+    const response = await fetch(this.system.vehicleURL);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -91,7 +94,7 @@ export class GTFSRealtimeLoader {
   async loadServiceAlerts() {
     console.log("Loading service alerts...");
 
-    const response = await fetch(GPMETRO.alertsURL);
+    const response = await fetch(this.system.alertsURL);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -117,7 +120,7 @@ export class GTFSRealtimeLoader {
   async loadTripUpdates() {
     console.log("Loading trip updates...");
 
-    const response = await fetch(GPMETRO.tripUpdatesURL);
+    const response = await fetch(this.system.tripUpdatesURL);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -155,8 +158,9 @@ export class GTFSRealtimeLoader {
         console.warn("Missing first departure time:", tripUpdate);
         continue;
       }
-      const startDate = format(
+      const startDate = formatInTimeZone(
         this.longToNumber(firstDepartureTime) * 1000,
+        this.system.timeZone,
         "yyyyMMdd"
       );
 

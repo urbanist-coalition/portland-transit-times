@@ -14,7 +14,7 @@ async function main() {
   // This must run at least once on startup
   await loadStaticGPMetro();
 
-  const gtfsRealtimeLoader = new GTFSRealtimeLoader(model);
+  const gtfsRealtimeLoader = new GTFSRealtimeLoader(GPMETRO, model);
 
   // This will run every day at midnight
   new CronJob("0 0 0 * * *", loadStaticGPMetro).start();
