@@ -38,82 +38,77 @@ export default function ByLocation({ allLines, allStops }: ByLocationProps) {
   useEffect(() => {
     const stopsArray = Object.values(allStops);
     if (stopsArray.length === 0) return;
-    function fetchLocation() {
-      if (
-        locationInfo.status === "error" &&
-        [
-          "You denied the request for Geolocation. Please enable it to find stops by location.",
-          "Geolocation is not available on this device.",
-        ].includes(locationInfo.message)
-      ) {
-        return;
-      }
 
-      if (!("geolocation" in navigator)) {
-        setLocationInfo({
-          status: "error",
-          message: "Geolocation is not available on this device.",
-        });
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const stopDistances = stopsArray.map((stop) =>
-            distance(
-              stop.location.lat,
-              stop.location.lng,
-              position.coords.latitude,
-              position.coords.longitude
-            )
-          );
-          setLocationInfo({
-            status: "loaded",
-            location: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            },
-            stopDistances,
-            closestStops: stopsArray
-              .map((stop, idx) => [stop, stopDistances[idx]] as [Stop, number])
-              .toSorted((a, b) => a[1] - b[1])
-              .slice(0, 5),
-          });
-        },
-        (geoError) => {
-          if (geoError.code === geoError.PERMISSION_DENIED) {
-            setLocationInfo({
-              status: "error",
-              message:
-                "You denied the request for Geolocation. Please enable it to find stops by location.",
-            });
-            return;
-          }
-          if (geoError.code === geoError.POSITION_UNAVAILABLE) {
-            setLocationInfo({
-              status: "error",
-              message: "Location information is unavailable.",
-            });
-            return;
-          }
-          if (geoError.code === geoError.TIMEOUT) {
-            setLocationInfo({
-              status: "error",
-              message: "Location request timed out. Please try again.",
-            });
-            return;
-          }
-          setLocationInfo({
-            status: "error",
-            message: "An unknown error occurred while fetching your location.",
-          });
-        }
-      );
+    if (
+      locationInfo.status === "error" &&
+      [
+        "You denied the request for Geolocation. Please enable it to find stops by location.",
+        "Geolocation is not available on this device.",
+      ].includes(locationInfo.message)
+    ) {
+      return;
     }
 
-    fetchLocation();
-    const interval = setInterval(fetchLocation, 10000);
-    return () => clearTimeout(interval);
+    if (!("geolocation" in navigator)) {
+      setLocationInfo({
+        status: "error",
+        message: "Geolocation is not available on this device.",
+      });
+      return;
+    }
+
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const stopDistances = stopsArray.map((stop) =>
+          distance(
+            stop.location.lat,
+            stop.location.lng,
+            position.coords.latitude,
+            position.coords.longitude
+          )
+        );
+        setLocationInfo({
+          status: "loaded",
+          location: {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          },
+          stopDistances,
+          closestStops: stopsArray
+            .map((stop, idx) => [stop, stopDistances[idx]] as [Stop, number])
+            .toSorted((a, b) => a[1] - b[1])
+            .slice(0, 5),
+        });
+      },
+      (geoError) => {
+        if (geoError.code === geoError.PERMISSION_DENIED) {
+          setLocationInfo({
+            status: "error",
+            message:
+              "You denied the request for Geolocation. Please enable it to find stops by location.",
+          });
+          return;
+        }
+        if (geoError.code === geoError.POSITION_UNAVAILABLE) {
+          setLocationInfo({
+            status: "error",
+            message: "Location information is unavailable.",
+          });
+          return;
+        }
+        if (geoError.code === geoError.TIMEOUT) {
+          setLocationInfo({
+            status: "error",
+            message: "Location request timed out. Please try again.",
+          });
+          return;
+        }
+        setLocationInfo({
+          status: "error",
+          message: "An unknown error occurred while fetching your location.",
+        });
+      }
+    );
   }, [allStops, locationInfo.status, locationInfo.message]);
 
   const location =
