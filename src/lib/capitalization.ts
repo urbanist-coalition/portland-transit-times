@@ -5,12 +5,15 @@
 // all over the place.
 "server only";
 
+// Identifies known acronyms that should be left in all caps
+// Use src/build/headsigns.ts to help identify these.
 const knownAcronyms = [
   "USM", // University of Southern Maine
   "MMC", // Maine Medical Center
   "JC", // JC Penney
   "CBHS", // Casco Bay High School
   "IDEXX", // IDEXX Laboratories
+  "HS", // High School ex. "Deering HS"
   "IB", // Inbound
   "OB", // Outbound
 ];

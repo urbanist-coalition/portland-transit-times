@@ -4,6 +4,7 @@ import { GTFSStatic } from "@/lib/gtfs/static";
 import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Model, Location, StopTimeInstance } from "@/lib/model";
+import { fixCapitalization } from "@/lib/capitalization";
 
 function indexBy<T, K extends keyof T>(array: T[], key: K): Map<T[K], T[]> {
   const index = new Map<T[K], T[]>();
@@ -35,7 +36,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
         routeId: route_id,
         serviceId: service_id,
         shapeId: shape_id,
-        tripHeadsign: trip_headsign,
+        tripHeadsign: fixCapitalization(trip_headsign),
       })
     );
     await model.setTrips(tripsData);
