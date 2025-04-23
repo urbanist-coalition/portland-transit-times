@@ -1,6 +1,6 @@
 "use client";
 
-import { predictionsByStopCode, StopTimeInstanceData } from "@/lib/actions";
+import { predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -18,14 +18,15 @@ import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, format, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
+import { LiveStopTimeInstance } from "@/lib/model";
 
 const FORMAT = "h:mm a";
 
-function _format(date: Date): string {
+function _format(date: number): string {
   return format(date, FORMAT).toLowerCase();
 }
 
-function formatPredictedTime(date: Date, now: number): string {
+function formatPredictedTime(date: number, now: number): string {
   const delta = differenceInMinutes(date, now);
   if (delta > 30) return _format(date);
   if (delta < 1) return "Due";
@@ -49,13 +50,13 @@ function ScheduleTime({ time }: { time: string }) {
 }
 
 interface PredictionCardProps {
-  prediction: StopTimeInstanceData;
+  prediction: LiveStopTimeInstance;
   now: number;
 }
 
 function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
-  const tooLight = isTooLight(prediction.trip.route.routeColor);
+  const tooLight = isTooLight(prediction.route.routeColor);
 
   const delta = differenceInMinutes(
     // Times are displayed to the user rounded to the start of the minute
@@ -65,17 +66,17 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     //   to 1 minute. Even though the rounding is more accurate it looks wrong to the user.
     //   Sub-minute accuracy is not relevant in the context of bus predictions so it is better
     //   that the delta looks correct.
-    startOfMinute(prediction.scheduledArrival),
-    startOfMinute(prediction.estimatedArrival)
+    startOfMinute(prediction.predictedTime),
+    startOfMinute(prediction.scheduledTime)
   );
 
   let statusMessage = "On Time";
   let statusColor = theme.palette.success.main; // green for on time
 
-  if (delta > 0) {
+  if (delta && delta > 0) {
     statusMessage = `${delta} min late`;
     statusColor = theme.palette.error.main; // red for late
-  } else if (delta < 0) {
+  } else if (delta && delta < 0) {
     statusMessage = `${Math.abs(delta)} min early`;
     statusColor = theme.palette.info.main; // blue for early
   }
@@ -87,7 +88,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
         borderLeft:
           tooLight && theme.palette.mode === "light"
             ? undefined
-            : `8px solid ${prediction.trip.route.routeColor}`,
+            : `8px solid ${prediction.route.routeColor}`,
         mb: 2, // margin bottom for spacing
       }}
     >
@@ -99,24 +100,24 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               sx={{
                 color: tooLight
                   ? theme.palette.text.primary
-                  : prediction.trip.route.routeColor,
+                  : prediction.route.routeColor,
                 mr: 1,
               }}
             >
-              {prediction.trip.route.routeShortName}
+              {prediction.route.routeShortName}
             </Box>
             to {prediction.trip.tripHeadsign}
           </Typography>
 
           <Typography variant="body2">
             <ScheduleLabel title="Scheduled:" />{" "}
-            <ScheduleTime time={_format(prediction.scheduledArrival)} />
+            <ScheduleTime time={_format(prediction.scheduledTime)} />
           </Typography>
 
           <Typography variant="body2" component="div">
             <ScheduleLabel title="Predicted:" />{" "}
             <ScheduleTime
-              time={formatPredictedTime(prediction.estimatedArrival, now)}
+              time={formatPredictedTime(prediction.predictedTime || 0, now)}
             />
             <Chip
               label={statusMessage}
@@ -139,7 +140,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
 
 interface ArrivalsProps {
   stopCode: string;
-  arrivals: StopTimeInstanceData[];
+  arrivals: LiveStopTimeInstance[];
 }
 
 export default function Arrivals({
@@ -147,7 +148,7 @@ export default function Arrivals({
   arrivals: initialArrivals,
 }: ArrivalsProps) {
   const [arrivals, setArrivals] =
-    useState<StopTimeInstanceData[]>(initialArrivals);
+    useState<LiveStopTimeInstance[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
@@ -161,7 +162,7 @@ export default function Arrivals({
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
-    }, 15000);
+    }, 5000);
 
     const nowInterval = setInterval(() => {
       setNow(Date.now());
@@ -193,7 +194,7 @@ export default function Arrivals({
       <TransitionGroup>
         {arrivals.map((prediction, index) => (
           <Collapse
-            key={prediction.scheduledArrival.toISOString()}
+            key={`${prediction.serviceDate}:${prediction.tripId}:${prediction.stopId}`}
             in={false}
             timeout={500}
             unmountOnExit

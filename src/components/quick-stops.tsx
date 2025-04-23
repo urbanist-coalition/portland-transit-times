@@ -13,7 +13,6 @@
  * can use components with awareness of saved stops on the first render anywhere in the app.
  */
 
-import { StopData } from "@/types";
 import { History, Star, StarOutline } from "@mui/icons-material";
 import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";
 import Link from "next/link";
@@ -21,6 +20,9 @@ import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 import { createContext, useContext } from "react";
+
+import { Stop } from "@/lib/model";
+import { filterMap } from "@/lib/utils";
 
 const MAX_QUICK_STOPS = 10;
 
@@ -117,20 +119,10 @@ export function useQuickStops() {
   return useContext(QuickStopsContext);
 }
 
-function toStopData(stopCodes: string[]): StopData[] {
-  return (
-    stopCodes
-      // TODO: inject allStops here
-      // .map((stopCode) => allStops[stopCode])
-      .map(() => null as StopData | null) // Placeholder for actual stop data
-      .filter((stop): stop is StopData => Boolean(stop))
-  );
-}
-
 export function AddRecentStop({ stopCode }: StopCode) {
-  const { savedStops, setRecentStops } = useQuickStops();
+  const { recentStops, setRecentStops } = useQuickStops();
   useEffect(() => {
-    if (savedStops.includes(stopCode)) return;
+    if (recentStops.includes(stopCode)) return;
 
     // Make this a function so this useEffect doesn't need to depend on recentStops which would cause an infinite loop
     setRecentStops((recentStops) =>
@@ -144,7 +136,8 @@ export function AddRecentStop({ stopCode }: StopCode) {
     );
     // This reacts to savedStops so if a user is on a stop's page that has this component and unsaves that stop this
     //   will get triggered and add the stop to the front of recentStops
-  }, [savedStops, setRecentStops, stopCode]);
+  }, [recentStops, setRecentStops, stopCode]);
+
   return null;
 }
 
@@ -176,12 +169,18 @@ export function SaveStop({ stopCode }: StopCode) {
   );
 }
 
-export function QuickStops() {
+export function QuickStops({ allStops }: { allStops: Record<string, Stop> }) {
   const router = useRouter();
   const { savedStops, recentStops } = useQuickStops();
 
-  const savedStopsData = toStopData(savedStops);
-  const recentStopsData = toStopData(recentStops);
+  const savedStopsData = filterMap(
+    savedStops,
+    (stopCode) => allStops[stopCode]
+  );
+  const recentStopsData = filterMap(
+    recentStops,
+    (stopCode) => allStops[stopCode]
+  );
 
   const clippedRecentStops = recentStopsData
     // Filter out stops that are already saved

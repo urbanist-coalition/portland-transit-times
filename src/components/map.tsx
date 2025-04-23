@@ -28,17 +28,16 @@ import L from "leaflet";
 import { renderToString } from "react-dom/server";
 import LinePill from "@/components/line-pill";
 import Link from "next/link";
-import { Location } from "@/types";
-import { filterMap, isTooLight, locationEquals } from "@/lib/utils";
-import { getVehicles, StopWithRoutes, VehicleWithRoute } from "@/lib/actions";
+import { isTooLight, locationEquals } from "@/lib/utils";
+import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
-import { Route } from "@prisma/client";
+import { Stop, VehiclePosition, Location, RouteWithShape } from "@/lib/model";
 
 interface MapProps {
   location: Location | null;
   stopDistances?: number[];
-  allLines: Record<string, Route>;
-  allStops: Record<string, StopWithRoutes>;
+  allLines: Record<string, RouteWithShape>;
+  allStops: Record<string, Stop>;
 }
 
 const RecenterAutomatically = ({ location }: { location: Location | null }) => {
@@ -209,7 +208,7 @@ export default function Map({
 }: MapProps) {
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
-  const [vehicles, setVehicles] = useState<VehicleWithRoute[]>([]);
+  const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
 
   useEffect(() => {
     function updateVehicles() {
@@ -259,10 +258,8 @@ export default function Map({
     className: "", // this must be blank or the icons will be in white boxes
   });
 
-  const placeDivIcon = (stop: StopWithRoutes) => {
-    const colors = filterMap(stop.routes, (i) => allLines[i]).map(
-      ({ routeColor }) => routeColor
-    );
+  const placeDivIcon = (stop: Stop) => {
+    const colors = stop.routes.map(({ routeColor }) => routeColor);
 
     return L.divIcon({
       html: renderToString(
@@ -340,10 +337,10 @@ export default function Map({
         Select a Stop
       </Typography>
       <TileLayer url={baseMapUrl} />
-      {vehicles.map(({ vehicleId, route: { routeShortName }, location }) => (
+      {vehicles.map(({ vehicleId, route: { routeShortName }, position }) => (
         <Marker
           key={vehicleId}
-          position={location}
+          position={position}
           icon={vehicleIcon(routeShortName)}
           // This looks a bit weird but it is better for the buses to be behind the stops
           //   so stops don't get hidden. -5 isn't enough but -10 seems to work
@@ -380,7 +377,7 @@ export default function Map({
                     m={1}
                     justifyContent="center"
                   >
-                    {filterMap(stop.routes, (i) => allLines[i]).map(
+                    {stop.routes.map(
                       ({ routeId, routeShortName, routeColor }) => {
                         return (
                           <LinePill

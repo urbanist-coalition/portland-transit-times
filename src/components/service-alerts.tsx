@@ -11,10 +11,10 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Fragment } from "react";
-import { ServiceAlert } from "@prisma/client";
+import { Alert } from "@/lib/model";
 
 interface ServiceAlertsProps {
-  serviceAlerts: ServiceAlert[];
+  serviceAlerts: Alert[];
 }
 
 export default function ServiceAlerts({ serviceAlerts }: ServiceAlertsProps) {
@@ -52,8 +52,8 @@ export default function ServiceAlerts({ serviceAlerts }: ServiceAlertsProps) {
             <Fragment key={alert.id}>
               <ListItem>
                 <ListItemText
-                  primary={alert.header}
-                  secondary={alert.description}
+                  primary={alert.headerText}
+                  secondary={alert.descriptionText}
                 />
               </ListItem>
               {index < serviceAlerts.length - 1 && <Divider component="li" />}

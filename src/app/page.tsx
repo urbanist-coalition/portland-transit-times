@@ -4,10 +4,13 @@ import { QuickStops } from "@/components/quick-stops";
 import StopSearch from "@/components/stop-search";
 import Footer from "@/components/footer";
 import ServiceAlerts from "@/components/service-alerts";
-import { getServiceAlerts } from "@/lib/actions";
+import { getServiceAlerts, getStops } from "@/lib/actions";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const serviceAlerts = await getServiceAlerts();
+  const stops = await getStops();
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
@@ -36,8 +39,8 @@ export default async function HomePage() {
         <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
       </Box>
 
-      <StopSearch />
-      <QuickStops />
+      <StopSearch allStops={Object.values(stops)} />
+      <QuickStops allStops={stops} />
       <Footer />
     </Container>
   );

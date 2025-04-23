@@ -1,52 +1,44 @@
-import { differenceInDays, parse } from "date-fns";
+import { differenceInDays, parse, subDays } from "date-fns";
 
-import { GTFSStatic, StopTime } from "@/lib/gtfs/static";
+import { GTFSStatic } from "@/lib/gtfs/static";
 import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
-import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
-import { Location } from "@/types";
-import { concurrentWindow } from "../utils";
+import { Stop, Route, Model, Location, StopTimeInstance } from "@/lib/model";
+
+function indexBy<T, K extends keyof T>(array: T[], key: K): Map<T[K], T[]> {
+  const index = new Map<T[K], T[]>();
+  for (const item of array) {
+    const current = index.get(item[key]) || [];
+    index.set(item[key], [...current, item]);
+  }
+  return index;
+}
+
+function getOne<T, K>(index: Map<K, T[]>, key: K): T | undefined {
+  return (index.get(key) || [])[0];
+}
 
 /**
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
  * saves data to Redis, and then cleans up the temp folder.
  */
-export async function loadStatic(system: GTFSSystem) {
+export async function loadStatic(system: GTFSSystem, model: Model) {
   const gtfsStatic = new GTFSStatic(system);
   await gtfsStatic.load();
 
   try {
-    const before = new Date();
-
-    console.log("Loading stops...");
-    const stops = await gtfsStatic.getStops();
-    const stopsData: Prisma.StopCreateInput[] = [];
-    for (const stop of stops) {
-      const { stop_id, stop_name, stop_code, stop_lat, stop_lon } = stop;
-      // TODO: come up with a more general way of dealing with stops
-      //   Currently in GPMETRO, stops starting with 1: have no associated stop times
-      //   It is unclear what they are for, at first I thought they were to do
-      //   with the South Portland merger but the South Portland stops also have 0: versions
-      if (stop_id.startsWith("1")) continue; // Skip the 1: stops
-      stopsData.push({
-        stopId: stop_id,
-        stopCode: stop_code,
-        stopName: stop_name,
-        location: {
-          lat: parseFloat(stop_lat),
-          lng: parseFloat(stop_lon),
-        },
-      });
-    }
-
-    for (const stop of stopsData) {
-      await prisma.stop.upsert({
-        where: { stopId: stop.stopId },
-        update: stop,
-        create: stop,
-      });
-    }
+    console.log("Loading trips...");
+    const trips = await gtfsStatic.getTrips();
+    const tripsData = trips.map(
+      ({ service_id, trip_id, route_id, shape_id, trip_headsign }) => ({
+        tripId: trip_id,
+        routeId: route_id,
+        serviceId: service_id,
+        shapeId: shape_id,
+        tripHeadsign: trip_headsign,
+      })
+    );
+    await model.setTrips(tripsData);
 
     console.log("Building route shapes...");
     const shapes = await gtfsStatic.getShapes();
@@ -77,7 +69,6 @@ export async function loadStatic(system: GTFSSystem) {
     }
 
     const shapesByRouteId = new Map<string, string[]>();
-    const trips = await gtfsStatic.getTrips();
     for (const trip of trips) {
       const { route_id, shape_id } = trip;
       const current = shapesByRouteId.get(route_id) || [];
@@ -88,157 +79,123 @@ export async function loadStatic(system: GTFSSystem) {
 
     console.log("Loading routes...");
     const routes = await gtfsStatic.getRoutes();
-    const routesData = routes.map(
+    const routesData: Route[] = routes.map(
       ({ route_id, route_short_name, route_color, route_text_color }) => ({
         routeId: route_id,
         routeShortName: route_short_name,
         routeColor: `#${route_color}`,
         routeTextColor: `#${route_text_color}`,
-        shapes: (shapesByRouteId.get(route_id) || []).map(
-          (shapeId) => sortedShapesById.get(shapeId) || []
-        ),
       })
     );
-
-    for (const route of routesData) {
-      await prisma.route.upsert({
-        where: { routeId: route.routeId },
-        update: route,
-        create: route,
-      });
-    }
-
-    console.log("Loading trips...");
-    const tripData = trips.map(({ trip_id, route_id, trip_headsign }) => ({
-      tripId: trip_id,
-      routeId: route_id,
-      tripHeadsign: trip_headsign,
+    const routesWithShapesData = routesData.map((route) => ({
+      ...route,
+      shapes: (shapesByRouteId.get(route.routeId) || []).map(
+        (shapeId) => sortedShapesById.get(shapeId) || []
+      ),
     }));
+    await model.setRoutes(routesWithShapesData);
+    const routesById = indexBy(routesData, "routeId");
 
-    for (const trip of tripData) {
-      await prisma.trip.upsert({
-        where: { tripId: trip.tripId },
-        update: trip,
-        create: trip,
-      });
-    }
-
-    console.log("Loading stop times...");
+    console.log("Building stop times...");
     const stopTimes = await gtfsStatic.getStopTimes();
-    const stopTimeData = stopTimes.map(({ trip_id, stop_id }) => ({
-      tripId: trip_id,
-      stopId: stop_id,
-    }));
-    await concurrentWindow(stopTimeData, 100, async (stopTime) => {
-      await prisma.stopTime.upsert({
-        where: {
-          stopId_tripId: {
-            tripId: stopTime.tripId,
-            stopId: stopTime.stopId,
-          },
+    const stopTimesByStopId = indexBy(stopTimes, "stop_id");
+
+    console.log("Loading stops...");
+    const stops = await gtfsStatic.getStops();
+
+    const tripsById = indexBy(tripsData, "tripId");
+
+    const stopsData: Stop[] = [];
+    for (const stop of stops) {
+      const { stop_id, stop_name, stop_code, stop_lat, stop_lon } = stop;
+      // TODO: come up with a more general way of dealing with stops
+      //   Currently in GPMETRO, stops starting with 1: have no associated stop times
+      //   It is unclear what they are for, at first I thought they were to do
+      //   with the South Portland merger but the South Portland stops also have 0: versions
+      if (stop_id.startsWith("1")) continue; // Skip the 1: stops
+
+      const routeIds = new Set<string>();
+      for (const stopTime of stopTimesByStopId.get(stop_id) || []) {
+        const trip = getOne(tripsById, stopTime.trip_id);
+        if (!trip) {
+          console.warn("Missing trip", stopTime.trip_id);
+          continue;
+        }
+        routeIds.add(trip.routeId);
+      }
+
+      const routes: Route[] = [];
+      for (const routeId of routeIds) {
+        const route = getOne(routesById, routeId);
+        if (!route) {
+          console.warn("Missing route", routeId);
+          continue;
+        }
+        routes.push(route);
+      }
+
+      // Weirdly, the South Portland stops are in but they have no associated routes
+      if (routes.length === 0) {
+        continue;
+      }
+
+      stopsData.push({
+        stopId: stop_id,
+        stopCode: stop_code,
+        stopName: stop_name,
+        location: {
+          lat: parseFloat(stop_lat),
+          lng: parseFloat(stop_lon),
         },
-        update: stopTime,
-        create: stopTime,
+        routes,
       });
-    });
+    }
+    await model.setStops(stopsData);
 
     console.log("Loading stop time instances...");
     const calendarDates = await gtfsStatic.getCalendarDates();
 
-    const serviceIdToTrips = new Map<string, string[]>();
-    for (const trip of trips) {
-      const { service_id, trip_id } = trip;
-      const current = serviceIdToTrips.get(service_id) || [];
-      serviceIdToTrips.set(service_id, [...current, trip_id]);
-    }
+    const tripsByServiceId = indexBy(tripsData, "serviceId");
+    const stopTimesByTripId = indexBy(stopTimes, "trip_id");
 
-    const tripIdToStopTimes = new Map<string, StopTime[]>();
-    for (const stopTime of stopTimes) {
-      const current = tripIdToStopTimes.get(stopTime.trip_id) || [];
-      tripIdToStopTimes.set(stopTime.trip_id, [...current, stopTime]);
-    }
-
-    for (const calendarDate of calendarDates) {
-      const calendarDateDate = parse(calendarDate.date, "yyyyMMdd", new Date());
+    const stopTimeInstanceData: StopTimeInstance[] = [];
+    for (const { date, service_id } of calendarDates) {
+      const calendarDateDate = parse(date, "yyyyMMdd", new Date());
       // Only load the next 3 days
       if (differenceInDays(calendarDateDate, new Date()) > 3) {
         continue;
       }
 
-      for (const tripId of serviceIdToTrips.get(calendarDate.service_id) ||
-        []) {
-        const tripStopTimes = tripIdToStopTimes.get(tripId) || [];
-        await Promise.all(
-          tripStopTimes.map(async (stopTime) => {
-            const { stop_id } = stopTime;
-            const time = gtfsTimestamp(
-              calendarDate.date,
-              stopTime.arrival_time,
-              system.timeZone
-            );
+      const tripIds = tripsByServiceId.get(service_id) || [];
+      for (const trip of tripIds) {
+        const { tripId, routeId } = trip;
+        const route = getOne(routesById, routeId);
+        if (!route) {
+          console.warn("Missing route", routeId);
+          continue;
+        }
 
-            await prisma.stopTimeInstance.upsert({
-              where: {
-                serviceDate_tripId_stopId: {
-                  serviceDate: calendarDate.date,
-                  tripId,
-                  stopId: stop_id,
-                },
-              },
-              update: {
-                serviceDate: calendarDate.date,
-                tripId,
-                stopId: stop_id,
-                scheduledArrival: time,
-              },
-              create: {
-                serviceDate: calendarDate.date,
-                tripId,
-                stopId: stop_id,
-                scheduledArrival: time,
-                estimatedArrival: time,
-              },
-            });
-          })
-        );
+        const tripStopTimes = stopTimesByTripId.get(tripId) || [];
+        for (const { stop_id, arrival_time } of tripStopTimes) {
+          const time = gtfsTimestamp(
+            date,
+            arrival_time,
+            system.timeZone
+          ).getTime();
+
+          stopTimeInstanceData.push({
+            serviceDate: date,
+            tripId,
+            stopId: stop_id,
+            scheduledTime: time,
+            route,
+            trip,
+          });
+        }
       }
     }
-
-    await prisma.stop.deleteMany({
-      where: {
-        updatedAt: {
-          lte: before,
-        },
-      },
-    });
-    await prisma.route.deleteMany({
-      where: {
-        updatedAt: {
-          lte: before,
-        },
-      },
-    });
-    await prisma.trip.deleteMany({
-      where: {
-        updatedAt: {
-          lte: before,
-        },
-      },
-    });
-    await prisma.stopTime.deleteMany({
-      where: {
-        updatedAt: {
-          lte: before,
-        },
-      },
-    });
-    await prisma.stopTimeInstance.deleteMany({
-      where: {
-        updatedAt: {
-          lte: before,
-        },
-      },
-    });
+    await model.setStopTimeInstances(stopTimeInstanceData);
+    await model.cleanupStopTimeInstances(subDays(new Date(), 3));
   } finally {
     await gtfsStatic.cleanup();
   }

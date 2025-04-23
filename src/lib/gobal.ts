@@ -1,4 +1,4 @@
-import type { Location as LocationType } from "@/types";
+import type { Location as LocationType } from "@/lib/model";
 
 export {};
 
