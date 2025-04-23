@@ -22,7 +22,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { createContext, useContext } from "react";
 
 import { Stop } from "@/lib/model";
-import { filterMap } from "@/lib/utils";
+import { filterMap, stopCodeToStopId } from "@/lib/utils";
 
 const MAX_QUICK_STOPS = 10;
 
@@ -175,11 +175,11 @@ export function QuickStops({ allStops }: { allStops: Record<string, Stop> }) {
 
   const savedStopsData = filterMap(
     savedStops,
-    (stopCode) => allStops[stopCode]
+    (stopCode) => allStops[stopCodeToStopId(stopCode)]
   );
   const recentStopsData = filterMap(
     recentStops,
-    (stopCode) => allStops[stopCode]
+    (stopCode) => allStops[stopCodeToStopId(stopCode)]
   );
 
   const clippedRecentStops = recentStopsData

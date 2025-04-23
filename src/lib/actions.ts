@@ -9,10 +9,7 @@ import {
   VehiclePosition,
   getModel,
 } from "@/lib/model";
-
-function stopCodeToStopId(stopCode: string): string {
-  return `0:${stopCode}`;
-}
+import { stopCodeToStopId } from "@/lib/utils";
 
 export async function predictionsByStopCode(
   stopCode: string
