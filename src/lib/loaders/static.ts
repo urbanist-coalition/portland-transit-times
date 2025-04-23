@@ -164,7 +164,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
       ...stop,
       stopName: stopNameOverrides[stop.stopId] || stop.stopName,
     }));
-    await model.setStops(stopsData);
+    await model.setStops(renamedStopsData);
 
     console.log("Loading stop time instances...");
     const calendarDates = await gtfsStatic.getCalendarDates();
