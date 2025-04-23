@@ -162,7 +162,8 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
     );
     const renamedStopsData = stopsData.map((stop) => ({
       ...stop,
-      stopName: stopNameOverrides[stop.stopId] || stop.stopName,
+      stopName:
+        stopNameOverrides[stop.stopId] || fixCapitalization(stop.stopName),
     }));
     await model.setStops(renamedStopsData);
 

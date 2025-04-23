@@ -8,6 +8,7 @@ import SpeedDial from "@/components/speed-dial";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import { QuickStopsProvider } from "@/components/quick-stops";
 import { cookies } from "next/headers";
+import { TimeZoneProvider } from "@/components/timezone-cookie";
 
 export const metadata: Metadata = {
   title: "UCP Transit Times",
@@ -28,6 +29,8 @@ export default async function RootLayout({
   const recentStopsRaw = cookieStore.get("recentStops");
   const recentStops =
     recentStopsRaw && (JSON.parse(recentStopsRaw.value) as string[]);
+
+  const timeZone = cookieStore.get("tz")?.value || "America/New_York";
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -51,14 +54,16 @@ export default async function RootLayout({
       <body>
         <AppRouterCacheProvider>
           <ThemeProvider theme={theme}>
-            <QuickStopsProvider
-              savedStops={savedStops}
-              recentStops={recentStops}
-            >
-              <InitColorSchemeScript attribute="class" />
-              {children}
-              <SpeedDial />
-            </QuickStopsProvider>
+            <TimeZoneProvider timeZone={timeZone}>
+              <QuickStopsProvider
+                savedStops={savedStops}
+                recentStops={recentStops}
+              >
+                <InitColorSchemeScript attribute="class" />
+                {children}
+                <SpeedDial />
+              </QuickStopsProvider>
+            </TimeZoneProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

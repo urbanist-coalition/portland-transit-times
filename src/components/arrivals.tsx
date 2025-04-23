@@ -16,19 +16,25 @@ import {
 import { isTooLight } from "@/lib/utils";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
-import { differenceInMinutes, format, startOfMinute } from "date-fns";
+import { differenceInMinutes, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
 import { LiveStopTimeInstance } from "@/lib/model";
+import { formatInTimeZone } from "date-fns-tz";
+import { useTimeZone } from "./timezone-cookie";
 
 const FORMAT = "h:mm a";
 
-function _format(date: number): string {
-  return format(date, FORMAT).toLowerCase();
+function _format(date: number, timeZone: string): string {
+  return formatInTimeZone(date, timeZone, FORMAT).toLowerCase();
 }
 
-function formatPredictedTime(date: number, now: number): string {
+function formatPredictedTime(
+  date: number,
+  now: number,
+  timeZone: string
+): string {
   const delta = differenceInMinutes(date, now);
-  if (delta > 30) return _format(date);
+  if (delta > 30) return _format(date, timeZone);
   if (delta < 1) return "Due";
   return `${delta} min`;
 }
@@ -56,6 +62,7 @@ interface PredictionCardProps {
 
 function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
+  const timeZone = useTimeZone();
   const tooLight = isTooLight(prediction.route.routeColor);
 
   const delta = differenceInMinutes(
@@ -111,13 +118,17 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
 
           <Typography variant="body2">
             <ScheduleLabel title="Scheduled:" />{" "}
-            <ScheduleTime time={_format(prediction.scheduledTime)} />
+            <ScheduleTime time={_format(prediction.scheduledTime, timeZone)} />
           </Typography>
 
           <Typography variant="body2" component="div">
             <ScheduleLabel title="Predicted:" />{" "}
             <ScheduleTime
-              time={formatPredictedTime(prediction.predictedTime || 0, now)}
+              time={formatPredictedTime(
+                prediction.predictedTime || 0,
+                now,
+                timeZone
+              )}
             />
             <Chip
               label={statusMessage}
