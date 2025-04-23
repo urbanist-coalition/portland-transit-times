@@ -1,23 +1,9 @@
 import { fixCapitalization } from "@/lib/capitalization";
-import { GTFSStatic } from "@/lib/gtfs/static";
-import { getOne, indexBy } from "@/lib/utils";
-
-/** A record of directions by stopId and routeId, designed to be JSON serialized.
- *
- * For example:
- * {
- *  "0:1234": {
- *    "1": {
- *      "Destination A": true,
- *      "Destination B": true
- *    }
- *  }
- * }
- */
-type StopDestinations = Record<string, Record<string, boolean>>;
-type DestinationsByStopId = Record<string, StopDestinations>;
+import { indexBy } from "@/lib/utils";
+import { Stop } from "@/lib/model";
 
 // Hardcoded overrides for stop names that are ambiguous and can't be disambiguated by the destinations.
+//   Use src/scripts/static-loader.ts to surface warnings and add to this list.
 const stopIdOverrides: Record<string, string> = {
   // PTC
   "0:422": "PTC (Outbound)",
@@ -41,17 +27,6 @@ const stopIdOverrides: Record<string, string> = {
   "0:503": "Stevens Ave + Brighton Ave (Inbound)",
 };
 
-function flatDestinations(stopDestinations: StopDestinations): string[] {
-  return Object.keys(stopDestinations).flatMap((routeId) => {
-    const destinations = stopDestinations[routeId];
-    if (destinations === undefined) {
-      throw new Error(`Missing destinations for route ${routeId}`);
-    }
-
-    return Object.keys(destinations);
-  });
-}
-
 /**
  * This function is used to disambiguate stop names that are the same but serve different routes.
  * It takes in a stop name, a list of stop IDs, and a map of destinations by stop ID.
@@ -63,36 +38,34 @@ function flatDestinations(stopDestinations: StopDestinations): string[] {
 function ruleBasedOverrides(
   stopName: string,
   stopIds: [string, string],
-  destinationsByStopId: DestinationsByStopId
+  destinationsByStopId: Record<string, string[]>
 ): Record<string, string> {
   const [stopIdA, stopIdB] = stopIds;
 
-  const aDestinationMap = destinationsByStopId[stopIdA];
-  if (!aDestinationMap) {
+  const aDestinations = destinationsByStopId[stopIdA];
+  if (!aDestinations) {
     console.warn(`Missing destinations for stop ${stopIdA} - ${stopName}`);
     return {};
   }
-  const aDestinations = flatDestinations(aDestinationMap);
 
-  const bDestinationMap = destinationsByStopId[stopIdB];
-  if (!bDestinationMap) {
+  const bDestinations = destinationsByStopId[stopIdB];
+  if (!bDestinations) {
     console.warn(`Missing destinations for stop ${stopIdB} - ${stopName}`);
     return {};
   }
-  const bDestinations = flatDestinations(bDestinationMap);
 
   // PULSE is the center of the universe, a lot of buses branch out from PULSE, if either stop serves a route with a destination of PULSE
   //   that is Inbound and it's duplicate must be Outbound. We can't always use destinations because some require passing through
   //   the center of the city to get to so whether or not it is inbound or outbound will be effected by where the stop is. Because
   //   PULSE is the center we can safely use it.
-  if (aDestinations.includes("PULSE")) {
+  if (aDestinations.includes("Pulse")) {
     return {
       [stopIdA]: `${stopName} (Inbound)`,
       [stopIdB]: `${stopName} (Outbound)`,
     };
   }
 
-  if (bDestinations.includes("PULSE")) {
+  if (bDestinations.includes("Pulse")) {
     return {
       [stopIdA]: `${stopName} (Outbound)`,
       [stopIdB]: `${stopName} (Inbound)`,
@@ -127,7 +100,7 @@ function ruleBasedOverrides(
 function nameOverrides(
   stopName: string,
   stopIds: string[],
-  destinationsByStopId: DestinationsByStopId
+  destinationsByStopId: Record<string, string[]>
 ): Record<string, string> {
   // Some stops have the same name but serve buses going in different directions on different sides of the street
   //   We want to distinguish these by the destination, however some of these stops serve multiple destinations
@@ -168,44 +141,23 @@ function nameOverrides(
   return overrides;
 }
 
-export async function generateStopNameOverrides(gtfsStatic: GTFSStatic) {
-  const trips = await gtfsStatic.getTrips();
-  const tripsById = indexBy(trips, "trip_id");
-  const stopTimes = await gtfsStatic.getStopTimes();
-  const routeDirectionsByStopId: DestinationsByStopId = {};
-  for (const { trip_id, stop_id } of stopTimes) {
-    const trip = getOne(tripsById, trip_id);
-    if (!trip) continue;
-
-    const { route_id, trip_headsign } = trip;
-    if (!routeDirectionsByStopId[stop_id]) {
-      routeDirectionsByStopId[stop_id] = {};
-    }
-    if (!routeDirectionsByStopId[stop_id][route_id]) {
-      routeDirectionsByStopId[stop_id][route_id] = {};
-    }
-    routeDirectionsByStopId[stop_id][route_id][trip_headsign] = true;
-  }
-
-  const stopsByName: Record<string, string[]> = {};
-  for (const { stop_id, stop_name } of await gtfsStatic.getStops()) {
-    // TODO: when unifying with the static loader don't repeat this grossness
-    if (stop_id.startsWith("1:")) continue; // Skip the 1: stops
-    if (!routeDirectionsByStopId[stop_id]) continue; // Skip stops with no destinations
-    if (!stopsByName[stop_name]) stopsByName[stop_name] = [];
-    stopsByName[stop_name].push(stop_id);
-  }
+export function generateStopNameOverrides(
+  stops: Stop[],
+  destinationsByStopId: Record<string, string[]>
+): Record<string, string> {
+  const stopsByName = indexBy(stops, "stopName");
 
   const stopNameOverrides: Record<string, string> = {};
-  for (const [stopName, stopIds] of Object.entries(stopsByName)) {
+  for (const [stopName, stopIds] of stopsByName.entries()) {
     Object.assign(
       stopNameOverrides,
-      nameOverrides(stopName, stopIds, routeDirectionsByStopId)
+      nameOverrides(
+        stopName,
+        stopIds.map(({ stopId }) => stopId),
+        destinationsByStopId
+      )
     );
   }
 
   return stopNameOverrides;
-  console.log(stopNameOverrides);
 }
-
-main().catch(console.error);

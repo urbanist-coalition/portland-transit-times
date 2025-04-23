@@ -5,19 +5,8 @@ import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Model, Location, StopTimeInstance } from "@/lib/model";
 import { fixCapitalization } from "@/lib/capitalization";
-
-function indexBy<T, K extends keyof T>(array: T[], key: K): Map<T[K], T[]> {
-  const index = new Map<T[K], T[]>();
-  for (const item of array) {
-    const current = index.get(item[key]) || [];
-    index.set(item[key], [...current, item]);
-  }
-  return index;
-}
-
-function getOne<T, K>(index: Map<K, T[]>, key: K): T | undefined {
-  return (index.get(key) || [])[0];
-}
+import { indexBy, getOne } from "@/lib/utils";
+import { generateStopNameOverrides } from "./stop-name-deduplication";
 
 /**
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
@@ -151,6 +140,30 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
         routes,
       });
     }
+
+    const headsignsByStopId: Record<string, string[]> = {};
+    for (const stopTime of stopTimes) {
+      const { stop_id, trip_id } = stopTime;
+      const trip = getOne(tripsById, trip_id);
+      if (!trip) {
+        console.warn("Missing trip", trip_id);
+        continue;
+      }
+      const { tripHeadsign } = trip;
+      const current = headsignsByStopId[stop_id] || [];
+      if (!current.includes(tripHeadsign)) {
+        headsignsByStopId[stop_id] = [...current, tripHeadsign];
+      }
+    }
+
+    const stopNameOverrides = generateStopNameOverrides(
+      stopsData,
+      headsignsByStopId
+    );
+    const renamedStopsData = stopsData.map((stop) => ({
+      ...stop,
+      stopName: stopNameOverrides[stop.stopId] || stop.stopName,
+    }));
     await model.setStops(stopsData);
 
     console.log("Loading stop time instances...");

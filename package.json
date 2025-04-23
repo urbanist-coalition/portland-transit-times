@@ -4,8 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "capture-predictions": "tsx src/build-scripts/generate-stop-name-overrides.ts --refresh",
-    "generate-stop-name-overrides": "tsx src/build-scripts/generate-stop-name-overrides.ts",
     "build": "next build",
     "start": "next start",
     "worker": "tsx src/worker.ts",
