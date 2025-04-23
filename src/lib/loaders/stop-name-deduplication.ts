@@ -1,6 +1,6 @@
 import { fixCapitalization } from "@/lib/capitalization";
 import { indexBy } from "@/lib/utils";
-import { Stop } from "@/lib/model";
+import { Stop } from "@/types";
 
 // Hardcoded overrides for stop names that are ambiguous and can't be disambiguated by the destinations.
 //   Use src/scripts/static-loader.ts to surface warnings and add to this list.

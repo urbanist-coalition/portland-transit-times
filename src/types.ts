@@ -1,69 +1,87 @@
-import { JSONSchemaType } from "ajv";
-
 export interface Location {
   lat: number;
   lng: number;
-  cap?: number;
 }
 
-export interface LineDataSlim {
-  lineId: string;
-  lineName: string;
-  lineColor: string;
-}
+// Static Data
 
-export interface LineData extends LineDataSlim {
-  points: Location[][];
-}
-
-export interface StopData {
-  stopId: string;
-  stopName: string;
-  stopCode: string;
-  location: Location;
-  lineIds: string[];
-}
-
-export interface VehicleData {
-  vehicleId: string;
-  lineName: string;
-  location: Location;
-}
-
-export interface StopTimeData {
-  serviceDate: string;
-  serviceId: string;
-  tripId: string;
-  stopId: string;
+export interface Route {
   routeId: string;
-  headsign: string;
-  lineColor: string;
-  lineName: string;
-  scheduledTime: number;
-  predictedTime: number;
+  routeShortName: string;
+  routeColor: string;
+  routeTextColor: string;
 }
 
-export const vehicleDataSchema: JSONSchemaType<VehicleData> = {
-  type: "object",
-  properties: {
-    vehicleId: { type: "string" },
-    lineName: { type: "string" },
-    location: {
-      type: "object",
-      properties: {
-        lat: { type: "number" },
-        lng: { type: "number" },
-        cap: { type: "number", nullable: true },
-      },
-      required: ["lat", "lng"],
-    },
-  },
-  required: ["vehicleId", "lineName", "location"],
-};
+export interface RouteWithShape extends Route {
+  // Denormalized Shape Info
+  shapes: Location[][];
+}
 
-// Very simplified from gtfs-realtime-bindings
-export interface ServiceAlert {
-  id: string;
+export interface Trip {
+  tripId: string;
+  routeId: string;
+  serviceId: string;
+  shapeId: string;
+
+  tripHeadsign: string;
+}
+
+export interface Stop {
+  stopId: string;
+  stopCode: string;
+  stopName: string;
+  location: Location;
+
+  // Denormalized Route Info
+  routes: Route[];
+}
+
+// Real-time Data
+
+export interface Alert {
+  id: string; // Corresponds to the feed entity ID
   headerText: string;
   descriptionText: string;
 }
+
+export interface VehiclePosition {
+  vehicleId: string;
+  position: Location;
+
+  // Denormalized Route Info
+  route: Route;
+}
+
+export interface VehiclePositions {
+  vehicles: VehiclePosition[];
+  lastUpdated: number;
+}
+
+export enum StopTimeStatus {
+  scheduled = "SCHEDULED",
+  skipped = "SKIPPED",
+  departed = "DEPARTED",
+}
+
+export interface StopTimeInstanceBase {
+  serviceDate: string;
+  tripId: string;
+  stopId: string;
+}
+
+export interface StopTimeUpdate extends StopTimeInstanceBase {
+  predictedTime: number; // Unix timestamp in seconds
+  status: StopTimeStatus;
+}
+
+export interface StopTimeInstance extends StopTimeInstanceBase {
+  scheduledTime: number; // Unix timestamp in seconds
+
+  // Denormalized Route Info
+  route: Route;
+
+  // Denormalized Trip Info
+  trip: Trip;
+}
+
+export type LiveStopTimeInstance = StopTimeInstance & StopTimeUpdate;

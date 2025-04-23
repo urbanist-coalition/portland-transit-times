@@ -7,8 +7,8 @@ import {
   RouteWithShape,
   Stop,
   VehiclePositions,
-  getModel,
-} from "@/lib/model";
+} from "@/types";
+import { getModel } from "@/lib/model";
 import { stopCodeToStopId } from "@/lib/utils";
 
 export async function predictionsByStopCode(
@@ -16,8 +16,7 @@ export async function predictionsByStopCode(
 ): Promise<LiveStopTimeInstance[]> {
   return getModel().getStopTimeInstances(
     stopCodeToStopId(stopCode),
-    // TODO: subtract minutes once departed UX is implemented
-    subMinutes(new Date(), 0),
+    subMinutes(new Date(), 10),
     20
   );
 }

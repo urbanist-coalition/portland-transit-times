@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Fragment } from "react";
-import { Alert } from "@/lib/model";
+import { Alert } from "@/types";
 
 interface ServiceAlertsProps {
   serviceAlerts: Alert[];

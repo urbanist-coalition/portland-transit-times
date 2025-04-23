@@ -1,10 +1,10 @@
 "use client";
 
 import { Box } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { distance } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { Stop, RouteWithShape, Location } from "@/lib/model";
+import { Stop, RouteWithShape, Location } from "@/types";
 
 type LocationInfo =
   | {
@@ -62,45 +62,47 @@ export default function ByLocation({ allLines, allStops }: ByLocationProps) {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        // To cut down on rendering from jitter, only update if it moves by enough
-        const prev = lastPositionRef.current;
-        if (prev) {
-          const moved = distance(
-            prev.lat,
-            prev.lng,
-            position.coords.latitude,
-            position.coords.longitude
-          ); // metres
-          const threshold = Math.max(MIN_MOVE, position.coords.accuracy);
-          if (moved < threshold) {
-            // Too small – ignore this jitter
-            return;
+        startTransition(() => {
+          // To cut down on rendering from jitter, only update if it moves by enough
+          const prev = lastPositionRef.current;
+          if (prev) {
+            const moved = distance(
+              prev.lat,
+              prev.lng,
+              position.coords.latitude,
+              position.coords.longitude
+            ); // metres
+            const threshold = Math.max(MIN_MOVE, position.coords.accuracy);
+            if (moved < threshold) {
+              // Too small – ignore this jitter
+              return;
+            }
           }
-        }
-        lastPositionRef.current = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-
-        const stopDistances = stopsArray.map((stop) =>
-          distance(
-            stop.location.lat,
-            stop.location.lng,
-            position.coords.latitude,
-            position.coords.longitude
-          )
-        );
-        setLocationInfo({
-          status: "loaded",
-          location: {
+          lastPositionRef.current = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          },
-          stopDistances,
-          closestStops: stopsArray
-            .map((stop, idx) => [stop, stopDistances[idx]] as [Stop, number])
-            .toSorted((a, b) => a[1] - b[1])
-            .slice(0, 5),
+          };
+
+          const stopDistances = stopsArray.map((stop) =>
+            distance(
+              stop.location.lat,
+              stop.location.lng,
+              position.coords.latitude,
+              position.coords.longitude
+            )
+          );
+          setLocationInfo({
+            status: "loaded",
+            location: {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            },
+            stopDistances,
+            closestStops: stopsArray
+              .map((stop, idx) => [stop, stopDistances[idx]] as [Stop, number])
+              .toSorted((a, b) => a[1] - b[1])
+              .slice(0, 5),
+          });
         });
       },
       (geoError) => {

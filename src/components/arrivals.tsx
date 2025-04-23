@@ -1,7 +1,7 @@
 "use client";
 
 import { predictionsByStopCode } from "@/lib/actions";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,7 +18,7 @@ import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
-import { LiveStopTimeInstance } from "@/lib/model";
+import { LiveStopTimeInstance, StopTimeStatus } from "@/types";
 import { formatInTimeZone } from "date-fns-tz";
 import { useTimeZone } from "./timezone-cookie";
 
@@ -31,10 +31,11 @@ function _format(date: number, timeZone: string): string {
 function formatPredictedTime(
   date: number,
   now: number,
-  timeZone: string
+  timeZone: string,
+  departed: boolean
 ): string {
   const delta = differenceInMinutes(date, now);
-  if (delta > 30) return _format(date, timeZone);
+  if (delta > 30 || departed) return _format(date, timeZone);
   if (delta < 1) return "Due";
   return `${delta} min`;
 }
@@ -77,10 +78,20 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     startOfMinute(prediction.scheduledTime)
   );
 
+  const nowDelta = differenceInMinutes(
+    startOfMinute(prediction.scheduledTime),
+    startOfMinute(now)
+  );
+  const departed =
+    nowDelta < -1 || prediction.status === StopTimeStatus.departed;
+
   let statusMessage = "On Time";
   let statusColor = theme.palette.success.main; // green for on time
 
-  if (delta && delta > 0) {
+  if (departed) {
+    statusMessage = "Departed";
+    statusColor = theme.palette.grey[500]; // grey for departed
+  } else if (delta && delta > 0) {
     statusMessage = `${delta} min late`;
     statusColor = theme.palette.error.main; // red for late
   } else if (delta && delta < 0) {
@@ -127,7 +138,8 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               time={formatPredictedTime(
                 prediction.predictedTime || 0,
                 now,
-                timeZone
+                timeZone,
+                departed
               )}
             />
             <Chip
@@ -168,15 +180,19 @@ export default function Arrivals({
     const pollingInterval = setInterval(async () => {
       try {
         const updatedArrivals = await predictionsByStopCode(stopCode);
-        setArrivals(updatedArrivals);
-        setLastUpdated(Date.now());
+        startTransition(() => {
+          setArrivals(updatedArrivals);
+          setLastUpdated(Date.now());
+        });
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
     }, 5000);
 
     const nowInterval = setInterval(() => {
-      setNow(Date.now());
+      startTransition(() => {
+        setNow(Date.now());
+      });
     }, 1000);
 
     return () => {

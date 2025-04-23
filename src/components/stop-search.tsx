@@ -1,6 +1,6 @@
 "use client";
 
-import { Stop } from "@/lib/model";
+import { Stop } from "@/types";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

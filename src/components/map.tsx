@@ -12,7 +12,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
 import MaterialLink from "@mui/material/Link";
@@ -26,12 +26,12 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { renderToString } from "react-dom/server";
-import LinePill from "@/components/line-pill";
 import Link from "next/link";
+import LinePill from "@/components/line-pill";
 import { isTooLight, locationEquals } from "@/lib/utils";
 import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
-import { Stop, VehiclePosition, Location, RouteWithShape } from "@/lib/model";
+import { Stop, VehiclePosition, Location, RouteWithShape } from "@/types";
 
 interface MapProps {
   location: Location | null;
@@ -211,7 +211,9 @@ export function useLiveVehicles(intervalMs = 1000) {
       const newVehicles = await getVehicles();
       if (!cancelled && prevRef.current !== newVehicles.lastUpdated) {
         prevRef.current = newVehicles.lastUpdated;
-        setVehicles(newVehicles.vehicles);
+        startTransition(() => {
+          setVehicles(newVehicles.vehicles);
+        });
       }
     }
 
@@ -407,7 +409,7 @@ export default function Map({
                     )}
                   </Stack>
                 )}
-                <Link href={`/stops/${stop.stopCode}`} passHref>
+                <Link href={`/stops/${stop.stopCode}`}>
                   <Button variant="text">View Arrivals</Button>
                 </Link>
               </Box>

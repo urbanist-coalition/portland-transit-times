@@ -4,8 +4,8 @@ import {
   StopTimeStatus,
   VehiclePosition,
   StopTimeUpdate,
-  Model,
-} from "@/lib/model";
+} from "@/types";
+import { Model } from "@/lib/model";
 import { formatInTimeZone } from "date-fns-tz";
 import { GTFSSystem } from "@/lib/gtfs/types";
 
@@ -177,22 +177,30 @@ export class GTFSRealtimeLoader {
       for (const stopTimeUpdate of stopTimeUpdates) {
         // For the first stop we will use the departure time because that is all we have
         // For all others we use the arrival because people are supposed to already be at the stop when the bus arrives
-        const time =
+        const rawTime =
           stopTimeUpdate.arrival?.time || stopTimeUpdate.departure?.time;
         const stopId = stopTimeUpdate.stopId;
 
-        if (!time || !stopId) {
+        if (!rawTime || !stopId) {
           console.warn("Missing time or stopId:", stopTimeUpdate);
           continue;
+        }
+        const time = this.longToNumber(rawTime) * 1000;
+
+        // TODO: use the vehicle position to determine if the bus has departed
+        let status = StopTimeStatus.scheduled;
+        if (stopTimeUpdate.scheduleRelationship === 2) {
+          status = StopTimeStatus.skipped;
+        } else if (Date.now() > time) {
+          status = StopTimeStatus.departed;
         }
 
         stopTimeInstanceData.push({
           serviceDate: startDate,
           tripId,
           stopId,
-          predictedTime: this.longToNumber(time) * 1000,
-          // TODO: Handle the status
-          status: StopTimeStatus.scheduled,
+          predictedTime: time,
+          status,
         });
       }
       await this.model.setStopTimeUpdates(stopTimeInstanceData);

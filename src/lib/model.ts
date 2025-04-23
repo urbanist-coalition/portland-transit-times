@@ -1,92 +1,16 @@
+import {
+  Alert,
+  LiveStopTimeInstance,
+  RouteWithShape,
+  Stop,
+  StopTimeInstance,
+  StopTimeInstanceBase,
+  StopTimeStatus,
+  StopTimeUpdate,
+  Trip,
+  VehiclePositions,
+} from "@/types";
 import { Redis, RedisOptions } from "ioredis";
-
-export interface Location {
-  lat: number;
-  lng: number;
-}
-
-// Static Data
-
-export interface Route {
-  routeId: string;
-  routeShortName: string;
-  routeColor: string;
-  routeTextColor: string;
-}
-
-export interface RouteWithShape extends Route {
-  // Denormalized Shape Info
-  shapes: Location[][];
-}
-
-export interface Trip {
-  tripId: string;
-  routeId: string;
-  serviceId: string;
-  shapeId: string;
-
-  tripHeadsign: string;
-}
-
-export interface Stop {
-  stopId: string;
-  stopCode: string;
-  stopName: string;
-  location: Location;
-
-  // Denormalized Route Info
-  routes: Route[];
-}
-
-// Real-time Data
-
-export interface Alert {
-  id: string; // Corresponds to the feed entity ID
-  headerText: string;
-  descriptionText: string;
-}
-
-export interface VehiclePosition {
-  vehicleId: string;
-  position: Location;
-
-  // Denormalized Route Info
-  route: Route;
-}
-
-export interface VehiclePositions {
-  vehicles: VehiclePosition[];
-  lastUpdated: number;
-}
-
-export enum StopTimeStatus {
-  scheduled = "SCHEDULED",
-  skipped = "SKIPPED",
-  departed = "DEPARTED",
-}
-
-export interface StopTimeInstanceBase {
-  serviceDate: string;
-  tripId: string;
-  stopId: string;
-}
-
-export interface StopTimeUpdate extends StopTimeInstanceBase {
-  predictedTime: number; // Unix timestamp in seconds
-  status: StopTimeStatus;
-}
-
-export interface StopTimeInstance extends StopTimeInstanceBase {
-  scheduledTime: number; // Unix timestamp in seconds
-
-  // Denormalized Route Info
-  route: Route;
-
-  // Denormalized Trip Info
-  trip: Trip;
-}
-
-export type LiveStopTimeInstance = StopTimeInstance & StopTimeUpdate;
 
 export interface Model {
   // Static
@@ -121,6 +45,7 @@ export interface Model {
   cleanupStopTimeInstances(beforeTimestamp: Date): Promise<void>;
 }
 
+// TODO: these methods should really stage and then commit the data to avoid consistency issues
 export class RedisModel implements Model {
   private redis: Redis;
 
@@ -341,10 +266,13 @@ export class RedisModel implements Model {
       const key = this.stopTimeInstanceKey(stopTime);
       const serialized = JSON.stringify(stopTime);
       this.redis.pipeline();
+      // TODO: convert to a stage/commit model
       pipeline.hset(this.stopTimeInstanceHash, key, serialized);
       pipeline.zadd(
         `${this.stopTimeSortedSetPrefix}:${stopTime.stopId}`,
-        // Don't overwrite existing data
+        // Don't overwrite existing data, this prevents us from overwriting realtime updates
+        //   This method has a slight flaw in that if a stop time is rescheduled but it has
+        //   the same trip and stopId but no live updates yet it will not be updated.
         "NX",
         stopTime.scheduledTime,
         key

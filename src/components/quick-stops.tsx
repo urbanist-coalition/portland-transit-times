@@ -21,7 +21,7 @@ import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 import { createContext, useContext } from "react";
 
-import { Stop } from "@/lib/model";
+import { Stop } from "@/types";
 import { filterMap, stopCodeToStopId } from "@/lib/utils";
 
 const MAX_QUICK_STOPS = 10;

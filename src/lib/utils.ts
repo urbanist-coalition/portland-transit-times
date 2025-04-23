@@ -1,4 +1,4 @@
-import { Location } from "@/lib/model";
+import { Location } from "@/types";
 
 /**
  * Determines if a hex color is too light, useful for determining text color and adding
