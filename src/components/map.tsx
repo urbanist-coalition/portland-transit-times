@@ -16,6 +16,7 @@ import {
   startTransition,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -213,7 +214,6 @@ export function useLiveVehicles(intervalMs = 1000) {
     let cancelled = false;
 
     async function updateVehicles() {
-      console.log("Updating vehicles");
       const newVehicles = await getVehicles();
       if (!cancelled && prevRef.current !== newVehicles.lastUpdated) {
         prevRef.current = newVehicles.lastUpdated;
@@ -234,26 +234,16 @@ export function useLiveVehicles(intervalMs = 1000) {
   return vehicles;
 }
 
-export default function TransitMap({ allLines, allStops }: MapProps) {
-  console.log("Rendering map");
-  const [zoom, setZoom] = useState(13);
-  const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
-  const vehicles = useLiveVehicles();
-  const locationInfo = useUserLocation();
-  const location =
-    locationInfo.status === "loaded" ? locationInfo.location : null;
-  const fetchingLocation = locationInfo.status === "fetching";
+interface VisibleStopsProps {
+  allStops: Record<string, Stop>;
+  zoom: number;
+  iconSize: number;
+  center: Location;
+}
 
-  const zoomIconSizes: Record<number, number> = {
-    13: 10,
-    14: 12,
-    15: 14,
-    16: 16,
-    17: 18,
-    18: 20,
-    19: 22,
-    20: 24,
-  };
+function VisibleStops({ allStops, zoom, iconSize, center }: VisibleStopsProps) {
+  const map = useMap();
+  const theme = useTheme();
 
   // For some reason when the map is zoomed out the stops appear to be too low and to the left
   //   These values are picked to make the stops look good at these zoom levels
@@ -264,24 +254,7 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
     13: [-2, 2],
     14: [-1, 1],
   };
-  const iconSize = zoomIconSizes[zoom] || 10;
   const [skewX, skewY] = zoonSkew[zoom] || [0, 0];
-
-  const theme = useTheme();
-  const baseMap =
-    theme.palette.mode === "dark" ? "dark_all" : "rastertiles/voyager";
-  const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
-
-  const myLocationDivIcon = L.divIcon({
-    html: renderToString(
-      <StopIcon
-        colors={[theme.palette.secondary.main]}
-        size={iconSize + 6}
-        outlineColor="white"
-      />
-    ),
-    className: "", // this must be blank or the icons will be in white boxes
-  });
 
   const stopIconCache = useRef<Map<string, L.DivIcon>>(new Map());
 
@@ -309,6 +282,99 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
     },
     [iconSize, skewX, skewY, theme.palette.mode, theme.palette.grey]
   );
+
+  const visibleStops = useMemo(() => {
+    if (zoom < 15) return [];
+    const b = map.getBounds();
+    return Object.values(allStops).filter((s) => b.contains(s.location));
+  }, [allStops, zoom, map, center]);
+
+  return (
+    <>
+      {visibleStops.map((stop) => (
+        <Marker
+          riseOnHover={true}
+          key={stop.stopId}
+          position={stop.location}
+          icon={getStopIcon(stop.routes.map((r) => r.routeColor))}
+        >
+          <Popup closeButton={false}>
+            <Box sx={{ textAlign: "center" }}>
+              <Typography variant="h6" color="textPrimary">
+                {stop.stopName}
+              </Typography>
+              <Typography variant="caption" color="textPrimary">
+                Stop Number: {stop.stopCode}
+              </Typography>
+              <br />
+              {stop.routes && stop.routes.length > 0 && (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  m={1}
+                  justifyContent="center"
+                >
+                  {stop.routes.map(
+                    ({ routeId, routeShortName, routeColor }) => {
+                      return (
+                        <LinePill
+                          key={routeId}
+                          lineName={routeShortName}
+                          lineColor={routeColor}
+                        />
+                      );
+                    }
+                  )}
+                </Stack>
+              )}
+              <Link href={`/stops/${stop.stopCode}`}>
+                <Button variant="text">View Arrivals</Button>
+              </Link>
+            </Box>
+          </Popup>
+        </Marker>
+      ))}
+    </>
+  );
+}
+
+export default function TransitMap({ allLines, allStops }: MapProps) {
+  const [zoom, setZoom] = useState(13);
+  const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
+  const vehicles = useLiveVehicles();
+  const locationInfo = useUserLocation();
+  const location =
+    locationInfo.status === "loaded" ? locationInfo.location : null;
+  const fetchingLocation = locationInfo.status === "fetching";
+
+  const zoomIconSizes: Record<number, number> = {
+    13: 10,
+    14: 12,
+    15: 14,
+    16: 16,
+    17: 18,
+    18: 20,
+    19: 22,
+    20: 24,
+  };
+
+  const iconSize = zoomIconSizes[zoom] || 10;
+
+  const theme = useTheme();
+  const baseMap =
+    theme.palette.mode === "dark" ? "dark_all" : "rastertiles/voyager";
+  const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
+
+  const myLocationDivIcon = L.divIcon({
+    html: renderToString(
+      <StopIcon
+        colors={[theme.palette.secondary.main]}
+        size={iconSize + 6}
+        outlineColor="white"
+      />
+    ),
+    className: "", // this must be blank or the icons will be in white boxes
+  });
 
   const vehicleIcon = (lineName: string) => {
     const line = Object.values(allLines).find(
@@ -386,53 +452,15 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
         />
       ))}
       {location && <Marker position={location} icon={myLocationDivIcon} />}
-      {!fetchingLocation &&
-        zoom > 12 &&
-        Object.values(allStops).map((stop) => (
-          <Marker
-            riseOnHover={true}
-            key={stop.stopId}
-            position={stop.location}
-            icon={getStopIcon(stop.routes.map((r) => r.routeColor))}
-          >
-            <Popup closeButton={false}>
-              <Box sx={{ textAlign: "center" }}>
-                <Typography variant="h6" color="textPrimary">
-                  {stop.stopName}
-                </Typography>
-                <Typography variant="caption" color="textPrimary">
-                  Stop Number: {stop.stopCode}
-                </Typography>
-                <br />
-                {stop.routes && stop.routes.length > 0 && (
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    m={1}
-                    justifyContent="center"
-                  >
-                    {stop.routes.map(
-                      ({ routeId, routeShortName, routeColor }) => {
-                        return (
-                          <LinePill
-                            key={routeId}
-                            lineName={routeShortName}
-                            lineColor={routeColor}
-                          />
-                        );
-                      }
-                    )}
-                  </Stack>
-                )}
-                <Link href={`/stops/${stop.stopCode}`}>
-                  <Button variant="text">View Arrivals</Button>
-                </Link>
-              </Box>
-            </Popup>
-          </Marker>
-        ))}
+      {!fetchingLocation && (
+        <VisibleStops
+          allStops={allStops}
+          zoom={zoom}
+          iconSize={iconSize}
+          center={center}
+        />
+      )}
       {theme.palette.mode === "light" &&
-        !fetchingLocation &&
         Object.values(allLines)
           .filter(({ routeColor }) => isTooLight(routeColor))
           .map(({ routeId, shapes }) => (
@@ -443,16 +471,15 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
               weight={5}
             />
           ))}
-      {!fetchingLocation &&
-        Object.values(allLines).map(({ routeId, shapes, routeColor }) => (
-          <Polyline
-            key={routeId}
-            positions={shapes}
-            color={routeColor}
-            opacity={isTooLight(routeColor) ? 1 : 0.5}
-            weight={4}
-          />
-        ))}
+      {Object.values(allLines).map(({ routeId, shapes, routeColor }) => (
+        <Polyline
+          key={routeId}
+          positions={shapes}
+          color={routeColor}
+          opacity={isTooLight(routeColor) ? 1 : 0.5}
+          weight={4}
+        />
+      ))}
       <RecenterAutomatically location={location} />
       <CenterMeButton location={location} center={center} />
       <Pusher setZoom={setZoom} setCenter={setCenter} />
