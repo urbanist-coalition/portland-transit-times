@@ -36,7 +36,7 @@ variable "branch" {
 
 locals {
   # Strip off trailing digits for app platform
-  app_region = regex("^([a-z]+)", var.region)
+  app_region = regex("^([a-z]+)", var.region)[0]
 }
 
 resource "digitalocean_database_cluster" "redis" {

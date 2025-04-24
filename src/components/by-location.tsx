@@ -14,8 +14,6 @@ type LocationInfo =
   | {
       status: "loaded";
       location: { lat: number; lng: number };
-      stopDistances: number[];
-      closestStops: [Stop, number][];
       message?: undefined;
     }
   | {
@@ -83,25 +81,12 @@ export default function ByLocation({ allLines, allStops }: ByLocationProps) {
             lng: position.coords.longitude,
           };
 
-          const stopDistances = stopsArray.map((stop) =>
-            distance(
-              stop.location.lat,
-              stop.location.lng,
-              position.coords.latitude,
-              position.coords.longitude
-            )
-          );
           setLocationInfo({
             status: "loaded",
             location: {
               lat: position.coords.latitude,
               lng: position.coords.longitude,
             },
-            stopDistances,
-            closestStops: stopsArray
-              .map((stop, idx) => [stop, stopDistances[idx]] as [Stop, number])
-              .toSorted((a, b) => a[1] - b[1])
-              .slice(0, 5),
           });
         });
       },
@@ -142,16 +127,9 @@ export default function ByLocation({ allLines, allStops }: ByLocationProps) {
 
   const location =
     locationInfo.status === "loaded" ? locationInfo.location : null;
-  const stopDistances =
-    locationInfo.status === "loaded" ? locationInfo.stopDistances : undefined;
   return (
     <Box style={{ height: "100dvh", width: "100vw" }}>
-      <DynamicMap
-        location={location}
-        stopDistances={stopDistances}
-        allLines={allLines}
-        allStops={allStops}
-      />
+      <DynamicMap location={location} allLines={allLines} allStops={allStops} />
     </Box>
   );
 }

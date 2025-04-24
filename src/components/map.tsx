@@ -35,7 +35,6 @@ import { Stop, VehiclePosition, Location, RouteWithShape } from "@/types";
 
 interface MapProps {
   location: Location | null;
-  stopDistances?: number[];
   allLines: Record<string, RouteWithShape>;
   allStops: Record<string, Stop>;
 }
@@ -228,12 +227,7 @@ export function useLiveVehicles(intervalMs = 1000) {
   return vehicles;
 }
 
-export default function Map({
-  location,
-  stopDistances,
-  allLines,
-  allStops,
-}: MapProps) {
+export default function Map({ location, allLines, allStops }: MapProps) {
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
   const vehicles = useLiveVehicles();
@@ -368,7 +362,7 @@ export default function Map({
       ))}
       {location && <Marker position={location} icon={myLocationDivIcon} />}
       {zoom > 12 &&
-        Object.values(allStops).map((stop, i) => (
+        Object.values(allStops).map((stop) => (
           <Marker
             riseOnHover={true}
             key={stop.stopId}
@@ -384,11 +378,6 @@ export default function Map({
                   Stop Number: {stop.stopCode}
                 </Typography>
                 <br />
-                {stopDistances && stopDistances[i] && (
-                  <Typography variant="caption" color="textPrimary">
-                    {Math.round(stopDistances[i])} meters away
-                  </Typography>
-                )}
                 {stop.routes && stop.routes.length > 0 && (
                   <Stack
                     direction="row"
