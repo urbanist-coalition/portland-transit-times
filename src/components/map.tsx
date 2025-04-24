@@ -12,7 +12,13 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { startTransition, useEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
 import MaterialLink from "@mui/material/Link";
@@ -32,9 +38,9 @@ import { isTooLight, locationEquals } from "@/lib/utils";
 import { getVehicles } from "@/lib/actions";
 import { DirectionsBus } from "@mui/icons-material";
 import { Stop, VehiclePosition, Location, RouteWithShape } from "@/types";
+import useUserLocation from "@/hooks/user-location";
 
 interface MapProps {
-  location: Location | null;
   allLines: Record<string, RouteWithShape>;
   allStops: Record<string, Stop>;
 }
@@ -207,6 +213,7 @@ export function useLiveVehicles(intervalMs = 1000) {
     let cancelled = false;
 
     async function updateVehicles() {
+      console.log("Updating vehicles");
       const newVehicles = await getVehicles();
       if (!cancelled && prevRef.current !== newVehicles.lastUpdated) {
         prevRef.current = newVehicles.lastUpdated;
@@ -227,10 +234,15 @@ export function useLiveVehicles(intervalMs = 1000) {
   return vehicles;
 }
 
-export default function Map({ location, allLines, allStops }: MapProps) {
+export default function TransitMap({ allLines, allStops }: MapProps) {
+  console.log("Rendering map");
   const [zoom, setZoom] = useState(13);
   const [center, setCenter] = useState({ lat: 43.6632339, lng: -70.2864549 });
   const vehicles = useLiveVehicles();
+  const locationInfo = useUserLocation();
+  const location =
+    locationInfo.status === "loaded" ? locationInfo.location : null;
+  const fetchingLocation = locationInfo.status === "fetching";
 
   const zoomIconSizes: Record<number, number> = {
     13: 10,
@@ -271,21 +283,32 @@ export default function Map({ location, allLines, allStops }: MapProps) {
     className: "", // this must be blank or the icons will be in white boxes
   });
 
-  const placeDivIcon = (stop: Stop) => {
-    const colors = stop.routes.map(({ routeColor }) => routeColor);
+  const stopIconCache = useRef<Map<string, L.DivIcon>>(new Map());
 
-    return L.divIcon({
-      html: renderToString(
-        <StopIcon
-          colors={colors}
-          size={iconSize}
-          outlineColor={theme.palette.grey["700"]}
-        />
-      ),
-      className: "", // this must be blank or the icons will be in white boxes
-      iconAnchor: [iconSize / 2 + skewX, iconSize / 2 + skewY],
-    });
-  };
+  // Caches the stop icons to only render once per color combination
+  //   Speed up rendering a lot
+  const getStopIcon = useCallback(
+    (colors: string[]) => {
+      const key = colors.join("|") + iconSize + theme.palette.mode;
+      let icon = stopIconCache.current.get(key);
+      if (!icon) {
+        icon = L.divIcon({
+          html: renderToString(
+            <StopIcon
+              colors={colors}
+              size={iconSize}
+              outlineColor={theme.palette.grey[700]}
+            />
+          ),
+          className: "",
+          iconAnchor: [iconSize / 2 + skewX, iconSize / 2 + skewY],
+        });
+        stopIconCache.current.set(key, icon);
+      }
+      return icon;
+    },
+    [iconSize, skewX, skewY, theme.palette.mode, theme.palette.grey]
+  );
 
   const vehicleIcon = (lineName: string) => {
     const line = Object.values(allLines).find(
@@ -323,6 +346,8 @@ export default function Map({ location, allLines, allStops }: MapProps) {
 
   return (
     <MapContainer
+      // Speed up rendering by using canvas instead of SVG
+      preferCanvas
       center={[43.6632339, -70.2864549]}
       zoom={13}
       scrollWheelZoom={true}
@@ -361,13 +386,14 @@ export default function Map({ location, allLines, allStops }: MapProps) {
         />
       ))}
       {location && <Marker position={location} icon={myLocationDivIcon} />}
-      {zoom > 12 &&
+      {!fetchingLocation &&
+        zoom > 12 &&
         Object.values(allStops).map((stop) => (
           <Marker
             riseOnHover={true}
             key={stop.stopId}
             position={stop.location}
-            icon={placeDivIcon(stop)}
+            icon={getStopIcon(stop.routes.map((r) => r.routeColor))}
           >
             <Popup closeButton={false}>
               <Box sx={{ textAlign: "center" }}>
@@ -406,6 +432,7 @@ export default function Map({ location, allLines, allStops }: MapProps) {
           </Marker>
         ))}
       {theme.palette.mode === "light" &&
+        !fetchingLocation &&
         Object.values(allLines)
           .filter(({ routeColor }) => isTooLight(routeColor))
           .map(({ routeId, shapes }) => (
@@ -416,15 +443,16 @@ export default function Map({ location, allLines, allStops }: MapProps) {
               weight={5}
             />
           ))}
-      {Object.values(allLines).map(({ routeId, shapes, routeColor }) => (
-        <Polyline
-          key={routeId}
-          positions={shapes}
-          color={routeColor}
-          opacity={isTooLight(routeColor) ? 1 : 0.5}
-          weight={4}
-        />
-      ))}
+      {!fetchingLocation &&
+        Object.values(allLines).map(({ routeId, shapes, routeColor }) => (
+          <Polyline
+            key={routeId}
+            positions={shapes}
+            color={routeColor}
+            opacity={isTooLight(routeColor) ? 1 : 0.5}
+            weight={4}
+          />
+        ))}
       <RecenterAutomatically location={location} />
       <CenterMeButton location={location} center={center} />
       <Pusher setZoom={setZoom} setCenter={setCenter} />
