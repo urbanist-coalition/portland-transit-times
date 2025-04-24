@@ -1,7 +1,7 @@
 "use client";
 
 import { predictionsByStopCode } from "@/lib/actions";
-import { startTransition, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -180,19 +180,15 @@ export default function Arrivals({
     const pollingInterval = setInterval(async () => {
       try {
         const updatedArrivals = await predictionsByStopCode(stopCode);
-        startTransition(() => {
-          setArrivals(updatedArrivals);
-          setLastUpdated(Date.now());
-        });
+        setArrivals(updatedArrivals);
+        setLastUpdated(Date.now());
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
     }, 5000);
 
     const nowInterval = setInterval(() => {
-      startTransition(() => {
-        setNow(Date.now());
-      });
+      setNow(Date.now());
     }, 1000);
 
     return () => {

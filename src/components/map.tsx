@@ -12,14 +12,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
 import MaterialLink from "@mui/material/Link";
@@ -206,7 +199,7 @@ function StopIcon({
   );
 }
 
-export function useLiveVehicles(intervalMs = 1000) {
+export function useLiveVehicles(intervalMs = 10000) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
   const prevRef = useRef<number>(0);
 
@@ -217,9 +210,7 @@ export function useLiveVehicles(intervalMs = 1000) {
       const newVehicles = await getVehicles();
       if (!cancelled && prevRef.current !== newVehicles.lastUpdated) {
         prevRef.current = newVehicles.lastUpdated;
-        startTransition(() => {
-          setVehicles(newVehicles.vehicles);
-        });
+        setVehicles(newVehicles.vehicles);
       }
     }
 
