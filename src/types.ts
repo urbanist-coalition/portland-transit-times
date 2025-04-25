@@ -54,7 +54,7 @@ export interface VehiclePosition {
 
 export interface VehiclePositions {
   vehicles: VehiclePosition[];
-  lastUpdated: number;
+  updatedAt: number;
 }
 
 export enum StopTimeStatus {

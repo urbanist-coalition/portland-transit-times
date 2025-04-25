@@ -33,9 +33,9 @@ export class GTFSRealtimeLoader {
       new Uint8Array(buffer)
     );
     const maybeTimestamp = feed.header?.timestamp;
-    const lastUpdated = maybeTimestamp
-      ? this.longToNumber(maybeTimestamp)
-      : Math.floor(Date.now() / 1000);
+    const updatedAt = maybeTimestamp
+      ? this.longToNumber(maybeTimestamp) * 1000
+      : Date.now();
 
     const vehiclesData: VehiclePosition[] = [];
     for (const entity of feed.entity) {
@@ -73,7 +73,7 @@ export class GTFSRealtimeLoader {
     }
     await this.model.setVehiclePositions({
       vehicles: vehiclesData,
-      lastUpdated,
+      updatedAt,
     });
   }
 

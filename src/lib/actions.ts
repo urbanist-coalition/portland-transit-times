@@ -1,13 +1,7 @@
 "use server";
 
 import { subMinutes } from "date-fns";
-import {
-  Alert,
-  LiveStopTimeInstance,
-  RouteWithShape,
-  Stop,
-  VehiclePositions,
-} from "@/types";
+import { Alert, LiveStopTimeInstance, RouteWithShape, Stop } from "@/types";
 import { getModel } from "@/lib/model";
 import { stopCodeToStopId } from "@/lib/utils";
 
@@ -21,21 +15,12 @@ export async function predictionsByStopCode(
   );
 }
 
-export async function getVehicles(): Promise<VehiclePositions> {
-  return getModel().getVehiclePositions();
-}
-
 export async function getServiceAlerts(): Promise<Alert[]> {
   return getModel().getAlerts();
 }
 
-export async function getLines(): Promise<Record<string, RouteWithShape>> {
-  const routes = await getModel().getRoutes();
-  const routesRecord: Record<string, RouteWithShape> = {};
-  for (const route of routes) {
-    routesRecord[route.routeId] = route;
-  }
-  return routesRecord;
+export async function getLines(): Promise<RouteWithShape[]> {
+  return await getModel().getRoutes();
 }
 
 export async function getStops(): Promise<Record<string, Stop>> {

@@ -32,8 +32,11 @@ export interface Model {
   getAlerts(): Promise<Alert[]>;
   setAlerts(alerts: Alert[]): Promise<void>;
 
-  getVehiclePositions(): Promise<VehiclePositions>;
+  getVehiclePositions(): Promise<VehiclePositions | null>;
   setVehiclePositions(vehicles: VehiclePositions): Promise<void>;
+  onVehiclePositions(
+    callback: (vehiclePositions: VehiclePositions) => void
+  ): () => Promise<void>;
 
   getStopTimeInstances(
     stopId: string,
@@ -58,7 +61,9 @@ export class RedisModel implements Model {
   // Real-time Data
 
   private alertKey = "alerts";
+
   private vehiclePositionKey = "vehicle_positions";
+  private vehiclePositionChannel = "vehicle_positions_channel";
 
   private stopTimeInstanceHash = "stop_time_instances";
   private stopTimeUpdateHash = "stop_time_updates";
@@ -187,13 +192,53 @@ export class RedisModel implements Model {
     await this.redis.set(this.alertKey, JSON.stringify(alerts));
   }
 
-  async getVehiclePositions(): Promise<VehiclePositions> {
+  async getVehiclePositions(): Promise<VehiclePositions | null> {
     const vehiclePositions = await this.redis.get(this.vehiclePositionKey);
-    return vehiclePositions ? JSON.parse(vehiclePositions) : [];
+    return vehiclePositions ? JSON.parse(vehiclePositions) : null;
   }
 
   async setVehiclePositions(vehicles: VehiclePositions): Promise<void> {
-    await this.redis.set(this.vehiclePositionKey, JSON.stringify(vehicles));
+    // Use a dedicated connection to guaruntee that watch and multi are on the same connection and nothing else
+    const redisTx = this.redis.duplicate();
+    let updated = false;
+
+    while (!updated) {
+      await redisTx.watch(this.vehiclePositionKey);
+
+      const current = await this.getVehiclePositions();
+      const currentTs = current?.updatedAt || 0;
+
+      if (currentTs >= vehicles.updatedAt) {
+        await redisTx.unwatch();
+        return; // no update needed
+      }
+
+      const newString = JSON.stringify(vehicles);
+
+      const result = await redisTx
+        .multi()
+        .set(this.vehiclePositionKey, newString)
+        .publish(this.vehiclePositionChannel, newString)
+        .exec();
+
+      if (result !== null) {
+        updated = true;
+      }
+    }
+  }
+
+  onVehiclePositions(
+    callback: (vehiclePositions: VehiclePositions) => void
+  ): () => Promise<void> {
+    const subscriber = this.redis.duplicate();
+    subscriber.subscribe(this.vehiclePositionChannel);
+    subscriber.on("message", async (_, message) => {
+      callback(JSON.parse(message));
+    });
+    return async () => {
+      await subscriber.unsubscribe(this.vehiclePositionKey);
+      await subscriber.quit();
+    };
   }
 
   async getStopTimeInstances(

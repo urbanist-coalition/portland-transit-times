@@ -7,7 +7,7 @@ import { Stop, RouteWithShape } from "@/types";
 const DynamicMap = dynamic(() => import("@/components/map"), { ssr: false });
 
 interface ByLocationProps {
-  allLines: Record<string, RouteWithShape>;
+  allLines: RouteWithShape[];
   allStops: Record<string, Stop>;
 }
 
