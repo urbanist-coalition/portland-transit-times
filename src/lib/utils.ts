@@ -1,5 +1,3 @@
-import { Location } from "@/types";
-
 /**
  * Determines if a hex color is too light, useful for determining text color and adding
  * borders when dealing with dynamic colors provided by the transit service.
@@ -61,11 +59,6 @@ export function distance(
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // distance in meters
-}
-
-export function locationEquals(a: Location | undefined, b: Location): boolean {
-  if (!a) return false;
-  return a.lat === b.lat && a.lng === b.lng;
 }
 
 export function filterMap<T, R>(

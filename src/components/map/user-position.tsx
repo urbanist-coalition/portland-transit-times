@@ -8,7 +8,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 
 import { Location } from "@/types";
-import { locationEquals } from "@/lib/utils";
+import { distance } from "@/lib/utils";
 import useUserLocation from "@/hooks/user-location";
 
 const userLocationIcon = L.divIcon({
@@ -46,7 +46,7 @@ const CenterMeButton = ({
         }}
         onClick={centerOnLocation}
       >
-        {locationEquals(location, center) ? (
+        {distance(location.lat, location.lng, center.lat, center.lng) < 5 ? (
           <MyLocationIcon />
         ) : (
           <LocationSearchingIcon />
