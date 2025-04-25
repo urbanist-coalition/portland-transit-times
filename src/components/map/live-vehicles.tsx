@@ -48,10 +48,6 @@ export function LiveVehicles({ iconSize }: { iconSize: number }) {
       setVehicles(data.vehicles);
     };
 
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
     return () => eventSource.close();
   }, []);
 
