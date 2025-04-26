@@ -6,7 +6,7 @@ import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Location, StopTimeInstance } from "@/types";
 import { Model } from "@/lib/model";
 import { fixCapitalization } from "@/lib/capitalization";
-import { indexBy, getOne } from "@/lib/utils";
+import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "./stop-name-deduplication";
 
 /**
@@ -89,7 +89,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
 
     console.log("Building stop times...");
     const stopTimes = await gtfsStatic.getStopTimes();
-    const stopTimesByStopId = indexBy(stopTimes, "stop_id");
+    const stopTimesByStopId = groupBy(stopTimes, "stop_id");
 
     console.log("Loading stops...");
     const stops = await gtfsStatic.getStops();
@@ -107,7 +107,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
 
       const routeIds = new Set<string>();
       for (const stopTime of stopTimesByStopId.get(stop_id) || []) {
-        const trip = getOne(tripsById, stopTime.trip_id);
+        const trip = tripsById.get(stopTime.trip_id);
         if (!trip) {
           console.warn("Missing trip", stopTime.trip_id);
           continue;
@@ -117,7 +117,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
 
       const routes: Route[] = [];
       for (const routeId of routeIds) {
-        const route = getOne(routesById, routeId);
+        const route = routesById.get(routeId);
         if (!route) {
           console.warn("Missing route", routeId);
           continue;
@@ -145,7 +145,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
     const headsignsByStopId: Record<string, string[]> = {};
     for (const stopTime of stopTimes) {
       const { stop_id, trip_id } = stopTime;
-      const trip = getOne(tripsById, trip_id);
+      const trip = tripsById.get(trip_id);
       if (!trip) {
         console.warn("Missing trip", trip_id);
         continue;
@@ -171,8 +171,8 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
     console.log("Loading stop time instances...");
     const calendarDates = await gtfsStatic.getCalendarDates();
 
-    const tripsByServiceId = indexBy(tripsData, "serviceId");
-    const stopTimesByTripId = indexBy(stopTimes, "trip_id");
+    const tripsByServiceId = groupBy(tripsData, "serviceId");
+    const stopTimesByTripId = groupBy(stopTimes, "trip_id");
 
     const stopTimeInstanceData: StopTimeInstance[] = [];
     for (const { date, service_id } of calendarDates) {
@@ -185,7 +185,7 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
       const tripIds = tripsByServiceId.get(service_id) || [];
       for (const trip of tripIds) {
         const { tripId, routeId } = trip;
-        const route = getOne(routesById, routeId);
+        const route = routesById.get(routeId);
         if (!route) {
           console.warn("Missing route", routeId);
           continue;

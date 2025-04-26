@@ -72,7 +72,7 @@ export function stopCodeToStopId(stopCode: string): string {
   return `0:${stopCode}`;
 }
 
-export function indexBy<T, K extends keyof T>(
+export function groupBy<T, K extends keyof T>(
   array: T[],
   key: K
 ): Map<T[K], T[]> {
@@ -84,6 +84,13 @@ export function indexBy<T, K extends keyof T>(
   return index;
 }
 
-export function getOne<T, K>(index: Map<K, T[]>, key: K): T | undefined {
-  return (index.get(key) || [])[0];
+export function indexBy<T, K extends keyof T>(
+  array: T[],
+  key: K
+): Map<T[K], T> {
+  const index = new Map<T[K], T>();
+  for (const item of array) {
+    index.set(item[key], item);
+  }
+  return index;
 }

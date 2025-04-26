@@ -8,6 +8,7 @@ import {
 import { Model } from "@/lib/model";
 import { formatInTimeZone } from "date-fns-tz";
 import { GTFSSystem } from "@/lib/gtfs/types";
+import { indexBy } from "../utils";
 
 export class GTFSRealtimeLoader {
   system: GTFSSystem;
@@ -21,7 +22,10 @@ export class GTFSRealtimeLoader {
   async loadVehiclePositions() {
     console.log("Loading vehicle positions...");
 
-    const response = await fetch(this.system.vehicleURL);
+    const [response, currentVehiclePositions] = await Promise.all([
+      fetch(this.system.vehicleURL),
+      this.model.getVehiclePositions(),
+    ]);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -36,6 +40,16 @@ export class GTFSRealtimeLoader {
     const updatedAt = maybeTimestamp
       ? this.longToNumber(maybeTimestamp) * 1000
       : Date.now();
+
+    if (
+      currentVehiclePositions &&
+      currentVehiclePositions.updatedAt >= updatedAt
+    ) {
+      return;
+    }
+
+    const routes = await this.model.getRoutes();
+    const routesById = indexBy(routes, "routeId");
 
     const vehiclesData: VehiclePosition[] = [];
     for (const entity of feed.entity) {
@@ -57,7 +71,7 @@ export class GTFSRealtimeLoader {
         continue;
       }
 
-      const route = await this.model.getRoute(trip.routeId);
+      const route = routesById.get(trip.routeId);
       if (!route) {
         console.warn("Missing route", trip.routeId);
         continue;

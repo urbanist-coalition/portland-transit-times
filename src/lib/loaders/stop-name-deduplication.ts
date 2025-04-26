@@ -1,5 +1,5 @@
 import { fixCapitalization } from "@/lib/capitalization";
-import { indexBy } from "@/lib/utils";
+import { groupBy } from "@/lib/utils";
 import { Stop } from "@/types";
 
 // Hardcoded overrides for stop names that are ambiguous and can't be disambiguated by the destinations.
@@ -145,7 +145,7 @@ export function generateStopNameOverrides(
   stops: Stop[],
   destinationsByStopId: Record<string, string[]>
 ): Record<string, string> {
-  const stopsByName = indexBy(stops, "stopName");
+  const stopsByName = groupBy(stops, "stopName");
 
   const stopNameOverrides: Record<string, string> = {};
   for (const [stopName, stopIds] of stopsByName.entries()) {

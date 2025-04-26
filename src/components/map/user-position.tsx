@@ -4,7 +4,7 @@ import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Marker, useMap } from "react-leaflet";
 import { IconButton, Tooltip } from "@mui/material";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import L from "leaflet";
 
 import { Location } from "@/types";
@@ -56,7 +56,7 @@ const CenterMeButton = ({
   );
 };
 
-export function UserPosition({ center }: { center: Location }) {
+function UserPositionRaw({ center }: { center: Location }) {
   const map = useMap();
 
   const locationInfo = useUserLocation();
@@ -82,3 +82,5 @@ export function UserPosition({ center }: { center: Location }) {
     </>
   );
 }
+
+export const UserPosition = memo(UserPositionRaw);

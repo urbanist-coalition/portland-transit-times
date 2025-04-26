@@ -20,7 +20,7 @@ export async function getServiceAlerts(): Promise<Alert[]> {
 }
 
 export async function getLines(): Promise<RouteWithShape[]> {
-  return await getModel().getRoutes();
+  return await getModel().getRoutesWithShape();
 }
 
 export async function getStops(): Promise<Record<string, Stop>> {

@@ -1,6 +1,7 @@
 import {
   Alert,
   LiveStopTimeInstance,
+  Route,
   RouteWithShape,
   Stop,
   StopTimeInstance,
@@ -11,12 +12,14 @@ import {
   VehiclePositions,
 } from "@/types";
 import { Redis, RedisOptions } from "ioredis";
+import { encode, decode } from "@msgpack/msgpack";
 
 export interface Model {
   // Static
 
-  getRoutes(): Promise<RouteWithShape[]>;
-  getRoute(routeId: string): Promise<RouteWithShape | null>;
+  getRoutes(): Promise<Route[]>;
+  getRoutesWithShape(): Promise<RouteWithShape[] | null>;
+  getRoute(routeId: string): Promise<Route | null>;
   setRoutes(routes: RouteWithShape[]): Promise<void>;
 
   getTrips(): Promise<Trip[]>;
@@ -33,10 +36,8 @@ export interface Model {
   setAlerts(alerts: Alert[]): Promise<void>;
 
   getVehiclePositions(): Promise<VehiclePositions | null>;
+  getVehiclePositionsRaw(): Promise<Buffer | null>;
   setVehiclePositions(vehicles: VehiclePositions): Promise<void>;
-  onVehiclePositions(
-    callback: (vehiclePositions: VehiclePositions) => void
-  ): () => Promise<void>;
 
   getStopTimeInstances(
     stopId: string,
@@ -55,6 +56,7 @@ export class RedisModel implements Model {
   // Static Data
 
   private routeHash = "routes";
+  private rawRouteKey = "raw_routes";
   private tripHash = "trips";
   private stopHash = "stops";
 
@@ -63,7 +65,6 @@ export class RedisModel implements Model {
   private alertKey = "alerts";
 
   private vehiclePositionKey = "vehicle_positions";
-  private vehiclePositionChannel = "vehicle_positions_channel";
 
   private stopTimeInstanceHash = "stop_time_instances";
   private stopTimeUpdateHash = "stop_time_updates";
@@ -145,8 +146,13 @@ export class RedisModel implements Model {
 
   // Static Data
 
-  async getRoutes(): Promise<RouteWithShape[]> {
+  async getRoutes(): Promise<Route[]> {
     return this.getHash<RouteWithShape>(this.routeHash);
+  }
+
+  async getRoutesWithShape(): Promise<RouteWithShape[]> {
+    const routes = await this.redis.getBuffer(this.rawRouteKey);
+    return routes ? (decode(routes) as RouteWithShape[]) : [];
   }
 
   async getRoute(routeId: string): Promise<RouteWithShape | null> {
@@ -154,7 +160,12 @@ export class RedisModel implements Model {
   }
 
   async setRoutes(routes: RouteWithShape[]): Promise<void> {
-    await this.batchSet(this.routeHash, routes, (route) => route.routeId);
+    await this.batchSet(
+      this.routeHash,
+      routes.map(({ shapes: _a, ...route }) => route),
+      (route) => route.routeId
+    );
+    await this.redis.set(this.rawRouteKey, Buffer.from(encode(routes)));
   }
 
   async getTrips(): Promise<Trip[]> {
@@ -193,52 +204,23 @@ export class RedisModel implements Model {
   }
 
   async getVehiclePositions(): Promise<VehiclePositions | null> {
-    const vehiclePositions = await this.redis.get(this.vehiclePositionKey);
-    return vehiclePositions ? JSON.parse(vehiclePositions) : null;
+    const vehiclePositions = await this.redis.getBuffer(
+      this.vehiclePositionKey
+    );
+    return vehiclePositions
+      ? (decode(vehiclePositions) as VehiclePositions)
+      : null;
+  }
+
+  async getVehiclePositionsRaw(): Promise<Buffer | null> {
+    return await this.redis.getBuffer(this.vehiclePositionKey);
   }
 
   async setVehiclePositions(vehicles: VehiclePositions): Promise<void> {
-    // Use a dedicated connection to guaruntee that watch and multi are on the same connection and nothing else
-    const redisTx = this.redis.duplicate();
-    let updated = false;
-
-    while (!updated) {
-      await redisTx.watch(this.vehiclePositionKey);
-
-      const current = await this.getVehiclePositions();
-      const currentTs = current?.updatedAt || 0;
-
-      if (currentTs >= vehicles.updatedAt) {
-        await redisTx.unwatch();
-        return; // no update needed
-      }
-
-      const newString = JSON.stringify(vehicles);
-
-      const result = await redisTx
-        .multi()
-        .set(this.vehiclePositionKey, newString)
-        .publish(this.vehiclePositionChannel, newString)
-        .exec();
-
-      if (result !== null) {
-        updated = true;
-      }
-    }
-  }
-
-  onVehiclePositions(
-    callback: (vehiclePositions: VehiclePositions) => void
-  ): () => Promise<void> {
-    const subscriber = this.redis.duplicate();
-    subscriber.subscribe(this.vehiclePositionChannel);
-    subscriber.on("message", async (_, message) => {
-      callback(JSON.parse(message));
-    });
-    return async () => {
-      await subscriber.unsubscribe(this.vehiclePositionKey);
-      await subscriber.quit();
-    };
+    await this.redis.set(
+      this.vehiclePositionKey,
+      Buffer.from(encode(vehicles))
+    );
   }
 
   async getStopTimeInstances(

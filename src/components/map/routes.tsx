@@ -3,8 +3,9 @@ import { useTheme } from "@mui/material";
 
 import { RouteWithShape } from "@/types";
 import { isTooLight } from "@/lib/utils";
+import { memo } from "react";
 
-export function Routes({ routes }: { routes: RouteWithShape[] }) {
+function RoutesRaw({ routes }: { routes: RouteWithShape[] }) {
   const theme = useTheme();
   return (
     <>
@@ -31,3 +32,5 @@ export function Routes({ routes }: { routes: RouteWithShape[] }) {
     </>
   );
 }
+
+export const Routes = memo(RoutesRaw);

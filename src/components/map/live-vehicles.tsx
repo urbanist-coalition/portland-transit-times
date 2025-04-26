@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import { Box } from "@mui/material";
@@ -6,6 +6,7 @@ import { DirectionsBus } from "@mui/icons-material";
 import { renderToString } from "react-dom/server";
 
 import { VehiclePositions, VehiclePosition } from "@/types";
+import { decode } from "@msgpack/msgpack";
 
 function vehicleIcon(routeColor: string, iconSize: number) {
   return L.divIcon({
@@ -37,18 +38,21 @@ function vehicleIcon(routeColor: string, iconSize: number) {
   });
 }
 
-export function LiveVehicles({ iconSize }: { iconSize: number }) {
+function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
+  const lastUpdatedRef = useRef(0);
 
   useEffect(() => {
-    const eventSource = new EventSource("/api/vehicle-positions");
+    const interval = setInterval(async () => {
+      const resp = await fetch("/api/vehicle-positions");
+      const vehiclePositions = decode(await resp.bytes()) as VehiclePositions;
+      if (vehiclePositions.updatedAt > lastUpdatedRef.current) {
+        lastUpdatedRef.current = vehiclePositions.updatedAt;
+        setVehicles(vehiclePositions.vehicles);
+      }
+    }, 1000);
 
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data) as VehiclePositions;
-      setVehicles(data.vehicles);
-    };
-
-    return () => eventSource.close();
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -66,3 +70,5 @@ export function LiveVehicles({ iconSize }: { iconSize: number }) {
     </>
   );
 }
+
+export const LiveVehicles = memo(LiveVehiclesRaw);

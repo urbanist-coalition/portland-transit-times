@@ -75,7 +75,7 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
         iconSize={iconSize}
         center={center}
       />
-      <Routes routes={Object.values(allLines)} />
+      <Routes routes={allLines} />
       <PositionSync setZoom={setZoom} setCenter={setCenter} />
       {/* Custom Attribution */}
       <Paper
