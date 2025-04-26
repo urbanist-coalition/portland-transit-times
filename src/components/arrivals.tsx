@@ -32,8 +32,7 @@ function _format(date: number, timeZone: string): string {
 
 function ScheduleTime({ time, updated }: { time: string; updated?: boolean }) {
   return (
-    <Typography
-      variant="h6"
+    <Box
       component="span"
       sx={{
         textDecoration: updated ? "line-through" : undefined,
@@ -42,7 +41,7 @@ function ScheduleTime({ time, updated }: { time: string; updated?: boolean }) {
       }}
     >
       {time}
-    </Typography>
+    </Box>
   );
 }
 
@@ -103,10 +102,9 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     >
       <CardContent>
         <Stack spacing={1}>
-          <Typography variant="h6">
-            <Typography
+          <Typography variant="h5">
+            <Box
               component="span"
-              variant="h6"
               color={
                 tooLight
                   ? theme.palette.text.primary
@@ -115,10 +113,10 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               mr={1}
             >
               {prediction.route.routeShortName}
-            </Typography>
+            </Box>
             to {prediction.trip.tripHeadsign}
           </Typography>
-          <Typography variant="h6">
+          <Typography variant="h6" pl={1}>
             <ScheduleTime
               time={_format(prediction.scheduledTime, timeZone)}
               updated={schedulDelta > 0}
@@ -145,7 +143,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
             />
           </Typography>
           {minutesToArrival >= -DEPART_THRESHOLD && minutesToArrival <= 30 && (
-            <Typography variant="h6" color="text.secondary">
+            <Typography variant="h6" color="text.secondary" pl={1}>
               Arriving
               {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
             </Typography>
