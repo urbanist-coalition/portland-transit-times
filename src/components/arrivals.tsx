@@ -142,7 +142,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               size="small"
             />
           </Typography>
-          {minutesToArrival >= -DEPART_THRESHOLD && minutesToArrival <= 30 && (
+          {!departed && minutesToArrival <= 30 && (
             <Typography variant="h6" color="text.secondary" pl={1}>
               Arriving
               {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
