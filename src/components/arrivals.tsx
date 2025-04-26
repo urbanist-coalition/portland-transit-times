@@ -119,9 +119,9 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
           <Typography variant="h6" pl={1}>
             <ScheduleTime
               time={_format(prediction.scheduledTime, timeZone)}
-              updated={schedulDelta > 0}
+              updated={schedulDelta !== 0}
             />
-            {schedulDelta > 0 && (
+            {schedulDelta !== 0 && (
               <>
                 <ArrowRightIcon sx={{ verticalAlign: "middle", pb: "3px" }} />
                 <ScheduleTime
