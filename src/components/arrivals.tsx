@@ -14,6 +14,7 @@ import {
   Collapse,
 } from "@mui/material";
 import { isTooLight } from "@/lib/utils";
+import ArrowRightIcon from "@mui/icons-material/ArrowRightAlt";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, startOfMinute } from "date-fns";
@@ -23,36 +24,25 @@ import { formatInTimeZone } from "date-fns-tz";
 import { useTimeZone } from "./timezone-cookie";
 
 const FORMAT = "h:mm a";
+const DEPART_THRESHOLD = 1; // minutes
 
 function _format(date: number, timeZone: string): string {
   return formatInTimeZone(date, timeZone, FORMAT).toLowerCase();
 }
 
-function formatPredictedTime(
-  date: number,
-  now: number,
-  timeZone: string,
-  departed: boolean
-): string {
-  const delta = differenceInMinutes(date, now);
-  if (delta > 30 || departed) return _format(date, timeZone);
-  if (delta < 1) return "Due";
-  return `${delta} min`;
-}
-
-function ScheduleLabel({ title }: { title: string }) {
+function ScheduleTime({ time, updated }: { time: string; updated?: boolean }) {
   return (
-    <strong style={{ width: "72px", display: "inline-block" }}>{title}</strong>
-  );
-}
-
-function ScheduleTime({ time }: { time: string }) {
-  return (
-    <span
-      style={{ width: "60px", display: "inline-block", textAlign: "right" }}
+    <Typography
+      variant="h6"
+      component="span"
+      sx={{
+        textDecoration: updated ? "line-through" : undefined,
+        textDecorationThickness: updated ? "2px" : undefined,
+        fontStyle: updated ? "italic" : undefined,
+      }}
     >
       {time}
-    </span>
+    </Typography>
   );
 }
 
@@ -66,7 +56,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   const timeZone = useTimeZone();
   const tooLight = isTooLight(prediction.route.routeColor);
 
-  const delta = differenceInMinutes(
+  const schedulDelta = differenceInMinutes(
     // Times are displayed to the user rounded to the start of the minute
     //   If we don't do that with the delta it may be off by a minute
     //   For example, if the delta is 80 seconds (predicted 13:00:50, scheduled 13:02:10)
@@ -78,12 +68,13 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     startOfMinute(prediction.scheduledTime)
   );
 
-  const nowDelta = differenceInMinutes(
-    startOfMinute(prediction.scheduledTime),
+  const minutesToArrival = differenceInMinutes(
+    startOfMinute(prediction.predictedTime),
     startOfMinute(now)
   );
   const departed =
-    nowDelta < -1 || prediction.status === StopTimeStatus.departed;
+    minutesToArrival < -DEPART_THRESHOLD ||
+    prediction.status === StopTimeStatus.departed;
 
   let statusMessage = "On Time";
   let statusColor = theme.palette.success.main; // green for on time
@@ -91,11 +82,11 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   if (departed) {
     statusMessage = "Departed";
     statusColor = theme.palette.grey[500]; // grey for departed
-  } else if (delta && delta > 0) {
-    statusMessage = `${delta} min late`;
+  } else if (schedulDelta && schedulDelta > 0) {
+    statusMessage = `${schedulDelta} min late`;
     statusColor = theme.palette.error.main; // red for late
-  } else if (delta && delta < 0) {
-    statusMessage = `${Math.abs(delta)} min early`;
+  } else if (schedulDelta && schedulDelta < 0) {
+    statusMessage = `${Math.abs(schedulDelta)} min early`;
     statusColor = theme.palette.info.main; // blue for early
   }
 
@@ -112,36 +103,34 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     >
       <CardContent>
         <Stack spacing={1}>
-          <Typography variant="h6" component="div" sx={{ fontWeight: "bold" }}>
-            <Box
+          <Typography variant="h6">
+            <Typography
               component="span"
-              sx={{
-                color: tooLight
+              variant="h6"
+              color={
+                tooLight
                   ? theme.palette.text.primary
-                  : prediction.route.routeColor,
-                mr: 1,
-              }}
+                  : prediction.route.routeColor
+              }
+              mr={1}
             >
               {prediction.route.routeShortName}
-            </Box>
+            </Typography>
             to {prediction.trip.tripHeadsign}
           </Typography>
-
-          <Typography variant="body2">
-            <ScheduleLabel title="Scheduled:" />{" "}
-            <ScheduleTime time={_format(prediction.scheduledTime, timeZone)} />
-          </Typography>
-
-          <Typography variant="body2" component="div">
-            <ScheduleLabel title="Predicted:" />{" "}
+          <Typography variant="h6">
             <ScheduleTime
-              time={formatPredictedTime(
-                prediction.predictedTime || 0,
-                now,
-                timeZone,
-                departed
-              )}
+              time={_format(prediction.scheduledTime, timeZone)}
+              updated={schedulDelta > 0}
             />
+            {schedulDelta > 0 && (
+              <>
+                <ArrowRightIcon sx={{ verticalAlign: "middle", pb: "3px" }} />
+                <ScheduleTime
+                  time={_format(prediction.predictedTime, timeZone)}
+                />
+              </>
+            )}
             <Chip
               label={statusMessage}
               sx={{
@@ -155,6 +144,12 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               size="small"
             />
           </Typography>
+          {minutesToArrival >= -DEPART_THRESHOLD && minutesToArrival <= 30 && (
+            <Typography variant="h6" color="text.secondary">
+              Arriving
+              {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
+            </Typography>
+          )}
         </Stack>
       </CardContent>
     </Card>
