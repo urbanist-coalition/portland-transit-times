@@ -22,9 +22,9 @@ export class GTFSRealtimeLoader {
   async loadVehiclePositions() {
     console.log("Loading vehicle positions...");
 
-    const [response, currentVehiclePositions] = await Promise.all([
+    const [response, currentUpdatedAt] = await Promise.all([
       fetch(this.system.vehicleURL),
-      this.model.getVehiclePositions(),
+      this.model.getVehiclePositionsUpdatedAt(),
     ]);
 
     if (!response.ok) {
@@ -38,13 +38,10 @@ export class GTFSRealtimeLoader {
     );
     const maybeTimestamp = feed.header?.timestamp;
     const updatedAt = maybeTimestamp
-      ? this.longToNumber(maybeTimestamp) * 1000
-      : Date.now();
+      ? new Date(this.longToNumber(maybeTimestamp) * 1000)
+      : new Date();
 
-    if (
-      currentVehiclePositions &&
-      currentVehiclePositions.updatedAt >= updatedAt
-    ) {
+    if (currentUpdatedAt && currentUpdatedAt >= updatedAt) {
       return;
     }
 
@@ -85,10 +82,7 @@ export class GTFSRealtimeLoader {
 
       vehiclesData.push(vehicleData);
     }
-    await this.model.setVehiclePositions({
-      vehicles: vehiclesData,
-      updatedAt,
-    });
+    await this.model.setVehiclePositions(vehiclesData, updatedAt);
   }
 
   private mapAlertEntityToServiceAlert(
@@ -150,8 +144,17 @@ export class GTFSRealtimeLoader {
       new Uint8Array(buffer)
     );
 
+    const maybeTimestamp = feed.header?.timestamp;
+    const updatedAt = maybeTimestamp
+      ? new Date(this.longToNumber(maybeTimestamp) * 1000)
+      : new Date();
+
+    const currentUpdatedAt = await this.model.getStopsLastUpdatedAt();
+    if (currentUpdatedAt && currentUpdatedAt >= updatedAt) {
+      return;
+    }
+
     for (const entity of feed.entity) {
-      // console.log("Loading trip updates...");
       const tripUpdate = entity.tripUpdate;
       if (!tripUpdate) {
         console.warn("Missing trip update data:", entity);
@@ -217,7 +220,8 @@ export class GTFSRealtimeLoader {
           status,
         });
       }
-      await this.model.setStopTimeUpdates(stopTimeInstanceData);
+      await this.model.setStopTimeUpdates(stopTimeInstanceData, updatedAt);
     }
+    await this.model.setStopsLastUpdatedAt(updatedAt);
   }
 }

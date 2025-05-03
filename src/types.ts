@@ -52,11 +52,6 @@ export interface VehiclePosition {
   route: Route;
 }
 
-export interface VehiclePositions {
-  vehicles: VehiclePosition[];
-  updatedAt: number;
-}
-
 export enum StopTimeStatus {
   scheduled = "SCHEDULED",
   skipped = "SKIPPED",

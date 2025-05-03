@@ -1,7 +1,6 @@
 "use client";
 
-import { predictionsByStopCode } from "@/lib/actions";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -71,6 +70,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     startOfMinute(prediction.predictedTime),
     startOfMinute(now)
   );
+  const skipped = prediction.status === StopTimeStatus.skipped;
   const departed =
     minutesToArrival < -DEPART_THRESHOLD ||
     prediction.status === StopTimeStatus.departed;
@@ -78,7 +78,10 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
   let statusMessage = "On Time";
   let statusColor = theme.palette.success.main; // green for on time
 
-  if (departed) {
+  if (skipped) {
+    statusMessage = "Canceled";
+    statusColor = theme.palette.warning.main; // yellow for skipped
+  } else if (departed) {
     statusMessage = "Departed";
     statusColor = theme.palette.grey[500]; // grey for departed
   } else if (schedulDelta && schedulDelta > 0) {
@@ -119,7 +122,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
           <Typography variant="h6" pl={1}>
             <ScheduleTime
               time={_format(prediction.scheduledTime, timeZone)}
-              updated={schedulDelta !== 0}
+              updated={schedulDelta !== 0 || skipped}
             />
             {schedulDelta !== 0 && (
               <>
@@ -166,19 +169,34 @@ export default function Arrivals({
   const [arrivals, setArrivals] =
     useState<LiveStopTimeInstance[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const lastUpdatedRef = useRef<Date | null>(null);
 
   useEffect(() => {
-    setLastUpdated(Date.now());
     const pollingInterval = setInterval(async () => {
       try {
-        const updatedArrivals = await predictionsByStopCode(stopCode);
+        const headers = new Headers();
+        if (lastUpdatedRef.current) {
+          headers.append(
+            "If-Modified-Since",
+            lastUpdatedRef.current.toUTCString()
+          );
+        }
+
+        const resp = await fetch(`/api/arrivals/${stopCode}`, { headers });
+        if (resp.status === 304) {
+          return; // No new data
+        }
+
+        const lastUpdated = resp.headers.get("Last-Modified");
+        if (lastUpdated) {
+          lastUpdatedRef.current = new Date(lastUpdated);
+        }
+        const updatedArrivals = await resp.json();
         setArrivals(updatedArrivals);
-        setLastUpdated(Date.now());
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
-    }, 5000);
+    }, 1000);
 
     const nowInterval = setInterval(() => {
       setNow(Date.now());
@@ -191,10 +209,9 @@ export default function Arrivals({
   }, [stopCode]);
 
   // Format the lastUpdated timestamp for display
-  const lastUpdatedDate = lastUpdated && new Date(lastUpdated);
   const lastUpdatedString =
-    lastUpdatedDate &&
-    lastUpdatedDate.toLocaleTimeString([], {
+    lastUpdatedRef.current &&
+    lastUpdatedRef.current.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",

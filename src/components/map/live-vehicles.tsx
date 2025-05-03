@@ -5,8 +5,7 @@ import { Box } from "@mui/material";
 import { DirectionsBus } from "@mui/icons-material";
 import { renderToString } from "react-dom/server";
 
-import { VehiclePositions, VehiclePosition } from "@/types";
-import { decode } from "@msgpack/msgpack";
+import { VehiclePosition } from "@/types";
 
 function vehicleIcon(routeColor: string, iconSize: number) {
   return L.divIcon({
@@ -40,16 +39,23 @@ function vehicleIcon(routeColor: string, iconSize: number) {
 
 function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
-  const lastUpdatedRef = useRef(0);
+  const lastUpdatedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const resp = await fetch("/api/vehicle-positions");
-      const vehiclePositions = decode(await resp.bytes()) as VehiclePositions;
-      if (vehiclePositions.updatedAt > lastUpdatedRef.current) {
-        lastUpdatedRef.current = vehiclePositions.updatedAt;
-        setVehicles(vehiclePositions.vehicles);
+      const headers = new Headers();
+      if (lastUpdatedRef.current) {
+        headers.append("If-Modified-Since", lastUpdatedRef.current);
       }
+
+      const resp = await fetch("/api/vehicle-positions", { headers });
+      if (resp.status === 304) {
+        return; // No new data
+      }
+
+      const vehiclePositions = await resp.json();
+      lastUpdatedRef.current = resp.headers.get("Last-Modified");
+      setVehicles(vehiclePositions);
     }, 1000);
 
     return () => clearInterval(interval);

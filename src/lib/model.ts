@@ -9,10 +9,9 @@ import {
   StopTimeStatus,
   StopTimeUpdate,
   Trip,
-  VehiclePositions,
+  VehiclePosition,
 } from "@/types";
 import { Redis, RedisOptions } from "ioredis";
-import { encode, decode } from "@msgpack/msgpack";
 
 export interface Model {
   // Static
@@ -35,9 +34,13 @@ export interface Model {
   getAlerts(): Promise<Alert[]>;
   setAlerts(alerts: Alert[]): Promise<void>;
 
-  getVehiclePositions(): Promise<VehiclePositions | null>;
-  getVehiclePositionsRaw(): Promise<Buffer | null>;
-  setVehiclePositions(vehicles: VehiclePositions): Promise<void>;
+  getVehiclePositions(): Promise<VehiclePosition[]>;
+  getVehiclePositionsRaw(): Promise<string | null>;
+  getVehiclePositionsUpdatedAt(): Promise<Date | null>;
+  setVehiclePositions(
+    vehicles: VehiclePosition[],
+    updatedAt: Date
+  ): Promise<void>;
 
   getStopTimeInstances(
     stopId: string,
@@ -45,8 +48,17 @@ export interface Model {
     limit: number
   ): Promise<LiveStopTimeInstance[]>;
   setStopTimeInstances(stopTimes: StopTimeInstance[]): Promise<void>;
-  setStopTimeUpdates(stopTimes: StopTimeUpdate[]): Promise<void>;
+  setStopTimeUpdates(
+    stopTimes: StopTimeUpdate[],
+    updatedAt: Date
+  ): Promise<void>;
   cleanupStopTimeInstances(beforeTimestamp: Date): Promise<void>;
+
+  // Used for specific stop polling
+  getStopUpdatedAt(stopId: string): Promise<Date | null>;
+  // Used for the worker to skip writing if the GTFS data hasn't changed
+  getStopsLastUpdatedAt(): Promise<Date | null>;
+  setStopsLastUpdatedAt(updatedAt: Date): Promise<void>;
 }
 
 // TODO: these methods should really stage and then commit the data to avoid consistency issues
@@ -56,7 +68,7 @@ export class RedisModel implements Model {
   // Static Data
 
   private routeHash = "routes";
-  private rawRouteKey = "raw_routes";
+  private routesWithShapeKey = "routes_with_shapes";
   private tripHash = "trips";
   private stopHash = "stops";
 
@@ -65,10 +77,13 @@ export class RedisModel implements Model {
   private alertKey = "alerts";
 
   private vehiclePositionKey = "vehicle_positions";
+  private vehiclePositionUpdatedAtKey = "vehicle_positions_updated_at";
 
   private stopTimeInstanceHash = "stop_time_instances";
   private stopTimeUpdateHash = "stop_time_updates";
   private stopTimeSortedSetPrefix = "stop_time_sorted_set";
+  private stopUpdatedAtKey = "stop_updated_at";
+  private stopsLastUpdatedAtKey = "stop_last_updated_at";
 
   constructor(options: RedisOptions = {}) {
     // Get the Redis URL from environment variables or use default
@@ -151,8 +166,8 @@ export class RedisModel implements Model {
   }
 
   async getRoutesWithShape(): Promise<RouteWithShape[]> {
-    const routes = await this.redis.getBuffer(this.rawRouteKey);
-    return routes ? (decode(routes) as RouteWithShape[]) : [];
+    const routes = await this.redis.get(this.routesWithShapeKey);
+    return routes ? JSON.parse(routes) : [];
   }
 
   async getRoute(routeId: string): Promise<RouteWithShape | null> {
@@ -165,7 +180,7 @@ export class RedisModel implements Model {
       routes.map(({ shapes: _a, ...route }) => route),
       (route) => route.routeId
     );
-    await this.redis.set(this.rawRouteKey, Buffer.from(encode(routes)));
+    await this.redis.set(this.routesWithShapeKey, JSON.stringify(routes));
   }
 
   async getTrips(): Promise<Trip[]> {
@@ -203,24 +218,29 @@ export class RedisModel implements Model {
     await this.redis.set(this.alertKey, JSON.stringify(alerts));
   }
 
-  async getVehiclePositions(): Promise<VehiclePositions | null> {
-    const vehiclePositions = await this.redis.getBuffer(
-      this.vehiclePositionKey
-    );
-    return vehiclePositions
-      ? (decode(vehiclePositions) as VehiclePositions)
-      : null;
+  async getVehiclePositions(): Promise<VehiclePosition[]> {
+    const vehiclePositions = await this.redis.get(this.vehiclePositionKey);
+    return vehiclePositions ? JSON.parse(vehiclePositions) : [];
   }
 
-  async getVehiclePositionsRaw(): Promise<Buffer | null> {
-    return await this.redis.getBuffer(this.vehiclePositionKey);
+  async getVehiclePositionsUpdatedAt(): Promise<Date | null> {
+    const updatedAt = await this.redis.get(this.vehiclePositionUpdatedAtKey);
+    return updatedAt ? new Date(updatedAt) : null;
   }
 
-  async setVehiclePositions(vehicles: VehiclePositions): Promise<void> {
-    await this.redis.set(
-      this.vehiclePositionKey,
-      Buffer.from(encode(vehicles))
-    );
+  async getVehiclePositionsRaw(): Promise<string | null> {
+    return await this.redis.get(this.vehiclePositionKey);
+  }
+
+  async setVehiclePositions(
+    vehicles: VehiclePosition[],
+    updatedAt: Date
+  ): Promise<void> {
+    await this.redis
+      .multi()
+      .set(this.vehiclePositionKey, JSON.stringify(vehicles))
+      .set(this.vehiclePositionUpdatedAtKey, updatedAt.toUTCString())
+      .exec();
   }
 
   async getStopTimeInstances(
@@ -294,6 +314,8 @@ export class RedisModel implements Model {
       const serialized = JSON.stringify(stopTime);
       this.redis.pipeline();
       // TODO: convert to a stage/commit model
+      // Doing these two writes without a transaction is safe because we only query
+      //   stop time instances based on the sorted set, so we don't need to worry about
       pipeline.hset(this.stopTimeInstanceHash, key, serialized);
       pipeline.zadd(
         `${this.stopTimeSortedSetPrefix}:${stopTime.stopId}`,
@@ -304,6 +326,8 @@ export class RedisModel implements Model {
         stopTime.scheduledTime,
         key
       );
+      // NOTE: We don't set the stopUpdatedAt key here because we don't need real-time
+      //  updates for static schedule information
     }
     const results = await pipeline.exec();
     for (const [error] of results || []) {
@@ -314,11 +338,25 @@ export class RedisModel implements Model {
     }
   }
 
-  async setStopTimeUpdates(stopTimes: StopTimeUpdate[]): Promise<void> {
+  async setStopTimeUpdates(
+    stopTimes: StopTimeUpdate[],
+    updatedAt: Date
+  ): Promise<void> {
     const pipeline = this.redis.pipeline();
     for (const stopTime of stopTimes) {
       const key = this.stopTimeInstanceKey(stopTime);
       const serialized = JSON.stringify(stopTime);
+      // WARNING: this introduces inconsistency during a miniscule window
+      //   Stop Time Instances may be returned in a different order than their estimated
+      //   arrival time if the get happens in between these two commands. We are not
+      //   using multi/exec because if we put them all in one big multi/exec it would
+      //   block the redis server (which would be a disaster because this runs every second).
+      //   We can't use one transaction per pair because then we couldn't pipeline all of
+      //   the updates, we would need to wait for each one to finish before starting the next.
+      //   This would slow down updates anyway, which could also lead to stale data. Given
+      //   how frequent polling is and how rarely stops change order this is the best option.
+      //   The prediction is written before the sorted set because it is more important to
+      //   display the correct prediction than the correct order.
       pipeline.hset(this.stopTimeUpdateHash, key, serialized);
       pipeline.zadd(
         `${this.stopTimeSortedSetPrefix}:${stopTime.stopId}`,
@@ -326,6 +364,24 @@ export class RedisModel implements Model {
         "XX",
         stopTime.predictedTime,
         key
+      );
+      // WARNING: this introduces another inconsistency during a miniscule window that will
+      //   only impact real-time updates because they are cached based on this timestamp.
+      //   Real-time updates will only be picked up if this timestamp changes. It is possible
+      //   that we will poll for an update after the update is written but before the
+      //   stopUpdatedAt key is set. That means the API will consider this unchanged and
+      //   it won't return the update. This is better than if we set the updatedAt key
+      //   first because in that case the client would get old data for that update
+      //   and then never get the new data because the client will use the newer updatedAt.
+      //   This means the client could miss an update entirely isntead of getting
+      //   it on the next poll. This caching behavior allows us to poll more often
+      //   so this strategy should result in faster updates overall. There is no way
+      //   to completely avoid showing the user data that is at least a little stale.
+      //   This just minimizes it as much as possible.
+      pipeline.hset(
+        this.stopUpdatedAtKey,
+        stopTime.stopId,
+        updatedAt.toUTCString()
       );
     }
     const results = await pipeline.exec();
@@ -362,6 +418,20 @@ export class RedisModel implements Model {
         throw error;
       }
     }
+  }
+
+  async getStopUpdatedAt(stopId: string): Promise<Date | null> {
+    const updatedAt = await this.redis.hget(this.stopUpdatedAtKey, stopId);
+    return updatedAt ? new Date(updatedAt) : null;
+  }
+
+  async getStopsLastUpdatedAt(): Promise<Date | null> {
+    const updatedAt = await this.redis.get(this.stopsLastUpdatedAtKey);
+    return updatedAt ? new Date(updatedAt) : null;
+  }
+
+  async setStopsLastUpdatedAt(updatedAt: Date): Promise<void> {
+    await this.redis.set(this.stopsLastUpdatedAtKey, updatedAt.toUTCString());
   }
 }
 

@@ -1,11 +1,24 @@
 import { getModel } from "@/lib/model";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
+  // Check if the request has an "If-Modified-Since" header
+  const ifModifiedSince = req.headers.get("if-modified-since");
+  if (ifModifiedSince) {
+    const clientDate = new Date(ifModifiedSince);
+
+    // If the server's last update is not newer than the client's date, return 304
+    if (currentUpdatedAt && currentUpdatedAt <= clientDate) {
+      return new Response(null, { status: 304 });
+    }
+  }
+
   const response = await getModel().getVehiclePositionsRaw();
   return new Response(response, {
     headers: {
-      "Content-Type": "application/octet-stream",
+      "Content-Type": "application/json",
       "Cache-Control": "no-cache, no-transform",
+      "Last-Modified": currentUpdatedAt?.toUTCString() || "",
     },
   });
 }
