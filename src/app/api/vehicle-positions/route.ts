@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   return new Response(response, {
     headers: {
       "content-type": "application/json",
-      "cache-control": "private, no-store, max-age=0",
+      "cache-control": "public, max-age=0, must-revalidate",
       "last-modified": currentUpdatedAt?.toUTCString() || "",
     },
   });
