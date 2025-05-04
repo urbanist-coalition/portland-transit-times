@@ -6,7 +6,7 @@ export async function GET(req: Request) {
   const ifModifiedSince = req.headers.get("if-modified-since");
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
   console.log(req.headers);
-  console.log("dates", currentUpdatedAt, clientDate);
+  console.log("dates", currentUpdatedAt?.toUTCString(), clientDate);
 
   // If the server's last update is not newer than the client's date, return 304
   if (currentUpdatedAt && clientDate && currentUpdatedAt <= clientDate) {
