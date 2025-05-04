@@ -177,7 +177,8 @@ export default function Arrivals({
         const headers = new Headers();
         if (lastUpdatedRef.current) {
           headers.append(
-            "if-modified-since",
+            // DigitalOcean's App Platform strips the "if-modified-since" header
+            "x-if-modified-since",
             lastUpdatedRef.current.toUTCString()
           );
         }

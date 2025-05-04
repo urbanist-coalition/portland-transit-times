@@ -45,6 +45,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
     const interval = setInterval(async () => {
       const headers = new Headers();
       if (lastUpdatedRef.current) {
+        // DigitalOcean's App Platform strips the "if-modified-since" header
         headers.append("x-if-modified-since", lastUpdatedRef.current);
       }
 

@@ -16,7 +16,8 @@ export async function GET(
 
   const lastModified = await getModel().getStopUpdatedAt(stopId);
 
-  const ifModifiedSince = req.headers.get("if-modified-since");
+  // DigitalOcean's App Platform strips the "if-modified-since" header
+  const ifModifiedSince = req.headers.get("x-if-modified-since");
 
   if (ifModifiedSince) {
     const clientDate = new Date(ifModifiedSince);
@@ -33,8 +34,7 @@ export async function GET(
 
   return Response.json(response, {
     headers: {
-      "content-type": "application/octet-stream",
-      "cache-control": "no-cache, no-transform",
+      "cache-control": "no-cache",
       "last-modified": lastModified?.toUTCString() || "",
     },
   });

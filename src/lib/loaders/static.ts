@@ -4,11 +4,10 @@ import { GTFSStatic } from "@/lib/gtfs/static";
 import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Location, StopTimeInstance } from "@/types";
-import { getModel, Model } from "@/lib/model";
+import { Model } from "@/lib/model";
 import { fixCapitalization } from "@/lib/capitalization";
 import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "./stop-name-deduplication";
-import { GPMETRO } from "../constants";
 
 /**
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
@@ -224,5 +223,3 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
     await gtfsStatic.cleanup();
   }
 }
-
-// loadStatic(GPMETRO, getModel());
