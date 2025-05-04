@@ -42,7 +42,10 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const resp = await fetch("/api/vehicle-positions");
+      // TODO: revert
+      const resp = await fetch("/api/vehicle-positions", {
+        cache: "no-store",
+      });
       if (resp.status === 304) {
         return; // No new data
       }
