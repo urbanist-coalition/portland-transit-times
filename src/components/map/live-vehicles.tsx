@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import { Box } from "@mui/material";
@@ -39,23 +39,15 @@ function vehicleIcon(routeColor: string, iconSize: number) {
 
 function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
-  const lastUpdatedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const headers = new Headers();
-      if (lastUpdatedRef.current) {
-        // DigitalOcean's App Platform strips the "if-modified-since" header
-        headers.append("x-if-modified-since", lastUpdatedRef.current);
-      }
-
-      const resp = await fetch("/api/vehicle-positions", { headers });
+      const resp = await fetch("/api/vehicle-positions");
       if (resp.status === 304) {
         return; // No new data
       }
 
       const vehiclePositions = await resp.json();
-      lastUpdatedRef.current = resp.headers.get("last-modified");
       setVehicles(vehiclePositions);
     }, 1000);
 
