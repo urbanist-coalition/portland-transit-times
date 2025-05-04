@@ -45,7 +45,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
     const interval = setInterval(async () => {
       const headers = new Headers();
       if (lastUpdatedRef.current) {
-        headers.append("if-modified-since", lastUpdatedRef.current);
+        headers.append("x-if-modified-since", lastUpdatedRef.current);
       }
 
       const resp = await fetch("/api/vehicle-positions", { headers });

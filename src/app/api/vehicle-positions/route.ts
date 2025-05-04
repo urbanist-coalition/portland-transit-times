@@ -3,7 +3,7 @@ import { getModel } from "@/lib/model";
 export async function GET(req: Request) {
   const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
   // Check if the request has an "if-modified-since" header
-  const ifModifiedSince = req.headers.get("if-modified-since");
+  const ifModifiedSince = req.headers.get("x-if-modified-since");
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
   console.log(req.headers); // headers without any if-modified-since
   console.log("dates", currentUpdatedAt?.toUTCString(), clientDate); // dates Sun, 04 May 2025 16:52:37 GMT null
