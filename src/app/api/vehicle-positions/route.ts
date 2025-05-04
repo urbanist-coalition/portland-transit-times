@@ -5,8 +5,8 @@ export async function GET(req: Request) {
   // Check if the request has an "if-modified-since" header
   const ifModifiedSince = req.headers.get("if-modified-since");
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
-  console.log(req.headers);
-  console.log("dates", currentUpdatedAt?.toUTCString(), clientDate);
+  console.log(req.headers); // headers without any if-modified-since
+  console.log("dates", currentUpdatedAt?.toUTCString(), clientDate); // dates Sun, 04 May 2025 16:52:37 GMT null
 
   // If the server's last update is not newer than the client's date, return 304
   if (currentUpdatedAt && clientDate && currentUpdatedAt <= clientDate) {
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   return new Response(response, {
     headers: {
       "content-type": "application/json",
-      "cache-control": "no-cache, no-transform",
+      "cache-control": "private, no-store, max-age=0",
       "last-modified": currentUpdatedAt?.toUTCString() || "",
     },
   });
