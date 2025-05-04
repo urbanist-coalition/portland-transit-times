@@ -1,15 +1,21 @@
+import crypto from "crypto";
+
 import { getModel } from "@/lib/model";
+
+function md5(str: string | null | undefined) {
+  if (!str) return null;
+  return crypto.createHash("md5").update(str).digest("hex");
+}
 
 export async function GET(req: Request) {
   const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
-  // Check if the request has an "if-modified-since" header
-  const ifModifiedSince = req.headers.get("if-modified-since");
-  const clientDate = ifModifiedSince && new Date(ifModifiedSince);
-  console.log(req.headers); // headers without any if-modified-since
-  console.log("dates", currentUpdatedAt?.toUTCString(), clientDate); // dates Sun, 04 May 2025 16:52:37 GMT null
+  const currentTag = md5(currentUpdatedAt?.toString());
 
-  // If the server's last update is not newer than the client's date, return 304
-  if (currentUpdatedAt && clientDate && currentUpdatedAt <= clientDate) {
+  const etag = req.headers.get("if-none-match");
+  console.log(req.headers);
+
+  // If the etag matches the current tag, return 304 Not Modified
+  if (currentTag && etag && currentTag === etag) {
     return new Response(null, { status: 304 });
   }
 
@@ -17,8 +23,8 @@ export async function GET(req: Request) {
   return new Response(response, {
     headers: {
       "content-type": "application/json",
-      "cache-control": "public, max-age=0, must-revalidate",
-      "last-modified": currentUpdatedAt?.toUTCString() || "",
+      "cache-control": "no-cache",
+      etag: currentTag || "",
     },
   });
 }

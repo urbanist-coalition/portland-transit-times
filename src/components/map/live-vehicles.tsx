@@ -39,13 +39,13 @@ function vehicleIcon(routeColor: string, iconSize: number) {
 
 function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
-  const lastUpdatedRef = useRef<string | null>(null);
+  const lastETagRef = useRef<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(async () => {
       const headers = new Headers();
-      if (lastUpdatedRef.current) {
-        headers.append("if-modified-since", lastUpdatedRef.current);
+      if (lastETagRef.current) {
+        headers.append("if-none-match", lastETagRef.current);
       }
 
       const resp = await fetch("/api/vehicle-positions", { headers });
@@ -54,7 +54,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
       }
 
       const vehiclePositions = await resp.json();
-      lastUpdatedRef.current = resp.headers.get("last-modified");
+      lastETagRef.current = resp.headers.get("etag");
       setVehicles(vehiclePositions);
     }, 1000);
 
