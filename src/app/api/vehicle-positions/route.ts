@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     headers: {
       "content-length": response?.length.toString() || "0",
       "content-type": "application/json",
-      "cache-control": "public, max-age=0, must-revalidate",
+      "cache-control": "public, max-age=0, s-max-age=1, must-revalidate",
       "last-modified": currentUpdatedAt?.toUTCString() || "",
     },
   });
