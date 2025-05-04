@@ -5,6 +5,7 @@ export async function GET(req: Request) {
   // Check if the request has an "If-Modified-Since" header
   const ifModifiedSince = req.headers.get("If-Modified-Since");
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
+  console.log("dates", currentUpdatedAt, clientDate);
 
   // If the server's last update is not newer than the client's date, return 304
   if (currentUpdatedAt && clientDate && currentUpdatedAt <= clientDate) {
