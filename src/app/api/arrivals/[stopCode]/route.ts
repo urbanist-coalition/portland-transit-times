@@ -1,10 +1,9 @@
 import { getModel } from "@/lib/model";
 import { stopCodeToStopId } from "@/lib/utils";
 import { subMinutes } from "date-fns";
-import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  req: NextRequest,
+  req: Request,
   { params }: { params: Promise<{ stopCode: string }> }
 ) {
   const { stopCode } = await params;
@@ -22,7 +21,7 @@ export async function GET(
   if (ifModifiedSince) {
     const clientDate = new Date(ifModifiedSince);
     if (lastModified && lastModified <= clientDate) {
-      return new NextResponse(null, { status: 304 });
+      return new Response(null, { status: 304 });
     }
   }
 
