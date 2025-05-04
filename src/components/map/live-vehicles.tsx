@@ -43,7 +43,9 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   useEffect(() => {
     const interval = setInterval(async () => {
       const resp = await fetch("/api/vehicle-positions");
-      if (resp.status === 304) return;
+      if (resp.status === 304) {
+        return; // No new data
+      }
 
       const vehiclePositions = await resp.json();
       setVehicles(vehiclePositions);
