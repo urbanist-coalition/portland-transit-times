@@ -2,7 +2,7 @@ import { getModel } from "@/lib/model";
 
 export async function GET(req: Request) {
   const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
-  // Check if the request has an "If-Modified-Since" header
+  // Check if the request has an "if-modified-since" header
   const ifModifiedSince = req.headers.get("if-modified-since");
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
   console.log(req.headers);
@@ -16,9 +16,9 @@ export async function GET(req: Request) {
   const response = await getModel().getVehiclePositionsRaw();
   return new Response(response, {
     headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache, no-transform",
-      "Last-Modified": currentUpdatedAt?.toUTCString() || "",
+      "content-type": "application/json",
+      "cache-control": "no-cache, no-transform",
+      "last-modified": currentUpdatedAt?.toUTCString() || "",
     },
   });
 }

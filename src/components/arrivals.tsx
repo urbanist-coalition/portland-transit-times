@@ -177,7 +177,7 @@ export default function Arrivals({
         const headers = new Headers();
         if (lastUpdatedRef.current) {
           headers.append(
-            "If-Modified-Since",
+            "if-modified-since",
             lastUpdatedRef.current.toUTCString()
           );
         }
@@ -187,7 +187,7 @@ export default function Arrivals({
           return; // No new data
         }
 
-        const lastUpdated = resp.headers.get("Last-Modified");
+        const lastUpdated = resp.headers.get("last-modified");
         if (lastUpdated) {
           lastUpdatedRef.current = new Date(lastUpdated);
         }

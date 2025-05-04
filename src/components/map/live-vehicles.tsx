@@ -45,7 +45,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
     const interval = setInterval(async () => {
       const headers = new Headers();
       if (lastUpdatedRef.current) {
-        headers.append("If-Modified-Since", lastUpdatedRef.current);
+        headers.append("if-modified-since", lastUpdatedRef.current);
       }
 
       const resp = await fetch("/api/vehicle-positions", { headers });
@@ -54,7 +54,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
       }
 
       const vehiclePositions = await resp.json();
-      lastUpdatedRef.current = resp.headers.get("Last-Modified");
+      lastUpdatedRef.current = resp.headers.get("last-modified");
       setVehicles(vehiclePositions);
     }, 1000);
 

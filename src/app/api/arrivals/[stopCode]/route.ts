@@ -33,9 +33,9 @@ export async function GET(
 
   return Response.json(response, {
     headers: {
-      "Content-Type": "application/octet-stream",
-      "Cache-Control": "no-cache, no-transform",
-      "Last-Modified": lastModified?.toUTCString() || "",
+      "content-type": "application/octet-stream",
+      "cache-control": "no-cache, no-transform",
+      "last-modified": lastModified?.toUTCString() || "",
     },
   });
 }
