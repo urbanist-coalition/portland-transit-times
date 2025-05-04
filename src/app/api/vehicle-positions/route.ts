@@ -18,6 +18,7 @@ export async function GET(req: Request) {
       "content-length": response?.length.toString() || "0",
       "content-type": "application/json",
       // "cache-control": "public, max-age=0, s-max-age=1, must-revalidate",
+      "cache-control": "public",
       "last-modified": currentUpdatedAt?.toUTCString() || "",
     },
   });
