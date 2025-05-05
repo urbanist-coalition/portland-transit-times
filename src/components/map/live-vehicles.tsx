@@ -6,6 +6,7 @@ import { DirectionsBus } from "@mui/icons-material";
 import { renderToString } from "react-dom/server";
 
 import { VehiclePosition } from "@/types";
+import { dumbFetch } from "@/lib/utils";
 
 function vehicleIcon(routeColor: string, iconSize: number) {
   return L.divIcon({
@@ -42,13 +43,8 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      // TODO: revert
-      const resp = await fetch("/api/vehicle-positions", {
-        cache: "no-store",
-      });
-      if (resp.status === 304) {
-        return; // No new data
-      }
+      const resp = await dumbFetch("/api/vehicle-positions");
+      if (resp.status === 304) return; // No new data
 
       const vehiclePositions = await resp.json();
       setVehicles(vehiclePositions);

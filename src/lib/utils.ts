@@ -94,3 +94,36 @@ export function indexBy<T, K extends keyof T>(
   }
   return index;
 }
+
+/**
+ * dumbFetch puts the "if-modified-since" header into a custom header
+ * because DigitalOcean's App Platform's Cloudflare Configuration strips
+ * the "if-modified-since" header which is dumb.
+ */
+export async function dumbFetch(
+  input: RequestInfo,
+  init?: RequestInit
+): Promise<Response> {
+  const headers = new Headers(init?.headers);
+
+  const ifModifiedSince = headers.get("if-modified-since");
+  if (ifModifiedSince) {
+    headers.append("x-if-modified-since", ifModifiedSince);
+  }
+
+  return fetch(input, { ...init, headers });
+}
+
+/**
+ * dumbIfModifiedSince gets the "if-modified-since" header from the request
+ * and returns it. It also checks for the custom "x-if-modified-since" header
+ * because DigitalOcean's App Platform's Cloudflare Configuration strips
+ * the "if-modified-since" header which is dumb.
+ */
+
+export function dumbIfModifiedSince(req: Request): string | null {
+  return (
+    req.headers.get("if-modified-since") ||
+    req.headers.get("x-if-modified-since")
+  );
+}
