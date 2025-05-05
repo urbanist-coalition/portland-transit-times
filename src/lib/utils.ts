@@ -95,6 +95,8 @@ export function indexBy<T, K extends keyof T>(
   return index;
 }
 
+const dumbFetchMap = new Map<string, string>();
+
 /**
  * dumbFetch puts the "if-modified-since" header into a custom header
  * because DigitalOcean's App Platform's Cloudflare Configuration strips
@@ -106,12 +108,17 @@ export async function dumbFetch(
 ): Promise<Response> {
   const headers = new Headers(init?.headers);
 
-  const ifModifiedSince = headers.get("if-modified-since");
-  if (ifModifiedSince) {
-    headers.append("x-if-modified-since", ifModifiedSince);
+  const prevLastModified = dumbFetchMap.get(input.toString());
+  if (prevLastModified) {
+    headers.append("x-if-modified-since", prevLastModified);
   }
 
-  return fetch(input, { ...init, headers });
+  const resp = await fetch(input, { ...init, headers });
+  const lastModified = resp.headers.get("last-modified");
+  if (lastModified) {
+    dumbFetchMap.set(input.toString(), lastModified);
+  }
+  return resp;
 }
 
 /**
