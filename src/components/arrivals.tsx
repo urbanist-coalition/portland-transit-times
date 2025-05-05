@@ -12,7 +12,7 @@ import {
   Chip,
   Collapse,
 } from "@mui/material";
-import { isTooLight } from "@/lib/utils";
+import { dumbFetch, isTooLight } from "@/lib/utils";
 import ArrowRightIcon from "@mui/icons-material/ArrowRightAlt";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
@@ -169,29 +169,13 @@ export default function Arrivals({
   const [arrivals, setArrivals] =
     useState<LiveStopTimeInstance[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
-  const lastUpdatedRef = useRef<Date | null>(null);
 
   useEffect(() => {
     const pollingInterval = setInterval(async () => {
       try {
-        const headers = new Headers();
-        if (lastUpdatedRef.current) {
-          headers.append(
-            // DigitalOcean's App Platform strips the "if-modified-since" header
-            "x-if-modified-since",
-            lastUpdatedRef.current.toUTCString()
-          );
-        }
+        const resp = await dumbFetch(`/api/arrivals/${stopCode}`);
+        if (resp.status === 304) return; // No new data
 
-        const resp = await fetch(`/api/arrivals/${stopCode}`, { headers });
-        if (resp.status === 304) {
-          return; // No new data
-        }
-
-        const lastUpdated = resp.headers.get("last-modified");
-        if (lastUpdated) {
-          lastUpdatedRef.current = new Date(lastUpdated);
-        }
         const updatedArrivals = await resp.json();
         setArrivals(updatedArrivals);
       } catch (error) {
@@ -208,15 +192,6 @@ export default function Arrivals({
       clearInterval(nowInterval);
     };
   }, [stopCode]);
-
-  // Format the lastUpdated timestamp for display
-  const lastUpdatedString =
-    lastUpdatedRef.current &&
-    lastUpdatedRef.current.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
 
   return (
     <Box sx={{ pt: 2, pb: 2 }}>
@@ -238,9 +213,6 @@ export default function Arrivals({
         ))}
       </TransitionGroup>
       <Box textAlign="center" mt={2}>
-        <Typography variant="caption" display="block" gutterBottom>
-          Last updated: {lastUpdatedString}
-        </Typography>
         <Link href="/" passHref>
           <Button variant="outlined">Switch Stops</Button>
         </Link>

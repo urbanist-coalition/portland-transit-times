@@ -1,5 +1,5 @@
 import { getModel } from "@/lib/model";
-import { stopCodeToStopId } from "@/lib/utils";
+import { dumbIfModifiedSince, stopCodeToStopId } from "@/lib/utils";
 import { subMinutes } from "date-fns";
 
 export async function GET(
@@ -15,8 +15,7 @@ export async function GET(
 
   const lastModified = await getModel().getStopUpdatedAt(stopId);
 
-  // DigitalOcean's App Platform strips the "if-modified-since" header
-  const ifModifiedSince = req.headers.get("x-if-modified-since");
+  const ifModifiedSince = dumbIfModifiedSince(req);
 
   if (ifModifiedSince) {
     const clientDate = new Date(ifModifiedSince);
@@ -33,7 +32,7 @@ export async function GET(
 
   return Response.json(response, {
     headers: {
-      "cache-control": "no-cache",
+      "cache-control": "private, max-age=0, must-revalidate",
       "last-modified": lastModified?.toUTCString() || "",
     },
   });
