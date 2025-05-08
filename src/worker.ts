@@ -17,23 +17,39 @@ async function main() {
   const gtfsRealtimeLoader = new GTFSRealtimeLoader(GPMETRO, model);
 
   // This will run every day at midnight
-  new CronJob("0 0 0 * * *", loadStaticGPMetro).start();
+  CronJob.from({
+    cronTime: "0 0 0 * * *",
+    onTick: loadStaticGPMetro,
+    start: true,
+    // Run when the job is started, useful for shipping changes to the loader
+    runOnInit: true,
+    waitForCompletion: true,
+  });
 
   // This will run every second
-  new CronJob(
-    "* * * * * *",
-    gtfsRealtimeLoader.loadVehiclePositions.bind(gtfsRealtimeLoader)
-  ).start();
-  new CronJob(
-    "* * * * * *",
-    gtfsRealtimeLoader.loadTripUpdates.bind(gtfsRealtimeLoader)
-  ).start();
+  CronJob.from({
+    cronTime: "* * * * * *",
+    onTick: gtfsRealtimeLoader.loadVehiclePositions.bind(gtfsRealtimeLoader),
+    start: true,
+    waitForCompletion: true,
+  });
+
+  CronJob.from({
+    cronTime: "* * * * * *",
+    onTick: gtfsRealtimeLoader.loadTripUpdates.bind(gtfsRealtimeLoader),
+    start: true,
+    waitForCompletion: true,
+  });
 
   // This will run every hour
-  new CronJob(
-    "0 0 * * * *",
-    gtfsRealtimeLoader.loadServiceAlerts.bind(gtfsRealtimeLoader)
-  ).start();
+  CronJob.from({
+    cronTime: "0 0 * * * *",
+    onTick: gtfsRealtimeLoader.loadServiceAlerts.bind(gtfsRealtimeLoader),
+    start: true,
+    // Run when the job is started, useful for shipping changes to the loader
+    runOnInit: true,
+    waitForCompletion: true,
+  });
 }
 
 main();
