@@ -95,8 +95,12 @@ export class GTFSRealtimeLoader {
     const descriptionTranslations = alert.descriptionText?.translation;
     if (!headerTranslations || !descriptionTranslations) return null;
 
-    const headerEn = headerTranslations.find((t) => t.language === "en");
-    const descEn = descriptionTranslations.find((t) => t.language === "en");
+    const headerEn = headerTranslations.find((t) =>
+      t.language?.startsWith("en")
+    );
+    const descEn = descriptionTranslations.find((t) =>
+      t.language?.startsWith("en")
+    );
     if (!headerEn || !descEn) return null;
 
     return {
