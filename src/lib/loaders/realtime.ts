@@ -19,11 +19,19 @@ export class GTFSRealtimeLoader {
     this.model = model;
   }
 
+  private gtfsFetch(url: string) {
+    const headers = new Headers();
+    if (this.system.authorization) {
+      headers.append("Authorization", this.system.authorization);
+    }
+    return fetch(url, { headers });
+  }
+
   async loadVehiclePositions() {
     console.log("Loading vehicle positions...");
 
     const [response, currentUpdatedAt] = await Promise.all([
-      fetch(this.system.vehicleURL),
+      this.gtfsFetch(this.system.vehicleURL),
       this.model.getVehiclePositionsUpdatedAt(),
     ]);
 
@@ -113,7 +121,7 @@ export class GTFSRealtimeLoader {
   async loadServiceAlerts() {
     console.log("Loading service alerts...");
 
-    const response = await fetch(this.system.alertsURL);
+    const response = await this.gtfsFetch(this.system.alertsURL);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -139,7 +147,7 @@ export class GTFSRealtimeLoader {
   async loadTripUpdates() {
     console.log("Loading trip updates...");
 
-    const response = await fetch(this.system.tripUpdatesURL);
+    const response = await this.gtfsFetch(this.system.tripUpdatesURL);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

@@ -5,4 +5,5 @@ export interface GTFSSystem {
   vehicleURL: string;
   alertsURL: string;
   tripUpdatesURL: string;
+  authorization?: string;
 }

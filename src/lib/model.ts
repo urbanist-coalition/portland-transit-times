@@ -118,6 +118,10 @@ export class RedisModel implements Model {
     this.redis = client;
   }
 
+  close() {
+    this.redis.quit();
+  }
+
   private async getHash<T>(hashName: string): Promise<T[]> {
     const all = await this.redis.hgetall(hashName);
     return Object.values(all).map((value) => JSON.parse(value));

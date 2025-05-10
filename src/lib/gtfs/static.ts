@@ -130,6 +130,13 @@ export class GTFSStatic {
   staticURL: string;
   tempDir: string | undefined;
 
+  static async create(system: GTFSSystem) {
+    const gtfsStatic = new GTFSStatic(system);
+    await gtfsStatic.load();
+    console.log("GTFS static data loaded");
+    return gtfsStatic;
+  }
+
   constructor({ staticURL }: GTFSSystem) {
     this.staticURL = staticURL;
   }
@@ -142,7 +149,12 @@ export class GTFSStatic {
     if (this.tempDir) {
       await rm(this.tempDir, { recursive: true, force: true });
       this.tempDir = undefined;
+      console.log("GTFS static data cleaned up");
     }
+  }
+
+  [Symbol.asyncDispose]() {
+    return this.cleanup();
   }
 
   async getRoutes(): Promise<Route[]> {

@@ -25,6 +25,13 @@ const stopIdOverrides: Record<string, string> = {
   //   Note: one arm of this has OUTBOUND in it's destination names so we may be able to identify this one automatically
   "0:502": "Stevens Ave + Brighton Ave (Outbound)",
   "0:503": "Stevens Ave + Brighton Ave (Inbound)",
+  // Western Ave + Foden Rd
+  //  Note: This is a bit of an odd case because 778 + 649 could be disambiguated with the rules but 1180 is a South Portland
+  //  only stop with the same name as the GPMetro stops. We could update the logic to handle this case but there is only
+  //  one like this so it's not worth it.
+  "0:778": "Western Ave + Foden Rd (Outbound)",
+  "0:649": "Western Ave + Foden Rd (Inbound)",
+  "0:1180": "Western Ave + Foden Rd (South Portland - 24A/24B)",
 };
 
 /**
@@ -54,18 +61,27 @@ function ruleBasedOverrides(
     return {};
   }
 
-  // PULSE is the center of the universe, a lot of buses branch out from PULSE, if either stop serves a route with a destination of PULSE
-  //   that is Inbound and it's duplicate must be Outbound. We can't always use destinations because some require passing through
-  //   the center of the city to get to so whether or not it is inbound or outbound will be effected by where the stop is. Because
-  //   PULSE is the center we can safely use it.
-  if (aDestinations.includes("Pulse")) {
+  // PULSE is the center of the (GMPetro) universe, a lot of buses branch out from PULSE, if either stop serves a route with
+  //   a destination of PULSE that is Inbound and it's duplicate must be Outbound. We can't always use destinations because some
+  //   require passing through the center of the city to get to so whether or not it is inbound or outbound will be effected by
+  //   where the stop is. Because PULSE is the center we can safely use it.
+  //
+  //   Congress St + Forest Ave is the South Portland equivalent of PULSE (this is their destination for stops heading into
+  //   Portland) so we can use that as well.
+  if (
+    aDestinations.includes("Pulse") ||
+    bDestinations.includes("Congress St + Forest Ave")
+  ) {
     return {
       [stopIdA]: `${stopName} (Inbound)`,
       [stopIdB]: `${stopName} (Outbound)`,
     };
   }
 
-  if (bDestinations.includes("Pulse")) {
+  if (
+    bDestinations.includes("Pulse") ||
+    aDestinations.includes("Congress St + Forest Ave")
+  ) {
     return {
       [stopIdA]: `${stopName} (Outbound)`,
       [stopIdB]: `${stopName} (Inbound)`,
