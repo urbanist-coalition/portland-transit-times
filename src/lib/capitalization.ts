@@ -16,6 +16,7 @@ const knownAcronyms = [
   "HS", // High School ex. "Deering HS"
   "IB", // Inbound
   "OB", // Outbound
+  "SMCC", // Southern Maine Community College
 ];
 
 /**
