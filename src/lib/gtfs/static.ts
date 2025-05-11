@@ -133,7 +133,6 @@ export class GTFSStatic {
   static async create(system: GTFSSystem) {
     const gtfsStatic = new GTFSStatic(system);
     await gtfsStatic.load();
-    console.log("GTFS static data loaded");
     return gtfsStatic;
   }
 
@@ -142,15 +141,20 @@ export class GTFSStatic {
   }
 
   async load() {
-    this.tempDir = await downloadGTFS(this.staticURL);
+    try {
+      this.tempDir = await downloadGTFS(this.staticURL);
+    } catch (error) {
+      await this.cleanup();
+      throw error;
+    }
   }
 
   async cleanup() {
     if (this.tempDir) {
       await rm(this.tempDir, { recursive: true, force: true });
       this.tempDir = undefined;
-      console.log("GTFS static data cleaned up");
     }
+    console.log("GTFS static data cleaned up");
   }
 
   [Symbol.asyncDispose]() {

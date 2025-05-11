@@ -4,7 +4,7 @@ import { GTFSStatic } from "@/lib/gtfs/static";
 import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Location, StopTimeInstance } from "@/types";
-import { Model, RedisModel } from "@/lib/model";
+import { Model } from "@/lib/model";
 import { fixCapitalization } from "@/lib/capitalization";
 import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "@/lib/loaders/stop-name-deduplication";
