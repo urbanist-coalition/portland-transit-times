@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowBack } from "@mui/icons-material";
-import { IconButton, Tooltip } from "@mui/material";
+import ArrowBack from "@mui/icons-material/ArrowBack";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import { useRouter } from "next/navigation";
 
 export default function BackButton() {

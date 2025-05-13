@@ -13,7 +13,9 @@
  * can use components with awareness of saved stops on the first render anywhere in the app.
  */
 
-import { History, Star, StarOutline } from "@mui/icons-material";
+import HistoryIcon from "@mui/icons-material/History";
+import StarIcon from "@mui/icons-material/Star";
+import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -164,7 +166,7 @@ export function SaveStop({ stopCode }: StopCode) {
 
   return (
     <IconButton onClick={toggleSaved}>
-      {saved ? <Star /> : <StarOutline />}
+      {saved ? <StarIcon /> : <StarOutlineIcon />}
     </IconButton>
   );
 }
@@ -216,7 +218,7 @@ export function QuickStops({ allStops }: { allStops: Record<string, Stop> }) {
                 label={`${stopCode}: ${stopName}`}
                 onClick={goToStop(stopCode)}
                 sx={{ cursor: "pointer" }}
-                icon={<Star />}
+                icon={<StarIcon />}
               />
             </Link>
           ))}
@@ -227,7 +229,7 @@ export function QuickStops({ allStops }: { allStops: Record<string, Stop> }) {
                 label={`${stopCode}: ${stopName}`}
                 onClick={goToStop(stopCode)}
                 sx={{ cursor: "pointer" }}
-                icon={<History />}
+                icon={<HistoryIcon />}
               />
             </Link>
           ))}

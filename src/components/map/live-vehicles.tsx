@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import { Box } from "@mui/material";
-import { DirectionsBus } from "@mui/icons-material";
+import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
 import { renderToString } from "react-dom/server";
 
 import { VehiclePosition } from "@/types";
@@ -24,7 +24,7 @@ function vehicleIcon(routeColor: string, iconSize: number) {
           justifyContent: "center",
         }}
       >
-        <DirectionsBus
+        <DirectionsBusIcon
           style={{
             stroke: "black",
             fill: routeColor || "black",
