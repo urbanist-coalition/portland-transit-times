@@ -6,7 +6,7 @@ import { AddRecentStop, SaveStop } from "@/components/quick-stops";
 import ServiceAlerts from "@/components/service-alerts";
 import { getStop, predictionsByStopCode } from "@/lib/actions";
 import { getServiceAlerts } from "@/lib/actions";
-import { Container, Typography, Box, Stack } from "@mui/material";
+import { Container, Typography, Box, Paper } from "@mui/material";
 
 export default async function StopsStopCodePage({
   params,
@@ -39,30 +39,48 @@ export default async function StopsStopCodePage({
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Box mb={2}>
-        <Typography
-          variant="h4"
-          component="h1"
-          gutterBottom
-          color="textPrimary"
-        >
-          <BackButton />
-          {stop.stopName}
-          <SaveStop stopCode={stopCode} />
-        </Typography>
+        <Paper elevation={2} sx={{ mb: 2, p: 1, display: "flex" }}>
+          <Box>
+            <BackButton />
+          </Box>
+          <Box flexGrow={1} sx={{ pl: 1 }}>
+            <Typography
+              variant="h5"
+              component="h5"
+              gutterBottom
+              color="textPrimary"
+              sx={{ flexGrow: 1, mb: 0, alignContent: "center" }}
+            >
+              {stop.stopName}
+            </Typography>
+            {stop.routes && stop.routes.length > 0 && (
+              <Box
+                mt={2}
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  overflowX: "auto", // scroll if too many
+                  pb: 1,
+                }}
+              >
+                {stop.routes.map(({ routeId, routeShortName, routeColor }) => {
+                  return (
+                    <LinePill
+                      key={routeId}
+                      lineName={routeShortName}
+                      lineColor={routeColor}
+                    />
+                  );
+                })}
+              </Box>
+            )}
+          </Box>
+          <Box>
+            <SaveStop stopCode={stopCode} />
+          </Box>
+        </Paper>
         <ServiceAlerts serviceAlerts={serviceAlerts} />
-        {stop.routes && stop.routes.length > 0 && (
-          <Stack direction="row" spacing={1} mb={2}>
-            {stop.routes.map(({ routeId, routeShortName, routeColor }) => {
-              return (
-                <LinePill
-                  key={routeId}
-                  lineName={routeShortName}
-                  lineColor={routeColor}
-                />
-              );
-            })}
-          </Stack>
-        )}
       </Box>
       <Arrivals stopCode={stopCode} arrivals={predictions} />
       <AddRecentStop stopCode={stopCode} />

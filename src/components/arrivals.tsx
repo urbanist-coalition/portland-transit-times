@@ -105,7 +105,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     >
       <CardContent>
         <Stack spacing={1}>
-          <Typography variant="h5">
+          <Typography variant="h6">
             <Box
               component="span"
               color={
@@ -119,7 +119,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
             </Box>
             to {prediction.trip.tripHeadsign}
           </Typography>
-          <Typography variant="h6" pl={1}>
+          <Typography pl={1} component="div">
             <ScheduleTime
               time={_format(prediction.scheduledTime, timeZone)}
               updated={schedulDelta !== 0 || skipped}
@@ -146,7 +146,7 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
             />
           </Typography>
           {!departed && minutesToArrival <= 30 && (
-            <Typography variant="h6" color="text.secondary" pl={1}>
+            <Typography color="text.secondary" pl={1}>
               Arriving
               {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
             </Typography>

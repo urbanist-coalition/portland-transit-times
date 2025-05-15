@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useCallback, useMemo, useRef } from "react";
-import { Box, Button, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { renderToString } from "react-dom/server";
@@ -170,11 +170,16 @@ export function VisibleStops({
               </Typography>
               <br />
               {stop.routes && stop.routes.length > 0 && (
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  m={1}
-                  justifyContent="center"
+                <Box
+                  mt={2}
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 1,
+                    py: 0.5,
+                    justifyContent: "center",
+                    minWidth: "240px",
+                  }}
                 >
                   {stop.routes.map(
                     ({ routeId, routeShortName, routeColor }) => {
@@ -187,7 +192,7 @@ export function VisibleStops({
                       );
                     }
                   )}
-                </Stack>
+                </Box>
               )}
               <Link href={`/stops/${stop.stopCode}`}>
                 <Button variant="text">View Arrivals</Button>

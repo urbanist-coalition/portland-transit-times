@@ -20,9 +20,8 @@ interface ServiceAlertsProps {
 export default function ServiceAlerts({ serviceAlerts }: ServiceAlertsProps) {
   return (
     <Accordion
+      elevation={1}
       sx={{
-        borderRadius: "4px",
-        boxShadow: 2,
         // Remove the default MUI Accordion divider line
         "&:before": {
           display: "none",
