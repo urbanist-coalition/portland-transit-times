@@ -165,7 +165,7 @@ export function SaveStop({ stopCode }: StopCode) {
   };
 
   return (
-    <IconButton onClick={toggleSaved}>
+    <IconButton onClick={toggleSaved} sx={{ p: 0.5 }}>
       {saved ? <StarIcon /> : <StarOutlineIcon />}
     </IconButton>
   );

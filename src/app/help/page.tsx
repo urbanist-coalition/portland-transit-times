@@ -7,15 +7,19 @@ import {
   Box,
   Container,
   Link,
+  Paper,
   Typography,
 } from "@mui/material";
 
 export default function Help() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        <BackButton /> Help
-      </Typography>
+      <Paper elevation={2} sx={{ mb: 2, p: 1, display: "flex" }}>
+        <BackButton />
+        <Typography variant="h4" component="h1">
+          Help
+        </Typography>
+      </Paper>
       <Accordion>
         <AccordionSummary>What is a stop number?</AccordionSummary>
         <AccordionDetails>

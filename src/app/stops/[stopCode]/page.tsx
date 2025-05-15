@@ -38,7 +38,7 @@ export default async function StopsStopCodePage({
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Box mb={2}>
+      <Box>
         <Paper elevation={2} sx={{ mb: 2, p: 1, display: "flex" }}>
           <Box>
             <BackButton />

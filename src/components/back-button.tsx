@@ -18,7 +18,7 @@ export default function BackButton() {
 
   return (
     <Tooltip title="Go Back" arrow>
-      <IconButton onClick={goBack}>
+      <IconButton onClick={goBack} sx={{ p: 0.5 }}>
         <ArrowBack />
       </IconButton>
     </Tooltip>
