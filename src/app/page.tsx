@@ -15,8 +15,8 @@ export default async function HomePage() {
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Portland, ME Transit
+        <Typography variant="h5" gutterBottom>
+          Portland Maine Transit
         </Typography>
         <Typography variant="body1" gutterBottom>
           Find your stop to keep up to date with <strong>real time</strong>{" "}
