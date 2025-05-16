@@ -32,7 +32,6 @@ export async function GET(
 
   return Response.json(response, {
     headers: {
-      "cache-control": "private, max-age=0, must-revalidate",
       "last-modified": lastModified?.toUTCString() || "",
     },
   });

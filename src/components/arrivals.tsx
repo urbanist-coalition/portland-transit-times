@@ -173,7 +173,14 @@ export default function Arrivals({
   useEffect(() => {
     const pollingInterval = setInterval(async () => {
       try {
-        const resp = await dumbFetch(`/api/arrivals/${stopCode}`);
+        const resp = await dumbFetch(`/api/arrivals/${stopCode}`, {
+          // TODO: this is to fix a production bug where arrivals
+          // seem to be living forever in local cache. This will fix
+          // the issue and actually also caching will still happen
+          // because we effectively have implemented our own cache
+          // but we should still investigate this.
+          cache: "no-store",
+        });
         if (resp.status === 304) return; // No new data
 
         const updatedArrivals = await resp.json();
