@@ -1,7 +1,7 @@
 // This is a utility script to make sure fixCapitalization handles all of the headsigns properly.
 // There is a hack in fixCapitalization where specific acronyms are identified and left in all caps.
 
-import { fixCapitalization } from "@/lib/capitalization";
+import { fixCapitalization } from "@/lib/name-normalization";
 import { GPMETRO } from "@/lib/constants";
 import { GTFSStatic } from "@/lib/gtfs/static";
 

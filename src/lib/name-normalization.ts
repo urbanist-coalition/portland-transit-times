@@ -14,9 +14,8 @@ const knownAcronyms = [
   "CBHS", // Casco Bay High School
   "IDEXX", // IDEXX Laboratories
   "HS", // High School ex. "Deering HS"
-  "IB", // Inbound
-  "OB", // Outbound
   "SMCC", // Southern Maine Community College
+  "LL", // LL Bean
 ];
 
 /**
@@ -64,4 +63,15 @@ export function fixCapitalization(input: string): string {
 
   // 3) Rebuild the string from tokens
   return processedTokens.join("");
+}
+
+export function normalizeInOutBound(str: string): string {
+  // Normalize Inbound/Outbound to IB/OB
+  return str
+    .replace(/ O\/B\.?$/, " (Outbound)")
+    .replace(/ I\/B\.?$/, " (Inbound)")
+    .replace(/ OB\.?$/, " (Inbound)")
+    .replace(/ IB\.?$/, " (Outbound)")
+    .replace(/ Inbound$/, " (Inbound)")
+    .replace(/ Outbound$/, " (Outbound)");
 }

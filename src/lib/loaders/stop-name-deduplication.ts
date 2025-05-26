@@ -1,4 +1,4 @@
-import { fixCapitalization } from "@/lib/capitalization";
+import { fixCapitalization } from "@/lib/name-normalization";
 import { groupBy } from "@/lib/utils";
 import { Stop } from "@/types";
 
@@ -31,7 +31,7 @@ const stopIdOverrides: Record<string, string> = {
   //  one like this so it's not worth it.
   "0:778": "Western Ave + Foden Rd (Outbound)",
   "0:649": "Western Ave + Foden Rd (Inbound)",
-  "0:1180": "Western Ave + Foden Rd (South Portland - 24A/24B)",
+  "0:1180": "Western Ave + Foden Rd (24A/24B)",
 };
 
 /**

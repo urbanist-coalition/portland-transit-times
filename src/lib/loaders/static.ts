@@ -5,7 +5,10 @@ import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Location, StopTimeInstance } from "@/types";
 import { Model } from "@/lib/model";
-import { fixCapitalization } from "@/lib/capitalization";
+import {
+  fixCapitalization,
+  normalizeInOutBound,
+} from "@/lib/name-normalization";
 import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "@/lib/loaders/stop-name-deduplication";
 
@@ -162,7 +165,8 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
   const renamedStopsData = stopsData.map((stop) => ({
     ...stop,
     stopName:
-      stopNameOverrides[stop.stopId] || fixCapitalization(stop.stopName),
+      stopNameOverrides[stop.stopId] ||
+      fixCapitalization(normalizeInOutBound(stop.stopName)),
   }));
   await model.setStops(renamedStopsData);
 
