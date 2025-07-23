@@ -32,6 +32,10 @@ const stopIdOverrides: Record<string, string> = {
   "0:778": "Western Ave + Foden Rd (Outbound)",
   "0:649": "Western Ave + Foden Rd (Inbound)",
   "0:1180": "Western Ave + Foden Rd (24A/24B)",
+
+  // This is an example where the Inbound/Outbound is labeled by the static GTFS but it is not correct.
+  "0:585": "Washington Ave + Cumberland (Inbound)",
+  "0:586": "Washington Ave + Cumberland (Outbound)",
 };
 
 /**
@@ -124,9 +128,7 @@ function nameOverrides(
   //   just one of the stops in the set so we need to take in all of the stop IDs and return a ID/name mapping.
   //   This mapping will be used to override stop names.
 
-  if (stopIds.length === 1) return {}; // No need to remap anything here
-
-  // Stops that were not caught by the rules are manually disambiguated with stopIdOverrides.
+  // Stops that were not caught by the rules, or need renaming for some other reason, are manually renamed with stopIdOverrides.
   const nOverrides = stopIds.filter((stopId) => stopIdOverrides[stopId]).length;
   // If we have an override for every stop except one (one stop can keep it's original name), use them
   if (nOverrides >= stopIds.length - 1)
@@ -134,6 +136,8 @@ function nameOverrides(
       (acc, stopId) => ({ ...acc, [stopId]: stopIdOverrides[stopId] }),
       {}
     );
+
+  if (stopIds.length === 1) return {}; // No need to remap anything here
 
   // The rules below can only handle pairs
   if (stopIds.length > 2)
