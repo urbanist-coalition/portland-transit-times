@@ -3,9 +3,16 @@ import { dumbIfModifiedSince } from "@/lib/utils";
 
 export async function GET(req: Request) {
   const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
+  console.log("Current Updated At:", currentUpdatedAt);
   const ifModifiedSince = dumbIfModifiedSince(req);
+  console.log("If-Modified-Since:", ifModifiedSince);
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
+  console.log("Client Date:", clientDate);
 
+  console.log(
+    "Cached",
+    currentUpdatedAt && clientDate && currentUpdatedAt <= clientDate
+  );
   // If the server's last update is not newer than the client's date, return 304
   if (currentUpdatedAt && clientDate && currentUpdatedAt <= clientDate) {
     return new Response(null, { status: 304 });

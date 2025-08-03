@@ -129,6 +129,8 @@ export async function dumbFetch(
  */
 
 export function dumbIfModifiedSince(req: Request): string | null {
+  console.log("if-modified-since:", req.headers.get("if-modified-since"));
+  console.log("x-if-modified-since:", req.headers.get("x-if-modified-since"));
   return (
     req.headers.get("if-modified-since") ||
     req.headers.get("x-if-modified-since")
