@@ -107,15 +107,21 @@ export async function dumbFetch(
   init?: RequestInit
 ): Promise<Response> {
   const headers = new Headers(init?.headers);
+  console.log("dumbFetch headers:", headers);
 
   const prevLastModified = dumbFetchMap.get(input.toString());
+  console.log("dumbFetch prevLastModified:", prevLastModified);
   if (prevLastModified) {
     headers.append("x-if-modified-since", prevLastModified);
   }
+  console.log("dumbFetch headers after append:", headers);
 
   const resp = await fetch(input, { ...init, headers });
+  console.log("dumbFetch response status:", resp.status);
   const lastModified = resp.headers.get("last-modified");
+  console.log("dumbFetch lastModified:", lastModified);
   if (lastModified) {
+    console.log("dumbFetch setting lastModified in map");
     dumbFetchMap.set(input.toString(), lastModified);
   }
   return resp;
