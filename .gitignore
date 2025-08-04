@@ -51,3 +51,9 @@ crash.log
 .terraform/
 .terraform.lock.hcl
 
+# Docker nginx-proxy directories
+/certs/
+/vhost.d/
+/html/
+/acme/
+
