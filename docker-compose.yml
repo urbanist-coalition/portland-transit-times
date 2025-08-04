@@ -13,9 +13,9 @@ services:
           cpus: '0.25'
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./certs:/etc/nginx/certs:ro
-      - ./vhost.d:/etc/nginx/vhost.d
-      - ./html:/usr/share/nginx/html
+      - certs:/etc/nginx/certs
+      - vhost.d:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
     logging:
       driver: "json-file"
       options:
@@ -37,12 +37,12 @@ services:
           cpus: '0.1'
     environment:
       - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
+    volumes_from:
+      - nginx-proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./certs:/etc/nginx/certs
-      - ./vhost.d:/etc/nginx/vhost.d
-      - ./html:/usr/share/nginx/html
-      - ./acme:/etc/acme.sh
+      - certs:/etc/nginx/certs
+      - acme:/etc/acme.sh
     logging:
       driver: "json-file"
       options:
@@ -71,10 +71,9 @@ services:
     command: npm start
     environment:
       - REDIS_URL=redis://redis:6379
-    labels:
-      - "com.github.nginx-proxy.nginx-proxy.virtual.host=${VIRTUAL_HOST}"
-      - "com.github.nginx-proxy.acme-companion.letsencrypt_host=${VIRTUAL_HOST}"
-      - "com.github.nginx-proxy.acme-companion.letsencrypt_email=${LETSENCRYPT_EMAIL}"
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - LETSENCRYPT_HOST=${VIRTUAL_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     logging:
       driver: "json-file"
       options:
@@ -107,6 +106,7 @@ services:
       - backend
     depends_on:
       - redis
+
   redis:
     image: redis:latest
     container_name: transit-redis
@@ -128,6 +128,10 @@ services:
 
 volumes:
   redis_data:
+  certs:
+  vhost.d:
+  html:
+  acme:
 
 networks:
   web:
