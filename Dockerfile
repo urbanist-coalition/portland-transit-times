@@ -17,7 +17,6 @@ RUN npm run build
 # Create non-root user
 RUN addgroup --system --gid 1001 appgroup
 RUN adduser --system --uid 1001 appuser
-RUN chown -R appuser:appgroup /app
 
 USER appuser
 
