@@ -44,7 +44,9 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
     const interval = setInterval(async () => {
       const resp = await fetch("/api/vehicle-positions", {
         headers: {
-          // never cache this request
+          // This fixed an issue where it was always being cached
+          // and it actually works, the response is actually cached
+          // based on the Last-Modified header from the server.
           "Cache-Control": "no-cache",
         },
       });
