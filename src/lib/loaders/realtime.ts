@@ -91,6 +91,10 @@ export class GTFSRealtimeLoader {
       vehiclesData.push(vehicleData);
     }
     await this.model.setVehiclePositions(vehiclesData, updatedAt);
+
+    if (process.env.VEHICLE_POSITIONS_HEARTBEAT_URL) {
+      await fetch(process.env.VEHICLE_POSITIONS_HEARTBEAT_URL);
+    }
   }
 
   private mapAlertEntityToServiceAlert(
@@ -138,6 +142,10 @@ export class GTFSRealtimeLoader {
       .filter((alert): alert is Alert => alert !== null);
 
     await this.model.setAlerts(alerts);
+
+    if (process.env.SERVICE_ALERTS_HEARTBEAT_URL) {
+      await fetch(process.env.SERVICE_ALERTS_HEARTBEAT_URL);
+    }
   }
 
   private longToNumber(n: Long | number): number {
@@ -235,5 +243,9 @@ export class GTFSRealtimeLoader {
       await this.model.setStopTimeUpdates(stopTimeInstanceData, updatedAt);
     }
     await this.model.setStopsLastUpdatedAt(updatedAt);
+
+    if (process.env.TRIP_UPDATES_HEARTBEAT_URL) {
+      await fetch(process.env.TRIP_UPDATES_HEARTBEAT_URL);
+    }
   }
 }

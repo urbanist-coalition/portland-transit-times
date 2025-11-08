@@ -9,6 +9,9 @@ async function main() {
   const model = new RedisModel();
   async function loadStaticGPMetro() {
     await loadStatic(GPMETRO, model);
+    if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
+      await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
+    }
   }
 
   // This must run at least once on startup

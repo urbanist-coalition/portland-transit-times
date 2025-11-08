@@ -90,6 +90,8 @@ services:
     container_name: transit-worker
     restart: unless-stopped
     command: npm run worker
+    env_file:
+      - .env
     deploy:
       resources:
         limits:
