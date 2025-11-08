@@ -1,10 +1,9 @@
 import { getModel } from "@/lib/model";
-import { dumbIfModifiedSince } from "@/lib/utils";
 
 export async function GET(req: Request) {
   const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
   console.log("Current Updated At:", currentUpdatedAt);
-  const ifModifiedSince = dumbIfModifiedSince(req);
+  const ifModifiedSince = req.headers.get("if-modified-since");
   console.log("If-Modified-Since:", ifModifiedSince);
   const clientDate = ifModifiedSince && new Date(ifModifiedSince);
   console.log("Client Date:", clientDate);

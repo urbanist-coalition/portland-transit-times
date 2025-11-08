@@ -1,5 +1,5 @@
 import { getModel } from "@/lib/model";
-import { dumbIfModifiedSince, stopCodeToStopId } from "@/lib/utils";
+import { stopCodeToStopId } from "@/lib/utils";
 import { subMinutes } from "date-fns";
 
 export async function GET(
@@ -15,7 +15,7 @@ export async function GET(
 
   const lastModified = await getModel().getStopUpdatedAt(stopId);
 
-  const ifModifiedSince = dumbIfModifiedSince(req);
+  const ifModifiedSince = req.headers.get("if-modified-since");
 
   if (ifModifiedSince) {
     const clientDate = new Date(ifModifiedSince);
