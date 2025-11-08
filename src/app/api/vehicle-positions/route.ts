@@ -1,5 +1,10 @@
 import { getModel } from "@/lib/model";
 
+// Because this route has no dynamic parameters, apparently Next.js caches it by default.
+// We don't want Next.js to cache this route, so we force it to be dynamic.
+// We handle caching ourselves using Last-Modified headers.
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const currentUpdatedAt = await getModel().getVehiclePositionsUpdatedAt();
   console.log("Current Updated At:", currentUpdatedAt);
