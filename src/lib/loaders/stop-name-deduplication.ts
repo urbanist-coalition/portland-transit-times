@@ -5,9 +5,6 @@ import { Stop } from "@/types";
 // Hardcoded overrides for stop names that are ambiguous and can't be disambiguated by the destinations.
 //   Use src/scripts/static-loader.ts to surface warnings and add to this list.
 const stopIdOverrides: Record<string, string> = {
-  // PTC
-  "0:422": "PTC (Outbound)",
-  "0:820": "PTC (Inbound)",
   // Congress & Weymouth
   "0:183": "Congress & Weymouth (Outbound)",
   "0:184": "Congress & Weymouth (Inbound)",
@@ -65,27 +62,25 @@ function ruleBasedOverrides(
     return {};
   }
 
-  // PULSE is the center of the (GMPetro) universe, a lot of buses branch out from PULSE, if either stop serves a route with
-  //   a destination of PULSE that is Inbound and it's duplicate must be Outbound. We can't always use destinations because some
-  //   require passing through the center of the city to get to so whether or not it is inbound or outbound will be effected by
-  //   where the stop is. Because PULSE is the center we can safely use it.
-  //
-  //   Congress St + Forest Ave is the South Portland equivalent of PULSE (this is their destination for stops heading into
-  //   Portland) so we can use that as well.
-  if (
-    aDestinations.includes("Pulse") ||
-    bDestinations.includes("Congress St + Forest Ave")
-  ) {
+  //  We can determine if stops are Inbound or Outbound based on whether they are going towards or away from these central stops.
+  //  We can't always use destinations because some routes pass through the center of the city to get to their destination so whether or not it is
+  //  inbound or outbound will be effected by where the stop is. Because these stops are central we can safely use them.
+  //  This captures a lot of stops because if they are served by any route going to one of these central stops we can determine the direction.
+  //  Any other stops can be manually labeled with stopIdOverrides.
+  const centralStops = new Set([
+    "Pulse", // Pulse is the center of the (GMPetro) universe, a lot of buses branch out from PULSE
+    "Portland City Hall", // Central for 9A, this loop is split into two segments with one endpoint here
+    "Congress St + Forest Ave", // South Portland lines going into Portland end here, similar to PULSE
+  ]);
+  // check if any A destinations are in centralStops
+  if (aDestinations.some((s) => centralStops.has(s))) {
     return {
       [stopIdA]: `${stopName} (Inbound)`,
       [stopIdB]: `${stopName} (Outbound)`,
     };
   }
 
-  if (
-    bDestinations.includes("Pulse") ||
-    aDestinations.includes("Congress St + Forest Ave")
-  ) {
+  if (bDestinations.some((s) => centralStops.has(s))) {
     return {
       [stopIdA]: `${stopName} (Outbound)`,
       [stopIdB]: `${stopName} (Inbound)`,
