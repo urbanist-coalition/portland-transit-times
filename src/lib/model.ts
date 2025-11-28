@@ -140,6 +140,12 @@ export class RedisModel implements Model {
     data: T[],
     getId: (t: T) => string
   ): Promise<void> {
+    // If there's no data, just delete the hash
+    if (data.length === 0) {
+      await this.redis.del(hashName);
+      return;
+    }
+
     const tempHashName = `${hashName}:temp`;
     const pipeline = this.redis.pipeline();
     pipeline.del(tempHashName);
