@@ -71,6 +71,7 @@ function ruleBasedOverrides(
     "Pulse", // Pulse is the center of the (GMPetro) universe, a lot of buses branch out from PULSE
     "Portland City Hall", // Central for 9A, this loop is split into two segments with one endpoint here
     "Congress St + Forest Ave", // South Portland lines going into Portland end here, similar to PULSE
+    "Congress & Forest", // South Portland lines going into Portland end here, similar to PULSE, alternate name
   ]);
   // check if any A destinations are in centralStops
   if (aDestinations.some((s) => centralStops.has(s))) {
