@@ -14,18 +14,16 @@ async function main() {
     }
   }
 
-  // This must run at least once on startup
+  // Load the static data once at startup
   await loadStaticGPMetro();
 
   const gtfsRealtimeLoader = new GTFSRealtimeLoader(GPMETRO, model);
 
-  // This will run every day at midnight
+  // This will run every 10 minutes, it is cached so it won't redownload if not changed
   CronJob.from({
-    cronTime: "0 0 0 * * *",
+    cronTime: "0 */10 * * * *",
     onTick: loadStaticGPMetro,
     start: true,
-    // Run when the job is started, useful for shipping changes to the loader
-    runOnInit: true,
     waitForCompletion: true,
   });
 

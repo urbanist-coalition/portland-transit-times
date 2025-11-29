@@ -12,12 +12,23 @@ import {
 import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "@/lib/loaders/stop-name-deduplication";
 
+let hash: string | undefined = undefined;
+
 /**
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
  * saves data to Redis, and then cleans up the temp folder.
  */
 export async function loadStatic(system: GTFSSystem, model: Model) {
-  await using gtfsStatic = await GTFSStatic.create(system);
+  await using gtfsStatic = await GTFSStatic.create(system, hash);
+  if (!gtfsStatic.changed) {
+    console.log("GTFS static data has not changed, skipping load");
+    return;
+  }
+
+  if (!(await gtfsStatic.hasRequiredData())) {
+    console.warn("GTFS static data is missing required data, skipping load");
+    return;
+  }
 
   console.log("Loading trips...");
   const trips = await gtfsStatic.getTrips();
@@ -221,4 +232,5 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
   }
   await model.setStopTimeInstances(stopTimeInstanceData);
   await model.cleanupStopTimeInstances(subDays(new Date(), 3));
+  hash = gtfsStatic.hash;
 }

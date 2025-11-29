@@ -2,6 +2,7 @@ import { parse as csvParser } from "csv-parse";
 import { createReadStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { createInterface } from "node:readline";
 import { pipeline } from "node:stream/promises";
 import https from "node:https";
 import os from "node:os";
@@ -31,6 +32,16 @@ export async function downloadGTFS(staticURL: string): Promise<string> {
   });
 
   return tmpDir;
+}
+
+export async function fetchETag(url: string): Promise<string | undefined> {
+  const res = await fetch(url, { method: "HEAD" });
+  if (!res.ok) {
+    throw new Error(`HEAD request failed with status ${res.status}`);
+  }
+  // Header names are case-insensitive; Fetch normalizes them to lowercase.
+  const etag = res.headers.get("etag");
+  return etag ?? undefined;
 }
 
 /**
@@ -128,11 +139,13 @@ export interface CalendarDate {
 
 export class GTFSStatic {
   staticURL: string;
+  hash: string | undefined;
+  changed: boolean = false;
   tempDir: string | undefined;
 
-  static async create(system: GTFSSystem) {
+  static async create(system: GTFSSystem, otherHash?: string) {
     const gtfsStatic = new GTFSStatic(system);
-    await gtfsStatic.load();
+    await gtfsStatic.load(otherHash);
     return gtfsStatic;
   }
 
@@ -140,13 +153,57 @@ export class GTFSStatic {
     this.staticURL = staticURL;
   }
 
-  async load() {
+  async load(otherHash?: string): Promise<boolean> {
     try {
-      this.tempDir = await downloadGTFS(this.staticURL);
+      this.hash = await fetchETag(this.staticURL);
+      this.changed = !otherHash || otherHash !== this.hash;
+
+      if (this.changed) {
+        this.tempDir = await downloadGTFS(this.staticURL);
+      }
+      return this.changed;
     } catch (error) {
       await this.cleanup();
       throw error;
     }
+  }
+
+  /**
+   * Check if a file has at least one data row (beyond the header).
+   * Streams the file and bails after reading 2 lines to avoid loading
+   * large files into memory just for validation.
+   */
+  private async hasData(filename: string): Promise<boolean> {
+    if (!this.tempDir) {
+      throw new Error("GTFS data not loaded");
+    }
+    const filePath = join(this.tempDir, filename);
+    const stream = createReadStream(filePath);
+    const rl = createInterface({ input: stream });
+
+    let lineCount = 0;
+    for await (const _ of rl) {
+      lineCount++;
+      if (lineCount > 1) {
+        rl.close();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async hasRequiredData(): Promise<boolean> {
+    if (!this.tempDir) return false;
+    const requiredFiles = [
+      "trips.txt",
+      "stops.txt",
+      "routes.txt",
+      "stop_times.txt",
+    ];
+    for (const file of requiredFiles) {
+      if (!(await this.hasData(file))) return false;
+    }
+    return true;
   }
 
   async cleanup() {
