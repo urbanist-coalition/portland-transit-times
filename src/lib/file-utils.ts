@@ -39,6 +39,16 @@ export async function writeJSON(name: string, data: object): Promise<void> {
   });
 }
 
+export async function readFile(name: string): Promise<string> {
+  const pathname = absolutePath(name);
+  return new Promise<string>((resolve, reject) => {
+    fs.readFile(pathname, "utf8", (err, data) => {
+      if (err) return reject(err);
+      resolve(data);
+    });
+  });
+}
+
 export async function readJSON<T>(
   name: string,
   defaultValue: T | undefined = undefined

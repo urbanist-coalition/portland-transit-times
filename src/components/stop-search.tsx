@@ -1,11 +1,11 @@
 "use client";
 
-import { allStops } from "@/data/all-stops";
+import { Stop } from "@/types";
 import { Autocomplete, Box, TextField, Typography } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export default function StopSearch() {
+export default function StopSearch({ allStops }: { allStops: Stop[] }) {
   const router = useRouter();
 
   const handleSelectStop = (stopCode: string) => {

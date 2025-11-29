@@ -1,6 +1,5 @@
 "use client";
 
-import { Prediction, predictionsByStopCode } from "@/lib/actions";
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -14,50 +13,48 @@ import {
   Collapse,
 } from "@mui/material";
 import { isTooLight } from "@/lib/utils";
+import ArrowRightIcon from "@mui/icons-material/ArrowRightAlt";
 import Link from "next/link";
 import MaterialLink from "@mui/material/Link";
-import { differenceInMinutes, format, startOfMinute } from "date-fns";
+import { differenceInMinutes, startOfMinute } from "date-fns";
 import { TransitionGroup } from "react-transition-group";
+import { LiveStopTimeInstance, StopTimeStatus } from "@/types";
+import { formatInTimeZone } from "date-fns-tz";
+import { useTimeZone } from "./timezone-cookie";
 
 const FORMAT = "h:mm a";
+const DEPART_THRESHOLD = 1; // minutes
 
-function _format(date: Date): string {
-  return format(date, FORMAT).toLowerCase();
+function _format(date: number, timeZone: string): string {
+  return formatInTimeZone(date, timeZone, FORMAT).toLowerCase();
 }
 
-function formatPredictedTime(date: Date, now: number): string {
-  const delta = differenceInMinutes(date, now);
-  if (delta > 30) return _format(date);
-  if (delta < 1) return "Due";
-  return `${delta} min`;
-}
-
-function ScheduleLabel({ title }: { title: string }) {
+function ScheduleTime({ time, updated }: { time: string; updated?: boolean }) {
   return (
-    <strong style={{ width: "72px", display: "inline-block" }}>{title}</strong>
-  );
-}
-
-function ScheduleTime({ time }: { time: string }) {
-  return (
-    <span
-      style={{ width: "60px", display: "inline-block", textAlign: "right" }}
+    <Box
+      component="span"
+      sx={{
+        textDecoration: updated ? "line-through" : undefined,
+        textDecorationThickness: updated ? "2px" : undefined,
+        fontStyle: updated ? "italic" : undefined,
+      }}
     >
       {time}
-    </span>
+    </Box>
   );
 }
 
 interface PredictionCardProps {
-  prediction: Prediction;
+  prediction: LiveStopTimeInstance;
   now: number;
 }
 
 function PredictionCard({ prediction, now }: PredictionCardProps) {
   const theme = useTheme();
-  const tooLight = isTooLight(prediction.lineColor);
+  const timeZone = useTimeZone();
+  const tooLight = isTooLight(prediction.route.routeColor);
 
-  const delta = differenceInMinutes(
+  const schedulDelta = differenceInMinutes(
     // Times are displayed to the user rounded to the start of the minute
     //   If we don't do that with the delta it may be off by a minute
     //   For example, if the delta is 80 seconds (predicted 13:00:50, scheduled 13:02:10)
@@ -69,14 +66,29 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     startOfMinute(prediction.scheduledTime)
   );
 
+  const minutesToArrival = differenceInMinutes(
+    startOfMinute(prediction.predictedTime),
+    startOfMinute(now)
+  );
+  const skipped = prediction.status === StopTimeStatus.skipped;
+  const departed =
+    minutesToArrival < -DEPART_THRESHOLD ||
+    prediction.status === StopTimeStatus.departed;
+
   let statusMessage = "On Time";
   let statusColor = theme.palette.success.main; // green for on time
 
-  if (delta > 0) {
-    statusMessage = `${delta} min late`;
+  if (skipped) {
+    statusMessage = "Canceled";
+    statusColor = theme.palette.warning.main; // yellow for skipped
+  } else if (departed) {
+    statusMessage = "Departed";
+    statusColor = theme.palette.grey[500]; // grey for departed
+  } else if (schedulDelta && schedulDelta > 0) {
+    statusMessage = `${schedulDelta} min late`;
     statusColor = theme.palette.error.main; // red for late
-  } else if (delta < 0) {
-    statusMessage = `${Math.abs(delta)} min early`;
+  } else if (schedulDelta && schedulDelta < 0) {
+    statusMessage = `${Math.abs(schedulDelta)} min early`;
     statusColor = theme.palette.info.main; // blue for early
   }
 
@@ -87,37 +99,39 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
         borderLeft:
           tooLight && theme.palette.mode === "light"
             ? undefined
-            : `8px solid ${prediction.lineColor}`,
+            : `8px solid ${prediction.route.routeColor}`,
         mb: 2, // margin bottom for spacing
       }}
     >
       <CardContent>
         <Stack spacing={1}>
-          <Typography variant="h6" component="div" sx={{ fontWeight: "bold" }}>
+          <Typography variant="h6">
             <Box
               component="span"
-              sx={{
-                color: tooLight
+              color={
+                tooLight
                   ? theme.palette.text.primary
-                  : prediction.lineColor,
-                mr: 1,
-              }}
+                  : prediction.route.routeColor
+              }
+              mr={1}
             >
-              {prediction.lineName}
+              {prediction.route.routeShortName}
             </Box>
-            to {prediction.destinationLabel}
+            to {prediction.trip.tripHeadsign}
           </Typography>
-
-          <Typography variant="body2">
-            <ScheduleLabel title="Scheduled:" />{" "}
-            <ScheduleTime time={_format(prediction.scheduledTime)} />
-          </Typography>
-
-          <Typography variant="body2" component="div">
-            <ScheduleLabel title="Predicted:" />{" "}
+          <Typography pl={1} component="div">
             <ScheduleTime
-              time={formatPredictedTime(prediction.predictedTime, now)}
+              time={_format(prediction.scheduledTime, timeZone)}
+              updated={schedulDelta !== 0 || skipped}
             />
+            {schedulDelta !== 0 && (
+              <>
+                <ArrowRightIcon sx={{ verticalAlign: "middle", pb: "3px" }} />
+                <ScheduleTime
+                  time={_format(prediction.predictedTime, timeZone)}
+                />
+              </>
+            )}
             <Chip
               label={statusMessage}
               sx={{
@@ -131,6 +145,12 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
               size="small"
             />
           </Typography>
+          {!departed && minutesToArrival <= 30 && (
+            <Typography color="text.secondary" pl={1}>
+              Arriving
+              {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
+            </Typography>
+          )}
         </Stack>
       </CardContent>
     </Card>
@@ -139,28 +159,29 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
 
 interface ArrivalsProps {
   stopCode: string;
-  arrivals: Prediction[];
+  arrivals: LiveStopTimeInstance[];
 }
 
 export default function Arrivals({
   stopCode,
   arrivals: initialArrivals,
 }: ArrivalsProps) {
-  const [arrivals, setArrivals] = useState<Prediction[]>(initialArrivals);
+  const [arrivals, setArrivals] =
+    useState<LiveStopTimeInstance[]>(initialArrivals);
   const [now, setNow] = useState(Date.now());
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
   useEffect(() => {
-    setLastUpdated(Date.now());
     const pollingInterval = setInterval(async () => {
       try {
-        const updatedArrivals = await predictionsByStopCode(stopCode);
+        const resp = await fetch(`/api/arrivals/${stopCode}`);
+        if (resp.status === 304) return; // No new data
+
+        const updatedArrivals = await resp.json();
         setArrivals(updatedArrivals);
-        setLastUpdated(Date.now());
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
-    }, 15000);
+    }, 1000);
 
     const nowInterval = setInterval(() => {
       setNow(Date.now());
@@ -172,16 +193,6 @@ export default function Arrivals({
     };
   }, [stopCode]);
 
-  // Format the lastUpdated timestamp for display
-  const lastUpdatedDate = lastUpdated && new Date(lastUpdated);
-  const lastUpdatedString =
-    lastUpdatedDate &&
-    lastUpdatedDate.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-
   return (
     <Box sx={{ pt: 2, pb: 2 }}>
       {arrivals.length === 0 && (
@@ -192,7 +203,7 @@ export default function Arrivals({
       <TransitionGroup>
         {arrivals.map((prediction, index) => (
           <Collapse
-            key={prediction.predictionId}
+            key={`${prediction.serviceDate}:${prediction.tripId}:${prediction.stopId}`}
             in={false}
             timeout={500}
             unmountOnExit
@@ -202,9 +213,6 @@ export default function Arrivals({
         ))}
       </TransitionGroup>
       <Box textAlign="center" mt={2}>
-        <Typography variant="caption" display="block" gutterBottom>
-          Last updated: {lastUpdatedString}
-        </Typography>
         <Link href="/" passHref>
           <Button variant="outlined">Switch Stops</Button>
         </Link>

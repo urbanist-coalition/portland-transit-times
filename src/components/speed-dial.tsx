@@ -7,7 +7,11 @@ import {
   useColorScheme,
   useMediaQuery,
 } from "@mui/material";
-import { DarkMode, Help, Home, LightMode, Map } from "@mui/icons-material";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import HelpIcon from "@mui/icons-material/Help";
+import HomeIcon from "@mui/icons-material/Home";
+import MapIcon from "@mui/icons-material/Map";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -18,7 +22,7 @@ export default function TransitSpeedDial() {
 
   const actions = [
     {
-      icon: <Home />,
+      icon: <HomeIcon />,
       name: "Home",
       onClick: () => {
         router.push("/");
@@ -26,14 +30,14 @@ export default function TransitSpeedDial() {
     },
     {
       name: "Help",
-      icon: <Help />,
+      icon: <HelpIcon />,
       onClick: () => {
         router.push("/help");
       },
     },
     {
       name: "Map",
-      icon: <Map />,
+      icon: <MapIcon />,
       onClick: () => {
         router.push("/by-location");
       },
@@ -48,7 +52,7 @@ export default function TransitSpeedDial() {
   if (currentMode === "light") {
     actions.push({
       name: "Dark",
-      icon: <DarkMode />,
+      icon: <DarkModeIcon />,
       onClick: () => {
         if (systemMode === "dark" || prefersDark) {
           setMode("system");
@@ -62,7 +66,7 @@ export default function TransitSpeedDial() {
   if (currentMode === "dark") {
     actions.push({
       name: "Light",
-      icon: <LightMode />,
+      icon: <LightModeIcon />,
       onClick: () => {
         if (systemMode === "light" || !prefersDark) {
           setMode("system");

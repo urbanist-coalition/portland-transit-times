@@ -8,6 +8,8 @@ import SpeedDial from "@/components/speed-dial";
 import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
 import { QuickStopsProvider } from "@/components/quick-stops";
 import { cookies } from "next/headers";
+import { TimeZoneProvider } from "@/components/timezone-cookie";
+import ErrorBoundary from "@/components/error";
 
 export const metadata: Metadata = {
   title: "UCP Transit Times",
@@ -29,6 +31,8 @@ export default async function RootLayout({
   const recentStops =
     recentStopsRaw && (JSON.parse(recentStopsRaw.value) as string[]);
 
+  const timeZone = cookieStore.get("tz")?.value || "America/New_York";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -49,18 +53,22 @@ export default async function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
       </head>
       <body>
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <QuickStopsProvider
-              savedStops={savedStops}
-              recentStops={recentStops}
-            >
-              <InitColorSchemeScript attribute="class" />
-              {children}
-              <SpeedDial />
-            </QuickStopsProvider>
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <ErrorBoundary>
+          <AppRouterCacheProvider>
+            <ThemeProvider theme={theme}>
+              <TimeZoneProvider timeZone={timeZone}>
+                <QuickStopsProvider
+                  savedStops={savedStops}
+                  recentStops={recentStops}
+                >
+                  <InitColorSchemeScript attribute="class" />
+                  {children}
+                  <SpeedDial />
+                </QuickStopsProvider>
+              </TimeZoneProvider>
+            </ThemeProvider>
+          </AppRouterCacheProvider>
+        </ErrorBoundary>
       </body>
       <GoogleAnalytics gaId="G-K5C2F0D9CT" />
     </html>

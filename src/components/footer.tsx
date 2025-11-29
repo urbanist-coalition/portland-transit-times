@@ -1,4 +1,4 @@
-import { Instagram } from "@mui/icons-material";
+import Instagram from "@mui/icons-material/Instagram";
 import { Box, Container, Typography } from "@mui/material";
 import MaterialLink from "@mui/material/Link";
 

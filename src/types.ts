@@ -1,46 +1,82 @@
 export interface Location {
   lat: number;
   lng: number;
-  cap?: number;
 }
 
-export interface LineDataSlim {
-  lineId: number;
-  lineName: string;
-  lineColor: string;
+// Static Data
+
+export interface Route {
+  routeId: string;
+  routeShortName: string;
+  routeColor: string;
+  routeTextColor: string;
 }
 
-export interface LineData extends LineDataSlim {
-  points: Location[][];
+export interface RouteWithShape extends Route {
+  // Denormalized Shape Info
+  shapes: Location[][];
 }
 
-export interface StopData {
-  stopId: number;
-  stopName: string;
+export interface Trip {
+  tripId: string;
+  routeId: string;
+  serviceId: string;
+  shapeId: string;
+
+  tripHeadsign: string;
+}
+
+export interface Stop {
+  stopId: string;
   stopCode: string;
+  stopName: string;
   location: Location;
-  lineIds: number[];
+
+  // Denormalized Route Info
+  routes: Route[];
 }
 
-export interface VehicleData {
-  vehicleId: number;
-  lineId: number;
-  location: Location;
+// Real-time Data
+
+export interface Alert {
+  id: string; // Corresponds to the feed entity ID
+  headerText: string;
+  descriptionText: string;
 }
 
-// Based on the item type from rss-parser but with mandatory title, content, and isoDate
-export interface ServiceAlert {
-  title: string;
-  link?: string;
-  pubDate?: string;
-  content: string;
-  contentSnippet?: string;
-  guid?: string;
-  isoDate: string;
-  enclosure?: {
-    url: string;
-    // rss-parser's type has this as a number but it is returning a string
-    length?: string;
-    type?: string;
-  };
+export interface VehiclePosition {
+  vehicleId: string;
+  position: Location;
+
+  // Denormalized Route Info
+  route: Route;
 }
+
+export enum StopTimeStatus {
+  scheduled = "SCHEDULED",
+  skipped = "SKIPPED",
+  departed = "DEPARTED",
+}
+
+export interface StopTimeInstanceBase {
+  serviceDate: string;
+  tripId: string;
+  stopId: string;
+}
+
+export interface StopTimeUpdate extends StopTimeInstanceBase {
+  predictedTime: number; // Unix timestamp in seconds
+  status: StopTimeStatus;
+}
+
+export interface StopTimeInstance extends StopTimeInstanceBase {
+  scheduledTime: number; // Unix timestamp in seconds
+
+  // Denormalized Route Info
+  route: Route;
+
+  // Denormalized Trip Info
+  trip: Trip;
+}
+
+export type LiveStopTimeInstance = StopTimeInstance & StopTimeUpdate;

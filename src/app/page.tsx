@@ -1,24 +1,29 @@
-import { Container, Typography, Box, Button } from "@mui/material";
+import { Container, Typography, Box, Button, Paper } from "@mui/material";
 import NextLink from "next/link";
 import { QuickStops } from "@/components/quick-stops";
 import StopSearch from "@/components/stop-search";
 import Footer from "@/components/footer";
-import { getServiceAlerts } from "@/lib/service-alerts";
 import ServiceAlerts from "@/components/service-alerts";
+import { getServiceAlerts, getStops } from "@/lib/actions";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const serviceAlerts = await getServiceAlerts();
+  const stops = await getStops();
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Portland, ME Transit
-      </Typography>
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h5" gutterBottom>
+          Portland Maine Transit
+        </Typography>
+        <Typography variant="body1" gutterBottom>
+          Find your stop to keep up to date with <strong>real time</strong>{" "}
+          arrivals!
+        </Typography>
+      </Paper>
       <ServiceAlerts serviceAlerts={serviceAlerts} />
-      <Typography variant="body1" gutterBottom>
-        Find your stop to keep up to date with <strong>real time</strong>{" "}
-        arrivals!
-      </Typography>
 
       <Box mt={4} textAlign="center">
         <NextLink href="/by-location" style={{ display: "inline" }}>
@@ -36,8 +41,8 @@ export default async function HomePage() {
         <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
       </Box>
 
-      <StopSearch />
-      <QuickStops />
+      <StopSearch allStops={Object.values(stops)} />
+      <QuickStops allStops={stops} />
       <Footer />
     </Container>
   );

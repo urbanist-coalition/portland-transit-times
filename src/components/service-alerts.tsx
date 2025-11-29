@@ -1,4 +1,5 @@
-import { ServiceAlert } from "@/types";
+"use client";
+
 import {
   Accordion,
   AccordionSummary,
@@ -10,48 +11,71 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
+import { Alert } from "@/types";
 
 interface ServiceAlertsProps {
-  serviceAlerts: ServiceAlert[];
+  serviceAlerts: Alert[];
 }
 
 export default function ServiceAlerts({ serviceAlerts }: ServiceAlertsProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const handleChange = () => {
+    setExpanded((prevExpanded) => {
+      if (serviceAlerts.length === 0) {
+        return false;
+      }
+      return !prevExpanded;
+    });
+  };
+
   return (
     <Accordion
+      elevation={1}
       sx={{
-        borderRadius: "4px",
-        boxShadow: 2,
         // Remove the default MUI Accordion divider line
         "&:before": {
           display: "none",
         },
         // Ensure no clipping of box shadow or rounded edges
         overflow: "hidden",
-        mb: 2,
       }}
+      expanded={expanded}
+      onChange={handleChange}
     >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      <AccordionSummary
+        sx={{
+          // Don't rotate the expand icon when the accordion is expanded
+          "& .MuiAccordionSummary-expandIconWrapper.Mui-expanded": {
+            transform: "none",
+          },
+        }}
+        expandIcon={
+          <Chip
+            label={serviceAlerts.length}
+            color={serviceAlerts.length > 0 ? "warning" : "success"}
+            size="small"
+            sx={{ ml: 1 }}
+          />
+        }
+      >
         <Typography
           variant="subtitle1"
           sx={{ display: "flex", alignItems: "center" }}
         >
           Service Alerts
-          <Chip
-            label={serviceAlerts.length}
-            color="primary"
-            size="small"
-            sx={{ ml: 1 }}
-          />
         </Typography>
       </AccordionSummary>
       <AccordionDetails>
         <List disablePadding>
           {serviceAlerts.map((alert, index) => (
-            <Fragment key={alert.guid}>
-              <ListItem>
-                <ListItemText primary={alert.title} secondary={alert.content} />
+            <Fragment key={alert.id}>
+              <ListItem disablePadding>
+                <ListItemText
+                  primary={alert.headerText}
+                  secondary={alert.descriptionText}
+                />
               </ListItem>
               {index < serviceAlerts.length - 1 && <Divider component="li" />}
             </Fragment>

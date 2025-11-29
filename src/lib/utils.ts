@@ -1,5 +1,3 @@
-import { Location } from "@/types";
-
 /**
  * Determines if a hex color is too light, useful for determining text color and adding
  * borders when dealing with dynamic colors provided by the transit service.
@@ -63,14 +61,36 @@ export function distance(
   return R * c; // distance in meters
 }
 
-export function locationEquals(a: Location | undefined, b: Location): boolean {
-  if (!a) return false;
-  return a.lat === b.lat && a.lng === b.lng;
-}
-
 export function filterMap<T, R>(
   arr: T[],
   f: (t: T) => R | undefined | null
 ): R[] {
   return arr.map(f).filter((r): r is R => r !== undefined && r !== null);
+}
+
+export function stopCodeToStopId(stopCode: string): string {
+  return `0:${stopCode}`;
+}
+
+export function groupBy<T, K extends keyof T>(
+  array: T[],
+  key: K
+): Map<T[K], T[]> {
+  const index = new Map<T[K], T[]>();
+  for (const item of array) {
+    const current = index.get(item[key]) || [];
+    index.set(item[key], [...current, item]);
+  }
+  return index;
+}
+
+export function indexBy<T, K extends keyof T>(
+  array: T[],
+  key: K
+): Map<T[K], T> {
+  const index = new Map<T[K], T>();
+  for (const item of array) {
+    index.set(item[key], item);
+  }
+  return index;
 }
