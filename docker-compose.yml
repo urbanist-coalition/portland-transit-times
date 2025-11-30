@@ -52,10 +52,7 @@ services:
       - web
 
   webservice:
-    build:
-      context: .
-      cache_from:
-        - ghcr.io/urbanist-coalition/portland-transit-times:latest
+    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
     container_name: transit-webservice
     restart: unless-stopped
     expose:
@@ -89,10 +86,7 @@ services:
       - redis
 
   worker:
-    build:
-      context: .
-      cache_from:
-        - ghcr.io/urbanist-coalition/portland-transit-times:latest
+    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
     container_name: transit-worker
     restart: unless-stopped
     command: npm run worker
