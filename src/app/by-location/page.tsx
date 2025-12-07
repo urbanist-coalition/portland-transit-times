@@ -1,7 +1,8 @@
 import { getLines, getStops } from "@/lib/actions";
 import ByLocation from "@/components/by-location";
 
-export const dynamic = "force-dynamic";
+// Static page, revalidated by worker via /api/revalidate when GTFS data changes
+export const revalidate = false;
 
 export default async function ByLocationPage() {
   const allLines = await getLines();

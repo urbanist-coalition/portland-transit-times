@@ -5,10 +5,42 @@ import { GTFSRealtimeLoader } from "@/lib/loaders/realtime";
 import { GPMETRO } from "@/lib/constants";
 import { RedisModel } from "@/lib/model";
 
+// Triggers Next.js to rebuild static pages with fresh GTFS data
+// See: src/app/api/revalidate/route.ts
+async function revalidateStaticPages() {
+  const baseUrl = process.env.REVALIDATE_URL || "http://localhost:3000";
+  const token = process.env.REVALIDATE_TOKEN;
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/revalidate`, {
+      method: "POST",
+      headers,
+    });
+    if (response.ok) {
+      console.log("Successfully triggered revalidation");
+      // Warm the cache by fetching the page after revalidation
+      await fetch(`${baseUrl}/by-location`);
+      console.log("Cache warmed for /by-location");
+    } else {
+      console.error("Failed to trigger revalidation:", response.status);
+    }
+  } catch (error) {
+    console.error("Error triggering revalidation:", error);
+  }
+}
+
 async function main() {
   const model = new RedisModel();
   async function loadStaticGPMetro() {
-    await loadStatic(GPMETRO, model);
+    const changed = await loadStatic(GPMETRO, model);
+    if (changed) {
+      await revalidateStaticPages();
+    }
     if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
       await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
     }
