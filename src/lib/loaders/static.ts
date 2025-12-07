@@ -18,19 +18,16 @@ let hash: string | undefined = undefined;
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
  * saves data to Redis, and then cleans up the temp folder.
  */
-export async function loadStatic(
-  system: GTFSSystem,
-  model: Model
-): Promise<boolean> {
+export async function loadStatic(system: GTFSSystem, model: Model) {
   await using gtfsStatic = await GTFSStatic.create(system, hash);
   if (!gtfsStatic.changed) {
     console.log("GTFS static data has not changed, skipping load");
-    return false;
+    return;
   }
 
   if (!(await gtfsStatic.hasRequiredData())) {
     console.warn("GTFS static data is missing required data, skipping load");
-    return false;
+    return;
   }
 
   console.log("Loading trips...");
@@ -236,5 +233,4 @@ export async function loadStatic(
   await model.setStopTimeInstances(stopTimeInstanceData);
   await model.cleanupStopTimeInstances(subDays(new Date(), 3));
   hash = gtfsStatic.hash;
-  return true;
 }

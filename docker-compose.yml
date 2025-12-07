@@ -71,7 +71,6 @@ services:
     command: npm start
     environment:
       - REDIS_URL=redis://redis:6379
-      - REVALIDATE_TOKEN=${REVALIDATE_TOKEN}
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - LETSENCRYPT_HOST=${VIRTUAL_HOST}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
@@ -100,8 +99,6 @@ services:
           cpus: '0.25'
     environment:
       - REDIS_URL=redis://redis:6379
-      - REVALIDATE_URL=http://webservice:3000
-      - REVALIDATE_TOKEN=${REVALIDATE_TOKEN}
     logging:
       driver: "json-file"
       options:
