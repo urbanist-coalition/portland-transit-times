@@ -58,8 +58,8 @@ function vehicleIcon(routeColor: string, iconSize: number, bearing?: number) {
                 transform: "translateX(-50%)",
                 borderLeft: "4px solid transparent",
                 borderRight: "4px solid transparent",
-                borderBottom: "5px solid black",
-                filter: "drop-shadow(0 0 1px white)",
+                borderBottom: "5px solid white",
+                filter: `drop-shadow(0 0 1px ${routeColor})`,
               }}
             />
           </Box>
