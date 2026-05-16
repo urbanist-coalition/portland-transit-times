@@ -1,5 +1,4 @@
 import http.server
-import socketserver
 from argparse import ArgumentParser
 from functools import partial
 
@@ -18,7 +17,7 @@ INDEX_HTML = """<!DOCTYPE html>
     const map = L.map('map').setView([43.65, -70.25], 12);
     L.tileLayer('./{z}/{x}/{y}.png', {
       minZoom: 10,
-      maxZoom: 16,
+      maxZoom: 20,
       tileSize: 256,
       attribution: '&copy; CARTO'
     }).addTo(map);
@@ -47,6 +46,6 @@ parser.add_argument("--port", type=int, default=8000)
 args = parser.parse_args()
 
 handler = partial(Handler, directory=args.directory)
-with socketserver.TCPServer(("", args.port), handler) as httpd:
+with http.server.ThreadingHTTPServer(("", args.port), handler) as httpd:
     print(f"Serving {args.directory} at http://localhost:{args.port}/  (Ctrl-C to stop)")
     httpd.serve_forever()
