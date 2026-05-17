@@ -1,5 +1,7 @@
 import asyncio
+import os
 import sys
+from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
@@ -16,7 +18,7 @@ THEMES = {
     "voyager":             "rastertiles/voyager",
 }
 
-MAX_CONCURRENCY = 10
+MAX_CONCURRENCY = 40
 MAX_ATTEMPTS = 4
 
 
@@ -29,20 +31,28 @@ async def fetch_tile(
 ) -> str | None:
     x, y, z = tile.x, tile.y, tile.z
     out_path = output_dir / str(z) / str(x) / f"{y}.png"
-    if out_path.exists():
-        return "skipped"
     url = f"https://a.basemaps.cartocdn.com/{theme}/{z}/{x}/{y}.png"
+
+    # Revalidate existing tiles with If-Modified-Since against the local file's
+    # mtime (set from the server's Last-Modified on the original download).
+    # Server returns 304 with no body when nothing changed.
+    headers: dict[str, str] = {}
+    if out_path.exists():
+        headers["If-Modified-Since"] = formatdate(out_path.stat().st_mtime, usegmt=True)
 
     async with sem:
         for attempt in range(MAX_ATTEMPTS):
             try:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
             except (httpx.TimeoutException, httpx.TransportError) as e:
                 if attempt == MAX_ATTEMPTS - 1:
                     tqdm.write(f"FAILED {url}: {type(e).__name__}: {e or '(no message)'}", file=sys.stderr)
                     return "failed"
                 await asyncio.sleep(2 ** attempt)
                 continue
+
+            if response.status_code == 304:
+                return "unchanged"
 
             if response.status_code == 429 or response.status_code >= 500:
                 if attempt == MAX_ATTEMPTS - 1:
@@ -58,6 +68,15 @@ async def fetch_tile(
 
             out_path.parent.mkdir(parents=True, exist_ok=True)
             out_path.write_bytes(response.content)
+            # Stamp file with the server's Last-Modified so future runs can
+            # revalidate. If the header is missing/malformed, leave mtime alone.
+            last_mod = response.headers.get("Last-Modified")
+            if last_mod:
+                try:
+                    ts = parsedate_to_datetime(last_mod).timestamp()
+                    os.utime(out_path, (ts, ts))
+                except (TypeError, ValueError):
+                    pass
             return "ok"
 
 
@@ -82,8 +101,9 @@ async def download_tiles(
             mininterval=2.0,
         )
     failed = sum(1 for r in results if r == "failed")
-    skipped = sum(1 for r in results if r == "skipped")
-    print(f"Done. {len(t)} tiles, {skipped} already present, {failed} failed.", file=sys.stderr)
+    unchanged = sum(1 for r in results if r == "unchanged")
+    fresh = sum(1 for r in results if r == "ok")
+    print(f"Done. {len(t)} tiles: {fresh} new/updated, {unchanged} unchanged, {failed} failed.", file=sys.stderr)
 
 
 parser = ArgumentParser(
@@ -111,7 +131,7 @@ parser.add_argument(
     nargs=4,
     type=float,
     metavar=("WEST", "SOUTH", "EAST", "NORTH"),
-    default=[-70.35, 43.55, -70.15, 43.75],
+    default=[-70.85, 43.34, -69.71, 44.10],
     help="bounding box as four floats (default: Portland, ME area)",
 )
 parser.add_argument(

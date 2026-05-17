@@ -17,7 +17,7 @@ INDEX_HTML = """<!DOCTYPE html>
     const map = L.map('map').setView([43.65, -70.25], 12);
     L.tileLayer('./{z}/{x}/{y}.png', {
       minZoom: 10,
-      maxZoom: 20,
+      maxZoom: 18,
       tileSize: 256,
       attribution: '&copy; CARTO'
     }).addTo(map);
