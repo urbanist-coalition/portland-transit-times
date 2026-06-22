@@ -2,6 +2,7 @@ import { memo, useEffect, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import { Box } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { renderToString } from "react-dom/server";
 
 import { VehiclePosition } from "@/types";
@@ -11,15 +12,17 @@ function vehicleIcon(
   routeTextColor: string,
   routeShortName: string,
   iconSize: number,
+  mode: "light" | "dark",
   bearing?: number
 ) {
   const hasBearing = typeof bearing === "number";
+  const borderColor = mode === "dark" ? "white" : "black";
   return L.divIcon({
     html: renderToString(
       <Box
         style={{
           background: routeColor || "white",
-          border: `1px solid ${routeColor || "black"}`,
+          border: `1px solid ${borderColor}`,
           borderRadius: "50%",
           width: iconSize + 4,
           height: iconSize + 4,
@@ -33,7 +36,10 @@ function vehicleIcon(
           style={{
             color: routeTextColor || "white",
             fontWeight: "bold",
-            fontSize: Math.max(iconSize * 0.45, 9),
+            fontSize: Math.max(
+              iconSize * (routeIcon(routeShortName).length === 1 ? 0.65 : 0.45),
+              9
+            ),
             lineHeight: 1,
             userSelect: "none",
           }}
@@ -58,15 +64,15 @@ function vehicleIcon(
             <Box
               style={{
                 position: "absolute",
-                top: -6,
+                top: -10,
                 left: "50%",
                 width: 0,
                 height: 0,
                 transform: "translateX(-50%)",
-                borderLeft: "4px solid transparent",
-                borderRight: "4px solid transparent",
-                borderBottom: "5px solid white",
-                filter: `drop-shadow(0 0 1px ${routeColor})`,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderBottom: `9px solid ${routeColor || "black"}`,
+                filter: `drop-shadow(0 0 1px ${borderColor})`,
               }}
             />
           </Box>
@@ -79,6 +85,7 @@ function vehicleIcon(
 
 function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
+  const theme = useTheme();
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -116,6 +123,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
               routeTextColor,
               routeShortName,
               iconSize,
+              theme.palette.mode,
               bearing
             )}
             // This looks a bit weird but it is better for the buses to be behind the stops
