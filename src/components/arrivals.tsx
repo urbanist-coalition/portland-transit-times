@@ -25,6 +25,20 @@ import { useTimeZone } from "./timezone-cookie";
 const FORMAT = "h:mm a";
 const DEPART_THRESHOLD = 1; // minutes
 
+// Safe fallback: never render predictions whose time is more than this far in
+//   the past. The server only returns instances after `now - 10 min`, so any
+//   arrival older than that reached us from a stale source (e.g. a cached HTTP
+//   response) and should be dropped rather than shown as a real prediction.
+const STALE_THRESHOLD_MS = 10 * 60 * 1000;
+
+function dropStale(
+  arrivals: LiveStopTimeInstance[],
+  now: number
+): LiveStopTimeInstance[] {
+  const cutoff = now - STALE_THRESHOLD_MS;
+  return arrivals.filter((a) => (a.predictedTime ?? a.scheduledTime) >= cutoff);
+}
+
 function _format(date: number, timeZone: string): string {
   return formatInTimeZone(date, timeZone, FORMAT).toLowerCase();
 }
@@ -166,18 +180,33 @@ export default function Arrivals({
   stopCode,
   arrivals: initialArrivals,
 }: ArrivalsProps) {
-  const [arrivals, setArrivals] =
-    useState<LiveStopTimeInstance[]>(initialArrivals);
+  const [arrivals, setArrivals] = useState<LiveStopTimeInstance[]>(() =>
+    dropStale(initialArrivals, Date.now())
+  );
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
+    // Drive the conditional request ourselves instead of relying on the
+    //   browser's HTTP cache. Because the API sends `last-modified` without a
+    //   `cache-control` directive, the browser applies heuristic freshness and
+    //   would serve a stale cached body for minutes without revalidating —
+    //   which is how old arrivals "filter in". `cache: "no-store"` keeps the
+    //   browser cache out of the loop entirely, and tracking `last-modified`
+    //   here preserves the 304 bandwidth savings the API was designed for.
+    let lastModified: string | null = null;
+
     const pollingInterval = setInterval(async () => {
       try {
-        const resp = await fetch(`/api/arrivals/${stopCode}`);
+        const resp = await fetch(`/api/arrivals/${stopCode}`, {
+          cache: "no-store",
+          headers: lastModified ? { "if-modified-since": lastModified } : {},
+        });
         if (resp.status === 304) return; // No new data
 
-        const updatedArrivals = await resp.json();
-        setArrivals(updatedArrivals);
+        lastModified = resp.headers.get("last-modified") || lastModified;
+
+        const updatedArrivals: LiveStopTimeInstance[] = await resp.json();
+        setArrivals(dropStale(updatedArrivals, Date.now()));
       } catch (error) {
         console.error("Failed to fetch predictions", error);
       }
