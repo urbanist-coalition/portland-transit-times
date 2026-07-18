@@ -2,20 +2,27 @@ import { memo, useEffect, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
 import { Box } from "@mui/material";
-import DirectionsBusIcon from "@mui/icons-material/DirectionsBus";
+import { useTheme } from "@mui/material/styles";
 import { renderToString } from "react-dom/server";
 
 import { VehiclePosition } from "@/types";
 
-function vehicleIcon(routeColor: string, iconSize: number, bearing?: number) {
+function vehicleIcon(
+  routeColor: string,
+  routeTextColor: string,
+  routeShortName: string,
+  iconSize: number,
+  mode: "light" | "dark",
+  bearing?: number
+) {
   const hasBearing = typeof bearing === "number";
+  const borderColor = mode === "dark" ? "white" : "black";
   return L.divIcon({
-    // Wrap the bus icon in a styled div (circle) for the outline and background
     html: renderToString(
       <Box
         style={{
-          background: routeColor || "white ",
-          border: `1px solid ${routeColor || "black"}`,
+          background: routeColor || "white",
+          border: `1px solid ${borderColor}`,
           borderRadius: "50%",
           width: iconSize + 4,
           height: iconSize + 4,
@@ -25,14 +32,20 @@ function vehicleIcon(routeColor: string, iconSize: number, bearing?: number) {
           position: "relative",
         }}
       >
-        <DirectionsBusIcon
+        <span
           style={{
-            stroke: "white",
-            fill: "white",
-            width: iconSize,
-            height: iconSize,
+            color: routeTextColor || "white",
+            fontWeight: "bold",
+            fontSize: Math.max(
+              iconSize * (routeIcon(routeShortName).length === 1 ? 0.65 : 0.45),
+              9
+            ),
+            lineHeight: 1,
+            userSelect: "none",
           }}
-        />
+        >
+          {routeIcon(routeShortName)}
+        </span>
         {hasBearing && (
           // GTFS bearing is degrees CW from true north; with a north-up map,
           // rotating the arrow by `bearing` from "up" points it the right way.
@@ -51,15 +64,15 @@ function vehicleIcon(routeColor: string, iconSize: number, bearing?: number) {
             <Box
               style={{
                 position: "absolute",
-                top: -6,
+                top: -10,
                 left: "50%",
                 width: 0,
                 height: 0,
                 transform: "translateX(-50%)",
-                borderLeft: "4px solid transparent",
-                borderRight: "4px solid transparent",
-                borderBottom: "5px solid white",
-                filter: `drop-shadow(0 0 1px ${routeColor})`,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderBottom: `9px solid ${routeColor || "black"}`,
+                filter: `drop-shadow(0 0 1px ${borderColor})`,
               }}
             />
           </Box>
@@ -72,6 +85,7 @@ function vehicleIcon(routeColor: string, iconSize: number, bearing?: number) {
 
 function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
+  const theme = useTheme();
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -95,11 +109,23 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   return (
     <>
       {vehicles.map(
-        ({ vehicleId, route: { routeColor }, position, bearing }) => (
+        ({
+          vehicleId,
+          route: { routeColor, routeTextColor, routeShortName },
+          position,
+          bearing,
+        }) => (
           <Marker
             key={vehicleId}
             position={position}
-            icon={vehicleIcon(routeColor, iconSize, bearing)}
+            icon={vehicleIcon(
+              routeColor,
+              routeTextColor,
+              routeShortName,
+              iconSize,
+              theme.palette.mode,
+              bearing
+            )}
             // This looks a bit weird but it is better for the buses to be behind the stops
             //   so stops don't get hidden. -5 isn't enough but -10 seems to work
             zIndexOffset={-10}
@@ -108,6 +134,12 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
       )}
     </>
   );
+}
+
+function routeIcon(routeShortName: string) {
+  if (routeShortName === "HSK") return "H";
+  if (routeShortName === "BRZ") return "B";
+  return routeShortName;
 }
 
 export const LiveVehicles = memo(LiveVehiclesRaw);
