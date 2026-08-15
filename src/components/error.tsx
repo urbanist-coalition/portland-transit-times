@@ -1,9 +1,10 @@
 "use client";
 
 import { Component, ReactNode, ErrorInfo } from "react";
-import { Box, Typography, Button, Stack, Link as MuiLink } from "@mui/material";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import ReplayIcon from "@mui/icons-material/Replay";
+
+import { ErrorOutlineIcon, ReplayIcon } from "@/components/icons";
+
+import styles from "./error.module.css";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -34,54 +35,43 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <Box
-          minHeight="100vh"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          sx={{ bgcolor: (theme) => theme.palette.background.default }}
-        >
-          <Stack
-            spacing={3}
-            alignItems="center"
-            textAlign="center"
-            maxWidth={480}
-          >
-            <ErrorOutlineIcon color="error" sx={{ fontSize: 64 }} />
+        <div className={styles.root}>
+          <div className={styles.panel}>
+            <ErrorOutlineIcon size={64} className={styles.icon} />
 
-            <Typography variant="h4" component="h2">
-              Oops! Something went wrong.
-            </Typography>
+            <h1>Oops! Something went wrong.</h1>
 
-            <Typography variant="body1" color="text.secondary">
+            <p className="muted">
               Try refreshing the page, or click the button below.
-            </Typography>
+            </p>
 
-            <Button
-              variant="contained"
-              startIcon={<ReplayIcon />}
+            <button
+              type="button"
+              className="btn btn-primary"
               onClick={this.handleReset}
             >
+              <ReplayIcon size={20} />
               Try again
-            </Button>
+            </button>
 
-            <Typography variant="body2" color="text.secondary">
+            <p className={styles.contact}>
               If you’re still experiencing an issue, please&nbsp;
-              <MuiLink
+              <a
+                className="link"
                 href="https://form.jotform.com/243556208520150"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 fill out our issue report form
-              </MuiLink>
+              </a>
               &nbsp;or e‑mail us at&nbsp;
-              <MuiLink href="mailto:contact@urbanistportland.me">
+              <a className="link" href="mailto:contact@urbanistportland.me">
                 contact@urbanistportland.me
-              </MuiLink>
+              </a>
               .
-            </Typography>
-          </Stack>
-        </Box>
+            </p>
+          </div>
+        </div>
       );
     }
 

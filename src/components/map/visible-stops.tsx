@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { useCallback, useMemo, useRef } from "react";
-import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { renderToString } from "react-dom/server";
 
+import { useColorMode } from "@/components/color-mode";
 import { Location, Stop } from "@/types";
 import LinePill from "@/components/line-pill";
+
+import styles from "./map.module.css";
+
+// The ring drawn around each stop marker, picked to stay visible against both
+//   the light and dark base maps.
+const MARKER_OUTLINE = { light: "#616161", dark: "#c9d1d9" };
 
 const generatePieSlices = (colors: string[], radius: number) => {
   const slicePaths = [];
@@ -102,7 +108,7 @@ export function VisibleStops({
   center,
 }: VisibleStopsProps) {
   const map = useMap();
-  const theme = useTheme();
+  const { resolved } = useColorMode();
 
   // For some reason when the map is zoomed out the stops appear to be too low and to the left
   //   These values are picked to make the stops look good at these zoom levels
@@ -121,7 +127,7 @@ export function VisibleStops({
   //   Speed up rendering a lot
   const getStopIcon = useCallback(
     (colors: string[]) => {
-      const key = colors.join("|") + iconSize + theme.palette.mode;
+      const key = colors.join("|") + iconSize + resolved;
       let icon = stopIconCache.current.get(key);
       if (!icon) {
         icon = L.divIcon({
@@ -129,7 +135,7 @@ export function VisibleStops({
             <StopIcon
               colors={colors}
               size={iconSize}
-              outlineColor={theme.palette.grey[700]}
+              outlineColor={MARKER_OUTLINE[resolved]}
             />
           ),
           className: "",
@@ -139,7 +145,7 @@ export function VisibleStops({
       }
       return icon;
     },
-    [iconSize, skewX, skewY, theme.palette.mode, theme.palette.grey]
+    [iconSize, skewX, skewY, resolved]
   );
 
   const visibleStops = useMemo(() => {
@@ -161,43 +167,37 @@ export function VisibleStops({
           icon={getStopIcon(stop.routes.map((r) => r.routeColor))}
         >
           <Popup closeButton={false}>
-            <Box sx={{ textAlign: "center" }}>
-              <Typography variant="h6" color="textPrimary">
-                {stop.stopName}
-              </Typography>
-              <Typography variant="caption" color="textPrimary">
+            <div className={styles.popup}>
+              <h2 className={styles.popupName}>{stop.stopName}</h2>
+              <div className={styles.popupCode}>
                 Stop Number: {stop.stopCode}
-              </Typography>
-              <br />
+              </div>
               {stop.routes && stop.routes.length > 0 && (
-                <Box
-                  mt={2}
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 1,
-                    py: 0.5,
-                    justifyContent: "center",
-                    minWidth: "240px",
-                  }}
-                >
+                <div className={styles.popupRoutes}>
                   {stop.routes.map(
-                    ({ routeId, routeShortName, routeColor }) => {
-                      return (
-                        <LinePill
-                          key={routeId}
-                          lineName={routeShortName}
-                          lineColor={routeColor}
-                        />
-                      );
-                    }
+                    ({
+                      routeId,
+                      routeShortName,
+                      routeColor,
+                      routeTextColor,
+                    }) => (
+                      <LinePill
+                        key={routeId}
+                        lineName={routeShortName}
+                        lineColor={routeColor}
+                        lineTextColor={routeTextColor}
+                      />
+                    )
                   )}
-                </Box>
+                </div>
               )}
-              <Link href={`/stops/${stop.stopCode}`}>
-                <Button variant="text">View Arrivals</Button>
+              <Link
+                href={`/stops/${stop.stopCode}`}
+                className={`btn btn-primary ${styles.popupAction}`}
+              >
+                View Arrivals
               </Link>
-            </Box>
+            </div>
           </Popup>
         </Marker>
       ))}

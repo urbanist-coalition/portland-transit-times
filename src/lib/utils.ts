@@ -1,11 +1,8 @@
 /**
- * Determines if a hex color is too light, useful for determining text color and adding
- * borders when dealing with dynamic colors provided by the transit service.
+ * WCAG relative luminance of a hex color, from 0 (black) to 1 (white).
  * @param hexColor - A string representing a hex color (e.g., "#FFFFFF" or "#FFF").
- * @param threshold - Optional threshold for deciding lightness (default is 0.8).
- * @returns True if the color is too light for white text, otherwise false.
  */
-export function isTooLight(hexColor: string, threshold: number = 0.8): boolean {
+export function relativeLuminance(hexColor: string): number {
   // Ensure the hex color is valid
   const hex = hexColor.replace("#", "");
   if (!/^([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex)) {
@@ -26,17 +23,37 @@ export function isTooLight(hexColor: string, threshold: number = 0.8): boolean {
   const g = parseInt(fullHex.substring(2, 4), 16) / 255;
   const b = parseInt(fullHex.substring(4, 6), 16) / 255;
 
-  // Calculate relative luminance
-  const luminance = (channel: number) =>
+  const channelLuminance = (channel: number) =>
     channel <= 0.03928
       ? channel / 12.92
       : Math.pow((channel + 0.055) / 1.055, 2.4);
 
-  const relativeLuminance =
-    0.2126 * luminance(r) + 0.7152 * luminance(g) + 0.0722 * luminance(b);
+  return (
+    0.2126 * channelLuminance(r) +
+    0.7152 * channelLuminance(g) +
+    0.0722 * channelLuminance(b)
+  );
+}
 
-  // Determine if the color is too light
-  return relativeLuminance > threshold;
+/**
+ * Determines if a hex color is too light, useful for determining text color and adding
+ * borders when dealing with dynamic colors provided by the transit service.
+ * @param hexColor - A string representing a hex color (e.g., "#FFFFFF" or "#FFF").
+ * @param threshold - Optional threshold for deciding lightness (default is 0.8).
+ * @returns True if the color is too light for white text, otherwise false.
+ */
+export function isTooLight(hexColor: string, threshold: number = 0.8): boolean {
+  return relativeLuminance(hexColor) > threshold;
+}
+
+/**
+ * Picks black or white text for an arbitrary background, whichever has the
+ * better contrast ratio. Replaces MUI's `theme.palette.getContrastText`, which
+ * used the same 3:1-against-white rule.
+ */
+export function contrastText(hexColor: string): string {
+  // A background lighter than this has a contrast ratio below 3:1 with white
+  return relativeLuminance(hexColor) > 0.179 ? "#1a1a1a" : "#ffffff";
 }
 
 const R = 6371000; // Earth radius in meters

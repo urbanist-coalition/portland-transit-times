@@ -1,15 +1,15 @@
 "use client";
 
-import LocationSearchingIcon from "@mui/icons-material/LocationSearching";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Marker, useMap } from "react-leaflet";
-import { IconButton, Tooltip } from "@mui/material";
 import { memo, useEffect, useRef } from "react";
 import L from "leaflet";
 
+import { LocationSearchingIcon, MyLocationIcon } from "@/components/icons";
 import { Location } from "@/types";
 import { distance } from "@/lib/utils";
 import useUserLocation from "@/hooks/user-location";
+
+import styles from "./map.module.css";
 
 const userLocationIcon = L.divIcon({
   className: "user-location-icon", // Add a class for potential styling
@@ -34,25 +34,19 @@ const CenterMeButton = ({
     map.setView(location, 16);
   }
 
+  const centered =
+    distance(location.lat, location.lng, center.lat, center.lng) < 5;
+
   return (
-    <Tooltip title="Center on your location" placement="bottom-start">
-      <IconButton
-        sx={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          // 400 is exactly the minimum needed to be above the map, found with manual binary search
-          zIndex: 400,
-        }}
-        onClick={centerOnLocation}
-      >
-        {distance(location.lat, location.lng, center.lat, center.lng) < 5 ? (
-          <MyLocationIcon />
-        ) : (
-          <LocationSearchingIcon />
-        )}
-      </IconButton>
-    </Tooltip>
+    <button
+      type="button"
+      className={styles.centerButton}
+      onClick={centerOnLocation}
+      aria-label="Center on your location"
+      title="Center on your location"
+    >
+      {centered ? <MyLocationIcon /> : <LocationSearchingIcon />}
+    </button>
   );
 };
 

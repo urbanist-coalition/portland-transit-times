@@ -1,10 +1,9 @@
 import { memo, useEffect, useState } from "react";
 import L from "leaflet";
 import { Marker } from "react-leaflet";
-import { Box } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 import { renderToString } from "react-dom/server";
 
+import { ResolvedColorMode, useColorMode } from "@/components/color-mode";
 import { VehiclePosition } from "@/types";
 
 function vehicleIcon(
@@ -12,14 +11,14 @@ function vehicleIcon(
   routeTextColor: string,
   routeShortName: string,
   iconSize: number,
-  mode: "light" | "dark",
+  mode: ResolvedColorMode,
   bearing?: number
 ) {
   const hasBearing = typeof bearing === "number";
   const borderColor = mode === "dark" ? "white" : "black";
   return L.divIcon({
     html: renderToString(
-      <Box
+      <div
         style={{
           background: routeColor || "white",
           border: `1px solid ${borderColor}`,
@@ -49,7 +48,7 @@ function vehicleIcon(
         {hasBearing && (
           // GTFS bearing is degrees CW from true north; with a north-up map,
           // rotating the arrow by `bearing` from "up" points it the right way.
-          <Box
+          <div
             style={{
               position: "absolute",
               top: 0,
@@ -61,7 +60,7 @@ function vehicleIcon(
               pointerEvents: "none",
             }}
           >
-            <Box
+            <div
               style={{
                 position: "absolute",
                 top: -10,
@@ -75,9 +74,9 @@ function vehicleIcon(
                 filter: `drop-shadow(0 0 1px ${borderColor})`,
               }}
             />
-          </Box>
+          </div>
         )}
-      </Box>
+      </div>
     ),
     className: "", // Important for a transparent background in Leaflet
   });
@@ -85,7 +84,7 @@ function vehicleIcon(
 
 function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
   const [vehicles, setVehicles] = useState<VehiclePosition[]>([]);
-  const theme = useTheme();
+  const { resolved } = useColorMode();
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -123,7 +122,7 @@ function LiveVehiclesRaw({ iconSize }: { iconSize: number }) {
               routeTextColor,
               routeShortName,
               iconSize,
-              theme.palette.mode,
+              resolved,
               bearing
             )}
             // This looks a bit weird but it is better for the buses to be behind the stops

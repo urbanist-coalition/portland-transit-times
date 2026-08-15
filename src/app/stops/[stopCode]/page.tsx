@@ -6,7 +6,8 @@ import { AddRecentStop, SaveStop } from "@/components/quick-stops";
 import ServiceAlerts from "@/components/service-alerts";
 import { getStop, predictionsByStopCode } from "@/lib/actions";
 import { getServiceAlerts } from "@/lib/actions";
-import { Container, Typography, Box, Paper } from "@mui/material";
+
+import styles from "./page.module.css";
 
 export default async function StopsStopCodePage({
   params,
@@ -22,69 +23,50 @@ export default async function StopsStopCodePage({
 
   if (!stop) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Stop Not Found
-        </Typography>
-        <Typography variant="body1" gutterBottom color="textPrimary">
-          We couldn{"'"}t find a stop with the code {stopCode}. Please try
-          again.
-        </Typography>
-        <BackButton />
+      <>
+        <main className="container container-md">
+          <h1>Stop Not Found</h1>
+          <p className={styles.notFound}>
+            We couldn{"'"}t find a stop with the code {stopCode}. Please try
+            again.
+          </p>
+          <BackButton />
+        </main>
         <Footer />
-      </Container>
+      </>
     );
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Box>
-        <Paper elevation={2} sx={{ mb: 2, p: 1, display: "flex" }}>
-          <Box>
-            <BackButton />
-          </Box>
-          <Box flexGrow={1} sx={{ pl: 1 }}>
-            <Typography
-              variant="h5"
-              component="h5"
-              gutterBottom
-              color="textPrimary"
-              sx={{ flexGrow: 1, mb: 0, alignContent: "center" }}
-            >
-              {stop.stopName}
-            </Typography>
+    <>
+      <main className="container container-md">
+        <header className={`surface ${styles.header}`}>
+          <BackButton />
+          <div className={styles.headerBody}>
+            <h1 className={styles.stopName}>{stop.stopName}</h1>
             {stop.routes && stop.routes.length > 0 && (
-              <Box
-                mt={2}
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1,
-                  overflowX: "auto", // scroll if too many
-                  pb: 1,
-                }}
-              >
-                {stop.routes.map(({ routeId, routeShortName, routeColor }) => {
-                  return (
+              <div className={styles.routes}>
+                {stop.routes.map(
+                  ({ routeId, routeShortName, routeColor, routeTextColor }) => (
                     <LinePill
                       key={routeId}
                       lineName={routeShortName}
                       lineColor={routeColor}
+                      lineTextColor={routeTextColor}
                     />
-                  );
-                })}
-              </Box>
+                  )
+                )}
+              </div>
             )}
-          </Box>
-          <Box>
-            <SaveStop stopCode={stopCode} />
-          </Box>
-        </Paper>
+          </div>
+          <SaveStop stopCode={stopCode} />
+        </header>
+
         <ServiceAlerts serviceAlerts={serviceAlerts} />
-      </Box>
-      <Arrivals stopCode={stopCode} arrivals={predictions} />
-      <AddRecentStop stopCode={stopCode} />
+        <Arrivals stopCode={stopCode} arrivals={predictions} />
+        <AddRecentStop stopCode={stopCode} />
+      </main>
       <Footer />
-    </Container>
+    </>
   );
 }

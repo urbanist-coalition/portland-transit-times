@@ -1,26 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  Stack,
-  Typography,
-  Box,
-  Button,
-  useTheme,
-  Chip,
-  Collapse,
-} from "@mui/material";
-import { isTooLight } from "@/lib/utils";
-import ArrowRightIcon from "@mui/icons-material/ArrowRightAlt";
 import Link from "next/link";
-import MaterialLink from "@mui/material/Link";
 import { differenceInMinutes, startOfMinute } from "date-fns";
-import { TransitionGroup } from "react-transition-group";
-import { LiveStopTimeInstance, StopTimeStatus } from "@/types";
 import { formatInTimeZone } from "date-fns-tz";
+
+import { ArrowRightIcon } from "@/components/icons";
+import useLeavingList from "@/hooks/leaving-list";
+import { isTooLight } from "@/lib/utils";
+import { LiveStopTimeInstance, StopTimeStatus } from "@/types";
+
 import { useTimeZone } from "./timezone-cookie";
+import styles from "./arrivals.module.css";
 
 const FORMAT = "h:mm a";
 const DEPART_THRESHOLD = 1; // minutes
@@ -43,18 +34,13 @@ function _format(date: number, timeZone: string): string {
   return formatInTimeZone(date, timeZone, FORMAT).toLowerCase();
 }
 
+function arrivalKey(arrival: LiveStopTimeInstance) {
+  return `${arrival.serviceDate}:${arrival.tripId}:${arrival.stopId}`;
+}
+
 function ScheduleTime({ time, updated }: { time: string; updated?: boolean }) {
   return (
-    <Box
-      component="span"
-      sx={{
-        textDecoration: updated ? "line-through" : undefined,
-        textDecorationThickness: updated ? "2px" : undefined,
-        fontStyle: updated ? "italic" : undefined,
-      }}
-    >
-      {time}
-    </Box>
+    <span className={updated ? styles.timeSuperseded : undefined}>{time}</span>
   );
 }
 
@@ -64,7 +50,6 @@ interface PredictionCardProps {
 }
 
 function PredictionCard({ prediction, now }: PredictionCardProps) {
-  const theme = useTheme();
   const timeZone = useTimeZone();
   const tooLight = isTooLight(prediction.route.routeColor);
 
@@ -90,84 +75,64 @@ function PredictionCard({ prediction, now }: PredictionCardProps) {
     prediction.status === StopTimeStatus.departed;
 
   let statusMessage = "On Time";
-  let statusColor = theme.palette.success.main; // green for on time
+  let status = "ok";
 
   if (skipped) {
     statusMessage = "Canceled";
-    statusColor = theme.palette.warning.main; // yellow for skipped
+    status = "warn";
   } else if (departed) {
     statusMessage = "Departed";
-    statusColor = theme.palette.grey[500]; // grey for departed
+    status = "idle";
   } else if (schedulDelta && schedulDelta > 0) {
     statusMessage = `${schedulDelta} min late`;
-    statusColor = theme.palette.error.main; // red for late
+    status = "late";
   } else if (schedulDelta && schedulDelta < 0) {
     statusMessage = `${Math.abs(schedulDelta)} min early`;
-    statusColor = theme.palette.info.main; // blue for early
+    status = "early";
   }
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderLeft:
-          tooLight && theme.palette.mode === "light"
-            ? undefined
-            : `8px solid ${prediction.route.routeColor}`,
-        mb: 2, // margin bottom for spacing
-      }}
+    <article
+      className={styles.card}
+      // `data-too-light` lets the stylesheet drop the accent stripe for routes
+      //   whose color would be invisible on a light background.
+      data-too-light={tooLight}
+      style={
+        { "--route-color": prediction.route.routeColor } as React.CSSProperties
+      }
     >
-      <CardContent>
-        <Stack spacing={1}>
-          <Typography variant="h6">
-            <Box
-              component="span"
-              color={
-                tooLight
-                  ? theme.palette.text.primary
-                  : prediction.route.routeColor
-              }
-              mr={1}
-            >
-              {prediction.route.routeShortName}
-            </Box>
-            to {prediction.trip.tripHeadsign}
-          </Typography>
-          <Typography pl={1} component="div">
-            <ScheduleTime
-              time={_format(prediction.scheduledTime, timeZone)}
-              updated={schedulDelta !== 0 || skipped}
-            />
-            {schedulDelta !== 0 && (
-              <>
-                <ArrowRightIcon sx={{ verticalAlign: "middle", pb: "3px" }} />
-                <ScheduleTime
-                  time={_format(prediction.predictedTime, timeZone)}
-                />
-              </>
-            )}
-            <Chip
-              label={statusMessage}
-              sx={{
-                ml: 1,
-                bgcolor: statusColor,
-                color: theme.palette.getContrastText(statusColor),
-                fontWeight: "bold",
-                height: "20px",
-                "& .MuiChip-label": { p: 0, pl: 1, pr: 1 },
-              }}
-              size="small"
-            />
-          </Typography>
-          {!departed && minutesToArrival <= 30 && (
-            <Typography color="text.secondary" pl={1}>
-              Arriving
-              {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
-            </Typography>
-          )}
-        </Stack>
-      </CardContent>
-    </Card>
+      <h3 className={styles.route}>
+        <span className={styles.routeName}>
+          {prediction.route.routeShortName}
+        </span>
+        <span className={styles.headsign}>
+          to {prediction.trip.tripHeadsign}
+        </span>
+      </h3>
+
+      <p className={styles.times}>
+        <ScheduleTime
+          time={_format(prediction.scheduledTime, timeZone)}
+          updated={schedulDelta !== 0 || skipped}
+        />
+        {schedulDelta !== 0 && (
+          <>
+            <ArrowRightIcon size={20} className={styles.arrow} />
+            <ScheduleTime time={_format(prediction.predictedTime, timeZone)} />
+          </>
+        )}
+        <span className={styles.status} data-status={status}>
+          {statusMessage}
+        </span>
+      </p>
+
+      {!departed && minutesToArrival <= 30 && (
+        <p className={styles.countdown}>
+          Arriving
+          {minutesToArrival <= 0 ? " now" : ` in ${minutesToArrival} min`}
+        </p>
+      )}
+    </article>
   );
 }
 
@@ -222,49 +187,44 @@ export default function Arrivals({
     };
   }, [stopCode]);
 
+  const rows = useLeavingList(arrivals, arrivalKey);
+
   return (
-    <Box sx={{ pt: 2, pb: 2 }}>
+    <div className={styles.root}>
       {arrivals.length === 0 && (
-        <Typography variant="h6" align="center" gutterBottom>
-          No upcoming arrivals
-        </Typography>
+        <p className={styles.none}>No upcoming arrivals</p>
       )}
-      <TransitionGroup>
-        {arrivals.map((prediction, index) => (
-          <Collapse
-            key={`${prediction.serviceDate}:${prediction.tripId}:${prediction.stopId}`}
-            in={false}
-            timeout={500}
-            unmountOnExit
-          >
-            <PredictionCard key={index} prediction={prediction} now={now} />
-          </Collapse>
-        ))}
-      </TransitionGroup>
-      <Box textAlign="center" mt={2}>
-        <Link href="/" passHref>
-          <Button variant="outlined">Switch Stops</Button>
+
+      {rows.map(({ item, key, leaving }) => (
+        <div key={key} className={leaving ? styles.leaving : styles.entering}>
+          <PredictionCard prediction={item} now={now} />
+        </div>
+      ))}
+
+      <div className={styles.switch}>
+        <Link href="/" className="btn btn-outline">
+          Switch Stops
         </Link>
-        <Box textAlign="left" mt={2}>
-          <Typography mt={2} variant="h6" gutterBottom>
-            Tired of waiting?
-          </Typography>
-          <Typography>
-            Join the Urbanist Coalition of Portland! Aside from projects like
-            this website we are advocating to improve Portland{"'"}s transit
-            network including more frequency. Anyone can get involved regardless
-            of of their background!{" "}
-            <MaterialLink
-              href="https://urbanistportland.me"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more
-            </MaterialLink>
-            .
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+      </div>
+
+      <section className={styles.pitch}>
+        <h2 className={styles.pitchHeading}>Tired of waiting?</h2>
+        <p>
+          Join the Urbanist Coalition of Portland! Aside from projects like this
+          website we are advocating to improve Portland{"'"}s transit network
+          including more frequency. Anyone can get involved regardless of of
+          their background!{" "}
+          <a
+            className="link"
+            href="https://urbanistportland.me"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Learn more
+          </a>
+          .
+        </p>
+      </section>
+    </div>
   );
 }

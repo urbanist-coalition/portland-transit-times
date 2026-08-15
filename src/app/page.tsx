@@ -1,49 +1,46 @@
-import { Container, Typography, Box, Button, Paper } from "@mui/material";
 import NextLink from "next/link";
+
 import { QuickStops } from "@/components/quick-stops";
 import StopSearch from "@/components/stop-search";
 import Footer from "@/components/footer";
 import ServiceAlerts from "@/components/service-alerts";
-import { getServiceAlerts, getStops } from "@/lib/actions";
+import { getServiceAlerts, getStopSummaries } from "@/lib/actions";
+
+import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const serviceAlerts = await getServiceAlerts();
-  const stops = await getStops();
+  const stops = await getStopSummaries();
 
   return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h5" gutterBottom>
-          Portland Maine Transit
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          Find your stop to keep up to date with <strong>real time</strong>{" "}
-          arrivals!
-        </Typography>
-      </Paper>
-      <ServiceAlerts serviceAlerts={serviceAlerts} />
+    <>
+      <main className="container container-sm">
+        <header className={`surface ${styles.intro}`}>
+          <h1 className={styles.title}>Portland Maine Transit</h1>
+          <p className={styles.subtitle}>
+            Find your stop to keep up to date with <strong>real time</strong>{" "}
+            arrivals!
+          </p>
+        </header>
 
-      <Box mt={4} textAlign="center">
-        <NextLink href="/by-location" style={{ display: "inline" }}>
-          <Button variant="contained" color="primary">
+        <ServiceAlerts serviceAlerts={serviceAlerts} />
+
+        <div className={styles.locationCta}>
+          <NextLink href="/by-location" className="btn btn-primary">
             Find Stops By Location
-          </Button>
-        </NextLink>
-      </Box>
+          </NextLink>
+        </div>
 
-      <Box display="flex" alignItems="center" mt={4}>
-        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
-        <Typography variant="body1" sx={{ px: 2 }}>
-          OR
-        </Typography>
-        <Box sx={{ flexGrow: 1, borderBottom: "1px solid #888" }} />
-      </Box>
+        <div className={styles.divider}>
+          <span>OR</span>
+        </div>
 
-      <StopSearch allStops={Object.values(stops)} />
-      <QuickStops allStops={stops} />
+        <StopSearch allStops={Object.values(stops)} />
+        <QuickStops allStops={stops} />
+      </main>
       <Footer />
-    </Container>
+    </>
   );
 }

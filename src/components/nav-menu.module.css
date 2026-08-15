@@ -1,0 +1,161 @@
+.root {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.625rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  opacity: 0;
+  transform: translateY(0.5rem) scale(0.9);
+  visibility: hidden;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s;
+}
+
+.root[data-open="true"] .action {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+}
+
+/* Fan the actions out from the button rather than all at once. */
+.root[data-open="true"] .action:nth-child(1) {
+  transition-delay: 0.06s;
+}
+.root[data-open="true"] .action:nth-child(2) {
+  transition-delay: 0.04s;
+}
+.root[data-open="true"] .action:nth-child(3) {
+  transition-delay: 0.02s;
+}
+
+.actionLabel {
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--r-sm);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-1);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.actionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-2);
+  color: var(--text);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.action:hover .actionIcon {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.action[aria-current="page"] .actionIcon {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.action[aria-current="page"]:hover .actionIcon {
+  color: var(--on-primary);
+}
+
+.fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: var(--on-primary);
+  box-shadow: var(--shadow-3);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.fab:hover {
+  background-color: var(--primary-hover);
+}
+
+.fabIcon {
+  display: flex;
+  transition: transform 0.2s ease;
+}
+
+.root[data-open="true"] .fabIcon {
+  transform: rotate(90deg);
+}
+
+/*
+ * Theme-conditional labels and icons.
+ *
+ * Doing this in CSS instead of JavaScript means the server-rendered markup is
+ *   correct for every user, so there is no hydration mismatch and no flash of
+ *   the wrong icon.
+ */
+.whenLight {
+  display: contents;
+}
+
+.whenDark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .whenLight {
+    display: none;
+  }
+  .whenDark {
+    display: contents;
+  }
+}
+
+/* An explicit choice overrides the OS preference, in both directions. */
+:global(:root[data-theme="light"]) .whenLight {
+  display: contents;
+}
+:global(:root[data-theme="light"]) .whenDark {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .whenLight {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .whenDark {
+  display: contents;
+}

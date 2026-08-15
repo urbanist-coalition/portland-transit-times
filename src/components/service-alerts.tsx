@@ -1,87 +1,50 @@
-"use client";
-
-import {
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Typography,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-} from "@mui/material";
-import { Fragment, useState } from "react";
+import { ChevronDownIcon } from "@/components/icons";
 import { Alert } from "@/types";
+
+import styles from "./service-alerts.module.css";
 
 interface ServiceAlertsProps {
   serviceAlerts: Alert[];
 }
 
+/**
+ * Built on <details> rather than a JS-driven accordion, so this stays a server
+ * component and ships no client JavaScript at all.
+ */
 export default function ServiceAlerts({ serviceAlerts }: ServiceAlertsProps) {
-  const [expanded, setExpanded] = useState(false);
+  const count = serviceAlerts.length;
 
-  const handleChange = () => {
-    setExpanded((prevExpanded) => {
-      if (serviceAlerts.length === 0) {
-        return false;
-      }
-      return !prevExpanded;
-    });
-  };
+  // With nothing to expand, a disclosure control would just be a dead end
+  if (count === 0) {
+    return (
+      <div className={`surface ${styles.root} ${styles.empty}`}>
+        <span className={styles.title}>Service Alerts</span>
+        <span className={styles.badge} data-tone="ok">
+          0
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <Accordion
-      elevation={1}
-      sx={{
-        // Remove the default MUI Accordion divider line
-        "&:before": {
-          display: "none",
-        },
-        // Ensure no clipping of box shadow or rounded edges
-        overflow: "hidden",
-      }}
-      expanded={expanded}
-      onChange={handleChange}
-    >
-      <AccordionSummary
-        sx={{
-          // Don't rotate the expand icon when the accordion is expanded
-          "& .MuiAccordionSummary-expandIconWrapper.Mui-expanded": {
-            transform: "none",
-          },
-        }}
-        expandIcon={
-          <Chip
-            label={serviceAlerts.length}
-            color={serviceAlerts.length > 0 ? "warning" : "success"}
-            size="small"
-            sx={{ ml: 1 }}
-          />
-        }
-      >
-        <Typography
-          variant="subtitle1"
-          sx={{ display: "flex", alignItems: "center" }}
-        >
-          Service Alerts
-        </Typography>
-      </AccordionSummary>
-      <AccordionDetails>
-        <List disablePadding>
-          {serviceAlerts.map((alert, index) => (
-            <Fragment key={alert.id}>
-              <ListItem disablePadding>
-                <ListItemText
-                  primary={alert.headerText}
-                  secondary={alert.descriptionText}
-                />
-              </ListItem>
-              {index < serviceAlerts.length - 1 && <Divider component="li" />}
-            </Fragment>
-          ))}
-        </List>
-      </AccordionDetails>
-    </Accordion>
+    <details className={`surface ${styles.root}`}>
+      <summary className={styles.summary}>
+        <span className={styles.title}>Service Alerts</span>
+        <span className={styles.badge} data-tone="warn">
+          {count}
+        </span>
+        <ChevronDownIcon size={20} className={styles.chevron} />
+      </summary>
+      <ul className={styles.list}>
+        {serviceAlerts.map((alert) => (
+          <li key={alert.id} className={styles.alert}>
+            <p className={styles.alertHeader}>{alert.headerText}</p>
+            {alert.descriptionText && (
+              <p className={styles.alertBody}>{alert.descriptionText}</p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

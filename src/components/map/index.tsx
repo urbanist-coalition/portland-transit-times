@@ -2,16 +2,17 @@
 
 import "leaflet/dist/leaflet.css";
 
-import { Paper, Typography, useTheme } from "@mui/material";
 import { useState } from "react";
-import MaterialLink from "@mui/material/Link";
 import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
+
+import { useColorMode } from "@/components/color-mode";
 import { Stop, Location, RouteWithShape } from "@/types";
 
 import { LiveVehicles } from "./live-vehicles";
 import { Routes } from "./routes";
 import { VisibleStops } from "./visible-stops";
 import { UserPosition } from "./user-position";
+import styles from "./map.module.css";
 
 function PositionSync({
   setZoom,
@@ -50,9 +51,8 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
 
   const iconSize = zoomIconSizes[zoom] || 10;
 
-  const theme = useTheme();
-  const baseMap =
-    theme.palette.mode === "dark" ? "dark_all" : "rastertiles/voyager";
+  const { resolved } = useColorMode();
+  const baseMap = resolved === "dark" ? "dark_all" : "rastertiles/voyager";
   const baseMapUrl = `https://{s}.basemaps.cartocdn.com/${baseMap}/{z}/{x}/{y}.png`;
 
   return (
@@ -78,37 +78,19 @@ export default function TransitMap({ allLines, allStops }: MapProps) {
       <Routes routes={allLines} />
       <PositionSync setZoom={setZoom} setCenter={setCenter} />
       {/* Custom Attribution */}
-      <Paper
-        elevation={3}
-        sx={{
-          position: "absolute",
-          bottom: 8,
-          left: 8,
-          padding: "6px 12px",
-          backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
-          zIndex: 400,
-        }}
-      >
-        <Typography variant="body2" component="div" fontSize={10}>
-          &copy;{" "}
-          <MaterialLink
-            href="https://www.openstreetmap.org/copyright"
-            color="inherit"
-            underline="hover"
-          >
-            OpenStreetMap
-          </MaterialLink>{" "}
-          contributors | Map tiles by{" "}
-          <MaterialLink
-            href="https://carto.com/"
-            color="inherit"
-            underline="hover"
-          >
-            Carto
-          </MaterialLink>
-        </Typography>
-      </Paper>
+      <div className={styles.attribution}>
+        &copy;{" "}
+        <a
+          className={styles.attributionLink}
+          href="https://www.openstreetmap.org/copyright"
+        >
+          OpenStreetMap
+        </a>{" "}
+        contributors | Map tiles by{" "}
+        <a className={styles.attributionLink} href="https://carto.com/">
+          Carto
+        </a>
+      </div>
     </MapContainer>
   );
 }

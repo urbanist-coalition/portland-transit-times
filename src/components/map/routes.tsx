@@ -1,15 +1,16 @@
 import { Polyline } from "react-leaflet";
-import { useTheme } from "@mui/material";
 
+import { useColorMode } from "@/components/color-mode";
 import { RouteWithShape } from "@/types";
 import { isTooLight } from "@/lib/utils";
 import { memo } from "react";
 
 function RoutesRaw({ routes }: { routes: RouteWithShape[] }) {
-  const theme = useTheme();
+  const { resolved } = useColorMode();
   return (
     <>
-      {theme.palette.mode === "light" &&
+      {/* Near-white routes need a dark backing line to show up on a light map */}
+      {resolved === "light" &&
         routes
           .filter(({ routeColor }) => isTooLight(routeColor))
           .map(({ routeId, shapes }) => (

@@ -36,6 +36,16 @@ export interface Stop {
   routes: Route[];
 }
 
+/**
+ * The subset of a stop needed to search for it and link to it. Sending these
+ * instead of full stops keeps the home page payload small — there are ~500
+ * stops and their route and location data is nearly two thirds of the bytes.
+ */
+export interface StopSummary {
+  stopCode: string;
+  stopName: string;
+}
+
 // Real-time Data
 
 export interface Alert {

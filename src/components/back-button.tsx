@@ -1,9 +1,8 @@
 "use client";
 
-import ArrowBack from "@mui/icons-material/ArrowBack";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 import { useRouter } from "next/navigation";
+
+import { ArrowBackIcon } from "@/components/icons";
 
 export default function BackButton() {
   const router = useRouter();
@@ -17,10 +16,14 @@ export default function BackButton() {
   }
 
   return (
-    <Tooltip title="Go Back" arrow>
-      <IconButton onClick={goBack} sx={{ p: 0.5 }}>
-        <ArrowBack />
-      </IconButton>
-    </Tooltip>
+    <button
+      type="button"
+      className="icon-btn"
+      onClick={goBack}
+      aria-label="Go back"
+      title="Go back"
+    >
+      <ArrowBackIcon />
+    </button>
   );
 }

@@ -13,18 +13,16 @@
  * can use components with awareness of saved stops on the first render anywhere in the app.
  */
 
-import HistoryIcon from "@mui/icons-material/History";
-import StarIcon from "@mui/icons-material/Star";
-import StarOutlineIcon from "@mui/icons-material/StarOutline";
-import { Box, Chip, IconButton, Stack, Typography } from "@mui/material";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 import { createContext, useContext } from "react";
 
-import { Stop } from "@/types";
+import { HistoryIcon, StarIcon, StarOutlineIcon } from "@/components/icons";
+import { StopSummary } from "@/types";
 import { filterMap, stopCodeToStopId } from "@/lib/utils";
+
+import styles from "./quick-stops.module.css";
 
 const MAX_QUICK_STOPS = 10;
 
@@ -165,14 +163,24 @@ export function SaveStop({ stopCode }: StopCode) {
   };
 
   return (
-    <IconButton onClick={toggleSaved} sx={{ p: 0.5 }}>
+    <button
+      type="button"
+      className={`icon-btn ${styles.saveButton}`}
+      onClick={toggleSaved}
+      aria-pressed={saved}
+      aria-label={saved ? "Remove from saved stops" : "Save this stop"}
+      title={saved ? "Remove from saved stops" : "Save this stop"}
+    >
       {saved ? <StarIcon /> : <StarOutlineIcon />}
-    </IconButton>
+    </button>
   );
 }
 
-export function QuickStops({ allStops }: { allStops: Record<string, Stop> }) {
-  const router = useRouter();
+export function QuickStops({
+  allStops,
+}: {
+  allStops: Record<string, StopSummary>;
+}) {
   const { savedStops, recentStops } = useQuickStops();
 
   const savedStopsData = filterMap(
@@ -193,48 +201,36 @@ export function QuickStops({ allStops }: { allStops: Record<string, Stop> }) {
     // We only want up to MAX_QUICK_STOPS items in total so clip these
     .slice(0, MAX_QUICK_STOPS - savedStops.length);
 
-  function goToStop(stopCode: string) {
-    return () => {
-      router.push(`/stops/${stopCode}`);
-    };
+  if (savedStopsData.length === 0 && clippedRecentStops.length === 0) {
+    return null;
   }
 
   return (
-    <Box>
-      <Box mt={4}>
-        <Typography variant="h6" gutterBottom>
-          Quick Stops
-        </Typography>
-        <Stack
-          direction="row"
-          flexWrap="wrap"
-          rowGap={2} // Vertical spacing
-          columnGap={2} // Horizontal spacing
-        >
-          {savedStopsData.map(({ stopCode, stopName }) => (
-            <Link key={stopCode} href={`/stops/${stopCode}`}>
-              <Chip
-                key={stopCode}
-                label={`${stopCode}: ${stopName}`}
-                onClick={goToStop(stopCode)}
-                sx={{ cursor: "pointer" }}
-                icon={<StarIcon />}
-              />
+    <section className={styles.root}>
+      <h2 className={styles.heading}>Quick Stops</h2>
+      <ul className={styles.list}>
+        {savedStopsData.map(({ stopCode, stopName }) => (
+          <li key={stopCode}>
+            <Link href={`/stops/${stopCode}`} className={styles.chip}>
+              <StarIcon size={16} className={styles.chipIcon} />
+              <span className={styles.chipCode}>{stopCode}</span>
+              <span className={styles.chipName}>{stopName}</span>
             </Link>
-          ))}
-          {clippedRecentStops.map(({ stopCode, stopName }) => (
-            <Link key={stopCode} href={`/stops/${stopCode}`}>
-              <Chip
-                key={stopCode}
-                label={`${stopCode}: ${stopName}`}
-                onClick={goToStop(stopCode)}
-                sx={{ cursor: "pointer" }}
-                icon={<HistoryIcon />}
-              />
+          </li>
+        ))}
+        {clippedRecentStops.map(({ stopCode, stopName }) => (
+          <li key={stopCode}>
+            <Link
+              href={`/stops/${stopCode}`}
+              className={`${styles.chip} ${styles.chipRecent}`}
+            >
+              <HistoryIcon size={16} className={styles.chipIcon} />
+              <span className={styles.chipCode}>{stopCode}</span>
+              <span className={styles.chipName}>{stopName}</span>
             </Link>
-          ))}
-        </Stack>
-      </Box>
-    </Box>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

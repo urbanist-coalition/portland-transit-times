@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v13-appRouter";
-import "./globals.css";
-import { ThemeProvider } from "@mui/material";
-import { theme } from "@/theme";
-import { GoogleAnalytics } from "@next/third-parties/google";
-import SpeedDial from "@/components/speed-dial";
-import InitColorSchemeScript from "@mui/material/InitColorSchemeScript";
-import { QuickStopsProvider } from "@/components/quick-stops";
 import { cookies } from "next/headers";
-import { TimeZoneProvider } from "@/components/timezone-cookie";
+import { GoogleAnalytics } from "@next/third-parties/google";
+
+import "./globals.css";
+
+import { ColorModeScript } from "@/components/color-mode";
 import ErrorBoundary from "@/components/error";
+import NavMenu from "@/components/nav-menu";
+import { QuickStopsProvider } from "@/components/quick-stops";
+import { TimeZoneProvider } from "@/components/timezone-cookie";
 
 export const metadata: Metadata = {
   title: "UCP Transit Times",
@@ -36,6 +35,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <ColorModeScript />
         <link
           rel="icon"
           type="image/png"
@@ -54,20 +54,15 @@ export default async function RootLayout({
       </head>
       <body>
         <ErrorBoundary>
-          <AppRouterCacheProvider>
-            <ThemeProvider theme={theme}>
-              <TimeZoneProvider timeZone={timeZone}>
-                <QuickStopsProvider
-                  savedStops={savedStops}
-                  recentStops={recentStops}
-                >
-                  <InitColorSchemeScript attribute="class" />
-                  {children}
-                  <SpeedDial />
-                </QuickStopsProvider>
-              </TimeZoneProvider>
-            </ThemeProvider>
-          </AppRouterCacheProvider>
+          <TimeZoneProvider timeZone={timeZone}>
+            <QuickStopsProvider
+              savedStops={savedStops}
+              recentStops={recentStops}
+            >
+              {children}
+              <NavMenu />
+            </QuickStopsProvider>
+          </TimeZoneProvider>
         </ErrorBoundary>
       </body>
       <GoogleAnalytics gaId="G-K5C2F0D9CT" />
