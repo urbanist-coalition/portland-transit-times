@@ -42,17 +42,20 @@ AGGR_DIST="${AGGR_DIST:-50}"
 CROSS_PEN="${CROSS_PEN:-4}"   # loom --same-seg-cross-pen. Bump (20-50) to
                               # discourage routes swapping positions within
                               # a shared corridor.
+SMOOTH="${SMOOTH:-0}"         # topo --smooth. Only useful at large AGGR_DIST,
+                              # where a merged centreline can snap between the
+                              # carriageways it was built from.
 LOOM_BIN="${LOOM_BIN:-$HOME/src/loom/build}"
 
 if [ "$USE_DOCKER" = "1" ]; then
     docker run --rm -i -v "$PWD:/data" loom gtfs2graph -m "$MODE" "/data/$GTFS" \
-        | docker run --rm -i loom topo -d "$AGGR_DIST" \
+        | docker run --rm -i loom topo -d "$AGGR_DIST" --smooth "$SMOOTH" \
         | docker run --rm -i loom loom --same-seg-cross-pen "$CROSS_PEN" > "$OUT"
 else
     # Prepend LOOM_BIN to PATH so the tools resolve without a system install.
     export PATH="$LOOM_BIN:$PATH"
     gtfs2graph -m "$MODE" "$GTFS" \
-        | topo -d "$AGGR_DIST" \
+        | topo -d "$AGGR_DIST" --smooth "$SMOOTH" \
         | loom --same-seg-cross-pen "$CROSS_PEN" > "$OUT"
 fi
 

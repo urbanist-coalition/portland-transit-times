@@ -173,29 +173,54 @@ def load_edges(path: Path, solo_scale: float) -> list[dict]:
     return out
 
 
-def build(loom_geojson: Path, out_path: Path, min_zoom: int, max_zoom: int,
+def build(sources: list[tuple[Path, int, int]], out_path: Path,
           attribution: str, solo_scale: float):
-    feats = load_edges(loom_geojson, solo_scale)
-    if not feats:
-        raise SystemExit(f"No usable line features in {loom_geojson}")
-    geoms = [f["geom"] for f in feats]
-    routes = {f["props"]["route_id"] for f in feats}
-    print(f"Loaded {len(feats)} edge-line features across {len(routes)} routes "
-          f"from {loom_geojson}")
+    """Tile from possibly *different* line graphs at different zooms.
 
-    tree = STRtree(geoms)
+    A route's two directions on a divided road are ~20 m apart. Zoomed out that
+    is a fraction of a pixel and they must read as one line; zoomed in it is
+    tens of pixels and drawing one line is simply wrong. No single merge
+    distance satisfies both, and every attempt to find one just moves the zoom
+    at which it looks bad.
 
-    # Data bounds, mercator -> lon/lat, for the PMTiles header.
-    minx = min(g.bounds[0] for g in geoms)
-    miny = min(g.bounds[1] for g in geoms)
-    maxx = max(g.bounds[2] for g in geoms)
-    maxy = max(g.bounds[3] for g in geoms)
-    west, south = _from_mercator(minx, miny)
-    east, north = _from_mercator(maxx, maxy)
+    Vector tiles do not require one answer. Each zoom range gets the line graph
+    generalised for it: an aggressively self-merged graph where the carriageways
+    are sub-pixel, and a barely-merged one where they are resolvable. The map
+    swaps representation at the boundary, the same way a basemap swaps a road
+    casing for a full carriageway.
+    """
+    loaded: dict[Path, list[dict]] = {}
+    per_zoom: dict[int, tuple[list[dict], list, STRtree]] = {}
+    for path, zmin, zmax in sources:
+        if path not in loaded:
+            feats = load_edges(path, solo_scale)
+            if not feats:
+                raise SystemExit(f"No usable line features in {path}")
+            routes = {f["props"]["route_id"] for f in feats}
+            print(f"  {path}: {len(feats)} features, {len(routes)} routes "
+                  f"-> z{zmin}-{zmax}")
+            loaded[path] = feats
+        feats = loaded[path]
+        geoms = [f["geom"] for f in feats]
+        entry = (feats, geoms, STRtree(geoms))
+        for z in range(zmin, zmax + 1):
+            per_zoom[z] = entry
+
+    min_zoom, max_zoom = min(per_zoom), max(per_zoom)
+    missing = [z for z in range(min_zoom, max_zoom + 1) if z not in per_zoom]
+    if missing:
+        raise SystemExit(f"No source covers zoom(s) {missing}")
+
+    all_geoms = [g for feats, geoms, _ in per_zoom.values() for g in geoms]
+    west, south = _from_mercator(min(g.bounds[0] for g in all_geoms),
+                                 min(g.bounds[1] for g in all_geoms))
+    east, north = _from_mercator(max(g.bounds[2] for g in all_geoms),
+                                 max(g.bounds[3] for g in all_geoms))
     print(f"Bounds: {west:.4f} {south:.4f} {east:.4f} {north:.4f}")
 
     tiles: dict[int, bytes] = {}
     for z in range(min_zoom, max_zoom + 1):
+        feats, geoms, tree = per_zoom[z]
         # Simplify once per zoom, to roughly one MVT unit at this zoom.
         tol = (EARTH_CIRCUMFERENCE / 2 ** z) / EXTENT
         simplified = [g.simplify(tol, preserve_topology=False) for g in geoms]
@@ -297,16 +322,41 @@ parser = ArgumentParser(
            "  python make_transit_tiles.py out/loom.geojson out/web/transit.pmtiles",
     formatter_class=RawDescriptionHelpFormatter,
 )
-parser.add_argument("loom_geojson", type=Path, help="loom output (see run_loom.sh)")
+parser.add_argument("loom_geojson", type=Path, nargs="?",
+                    help="loom output; single-source shorthand for --source")
 parser.add_argument("output", type=Path, help="path to write the .pmtiles file")
-parser.add_argument("--min-zoom", type=int, default=9)
+parser.add_argument("--source", action="append", default=[], metavar="PATH:ZMIN-ZMAX",
+                    help="line graph to use over a zoom range; repeatable. "
+                         "e.g. --source overview.geojson:9-13 "
+                         "--source detail.geojson:14-16")
+parser.add_argument("--min-zoom", type=int, default=9,
+                    help="only with the positional shorthand")
 parser.add_argument("--max-zoom", type=int, default=14,
-                    help="MapLibre overzooms past this, so 14 still renders at z18")
+                    help="only with the positional shorthand; MapLibre overzooms "
+                         "past this, so 14 still renders at z18")
 parser.add_argument("--attribution", default="")
 parser.add_argument("--solo-scale", type=float, default=0.5,
                     help="width multiplier ceiling for every line, which in "
                          "practice thins lone routes (1.0 = raster behaviour)")
 
 args = parser.parse_args()
-build(args.loom_geojson, args.output, args.min_zoom, args.max_zoom,
-      args.attribution, args.solo_scale)
+
+
+def _parse_source(spec: str) -> tuple[Path, int, int]:
+    path, _, zooms = spec.rpartition(":")
+    if not path or "-" not in zooms:
+        raise SystemExit(f"--source must look like PATH:ZMIN-ZMAX, got {spec!r}")
+    lo, _, hi = zooms.partition("-")
+    return (Path(path), int(lo), int(hi))
+
+
+if args.source:
+    if args.loom_geojson:
+        raise SystemExit("Give either the positional line graph or --source, not both")
+    sources = [_parse_source(s) for s in args.source]
+elif args.loom_geojson:
+    sources = [(args.loom_geojson, args.min_zoom, args.max_zoom)]
+else:
+    raise SystemExit("Need a line graph: positional argument or --source")
+
+build(sources, args.output, args.attribution, args.solo_scale)
