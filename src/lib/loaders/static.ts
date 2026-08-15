@@ -1,6 +1,6 @@
 import { differenceInDays, parse, subDays } from "date-fns";
 
-import { GTFSStatic } from "@/lib/gtfs/static";
+import { GTFSStatic, StopTime } from "@/lib/gtfs/static";
 import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { Stop, Route, Location, StopTimeInstance } from "@/types";
@@ -13,6 +13,42 @@ import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "@/lib/loaders/stop-name-deduplication";
 
 let hash: string | undefined = undefined;
+
+/**
+ * Maps each trip to the name of its final stop.
+ *
+ * GPMETRO leaves trip_headsign blank for entire directions of some routes
+ * (as of writing: all 53 inbound trips on the 7, both directions of the 8,
+ * and parts of the 2, 4 and 24B — 196 of 1345 trips). Those render as a
+ * dangling "7 to " in the UI, so we fall back to the last stop on the trip.
+ *
+ * This matches how the agency labels the headsigns it does populate: every
+ * non-blank headsign in the feed is either the final stop's name exactly or
+ * an abbreviation of it ("QUIMBY & SACO" for "QUIMBY AVE + SACO ST"). None
+ * of them name a different place.
+ */
+function buildLastStopNames(
+  stopTimesByTripId: Map<string, StopTime[]>,
+  stopNamesById: Map<string, string>
+): Map<string, string> {
+  const lastStopNames = new Map<string, string>();
+  for (const [tripId, tripStopTimes] of stopTimesByTripId.entries()) {
+    let lastStopTime: StopTime | undefined;
+    for (const stopTime of tripStopTimes) {
+      if (
+        !lastStopTime ||
+        parseInt(stopTime.stop_sequence) > parseInt(lastStopTime.stop_sequence)
+      ) {
+        lastStopTime = stopTime;
+      }
+    }
+    const stopName = lastStopTime && stopNamesById.get(lastStopTime.stop_id);
+    if (stopName) {
+      lastStopNames.set(tripId, stopName);
+    }
+  }
+  return lastStopNames;
+}
 
 /**
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
@@ -30,17 +66,40 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
     return;
   }
 
+  console.log("Building stop times...");
+  const stopTimes = await gtfsStatic.getStopTimes();
+  const stopTimesByStopId = groupBy(stopTimes, "stop_id");
+  const stopTimesByTripId = groupBy(stopTimes, "trip_id");
+
+  console.log("Loading stops...");
+  const stops = await gtfsStatic.getStops();
+  const stopNamesById = new Map(
+    stops.map(({ stop_id, stop_name }) => [stop_id, stop_name])
+  );
+
   console.log("Loading trips...");
   const trips = await gtfsStatic.getTrips();
+  const lastStopNames = buildLastStopNames(stopTimesByTripId, stopNamesById);
   const tripsData = trips.map(
     ({ service_id, trip_id, route_id, shape_id, trip_headsign }) => ({
       tripId: trip_id,
       routeId: route_id,
       serviceId: service_id,
       shapeId: shape_id,
-      tripHeadsign: fixCapitalization(trip_headsign),
+      tripHeadsign: fixCapitalization(
+        trip_headsign || lastStopNames.get(trip_id) || ""
+      ),
     })
   );
+  const missingHeadsigns = tripsData.filter(
+    ({ tripHeadsign }) => !tripHeadsign
+  );
+  if (missingHeadsigns.length > 0) {
+    console.warn(
+      `${missingHeadsigns.length} trips have no headsign and no final stop to fall back to`,
+      missingHeadsigns.map(({ tripId }) => tripId)
+    );
+  }
   await model.setTrips(tripsData);
 
   console.log("Building route shapes...");
@@ -99,13 +158,6 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
   await model.setRoutes(routesWithShapesData);
   const routesById = indexBy(routesData, "routeId");
 
-  console.log("Building stop times...");
-  const stopTimes = await gtfsStatic.getStopTimes();
-  const stopTimesByStopId = groupBy(stopTimes, "stop_id");
-
-  console.log("Loading stops...");
-  const stops = await gtfsStatic.getStops();
-
   const tripsById = indexBy(tripsData, "tripId");
 
   const stopsData: Stop[] = [];
@@ -163,6 +215,9 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
       continue;
     }
     const { tripHeadsign } = trip;
+    // A blank headsign is not a destination. Letting it through renames stops
+    // to a dangling "Route 1 + Shaws Falmouth ⇨ " in the deduplication rules.
+    if (!tripHeadsign) continue;
     const current = headsignsByStopId[stop_id] || [];
     if (!current.includes(tripHeadsign)) {
       headsignsByStopId[stop_id] = [...current, tripHeadsign];
@@ -185,7 +240,6 @@ export async function loadStatic(system: GTFSSystem, model: Model) {
   const calendarDates = await gtfsStatic.getCalendarDates();
 
   const tripsByServiceId = groupBy(tripsData, "serviceId");
-  const stopTimesByTripId = groupBy(stopTimes, "trip_id");
 
   const stopTimeInstanceData: StopTimeInstance[] = [];
   for (const { date, service_id } of calendarDates) {
