@@ -20,6 +20,21 @@
 #             carriageways and one-way pairs survive. Routes sharing a street
 #             still bundle, because their shapes there are near-identical.
 #
+# A caveat on reproducibility. loom identifies graph nodes by heap address, and
+# emits those addresses as ids. topo iterates containers keyed on them, so the
+# addresses decide merge tie-breaks. Anything that shifts the heap therefore
+# changes the graph slightly — ASLR between runs, and, less obviously, the
+# *length of the input path*, since a longer filename shifts later allocations:
+#
+#     gtfs.zip                     -> 1083 edges
+#     /tmp/.../g.zip               -> 1093 edges
+#     /tmp/.../a-much-longer….zip  -> 1088 edges     (identical feed contents)
+#
+# The spread is about 1% of edges and under 0.5% of total length, so it does not
+# show on the map, but it does mean these graphs are not byte-reproducible and
+# two builds of "the same" data can differ. For a stable artefact, build from a
+# fixed path; `setarch $(uname -m) -R` additionally pins ASLR.
+#
 # Usage:
 #   ./make_graphs.sh [gtfs.zip] [out-dir] [mode]
 #
