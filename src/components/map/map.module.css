@@ -63,7 +63,7 @@
   margin-top: 0.625rem;
 }
 
+/* Display comes from .btn — setting it here too would be an order-dependent tie */
 .popupAction {
-  display: inline-block;
   margin-top: 0.75rem;
 }

@@ -346,8 +346,30 @@ h6 {
   width: auto !important;
 }
 
+/*
+ * Leaflet paints every anchor inside the map its own blue via
+ *   `.leaflet-container a`. That outranks single-class rules like `.btn-primary`,
+ *   so a link in a popup ignores our colors and renders light blue — unreadable
+ *   on the green button. Neutralize it, then restate our own colors above it.
+ *   `:any-link` is here purely to out-specify Leaflet regardless of which
+ *   stylesheet the bundler emits first; the map loads from a lazy chunk, so the
+ *   order is not ours to rely on.
+ */
+.leaflet-container a:any-link {
+  color: inherit;
+}
+
 .leaflet-container a.leaflet-popup-close-button {
   color: var(--text-muted);
+}
+
+.leaflet-container a.btn-primary {
+  color: var(--on-primary);
+}
+
+.leaflet-container a.btn-text,
+.leaflet-container a.link {
+  color: var(--primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
