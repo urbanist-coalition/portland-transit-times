@@ -29,6 +29,9 @@
   <div id="panel">
     <label><input type="checkbox" id="routes" checked> Transit routes</label>
     <label><input type="checkbox" id="labels" checked> Route labels</label>
+    <hr style="margin:6px 0;border:0;border-top:1px solid #ccc">
+    <label><input type="checkbox" id="pies" checked> Stops</label>
+    <label><input type="checkbox" id="stoplabels" checked> Stop names</label>
   </div>
   <pre id="errors"></pre>
   <script>
@@ -87,6 +90,8 @@
       map.on('load', () => {
         bind('routes', 'transit-routes');
         bind('labels', 'transit-route-labels');
+        bind('pies',   'transit-stops-pie');
+        bind('stoplabels', 'transit-stop-labels');
       });
       map.on('error', (e) => fail('maplibre: ' +
         ((e && e.error && e.error.message) || JSON.stringify(e && e.error) || e)));
@@ -105,6 +110,19 @@
       });
       map.on('mouseenter', 'transit-routes', () => map.getCanvas().style.cursor = 'pointer');
       map.on('mouseleave', 'transit-routes', () => map.getCanvas().style.cursor = '');
+
+      // Stops: the route list is the thing a marker cannot show once a
+      // corridor is deep, so it lives here.
+      for (const layer of ['transit-stops-pie']) {
+        map.on('click', layer, (e) => {
+          const p = e.features[0].properties;
+          popup.setLngLat(e.lngLat)
+               .setHTML(`<b>${p.name || 'stop'}</b><br>${p.routes || ''}`)
+               .addTo(map);
+        });
+        map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+      }
     }
   </script>
 </body>

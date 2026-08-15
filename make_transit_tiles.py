@@ -29,9 +29,12 @@ so the style computes  line-width = base * wfactor  and
                        line-offset = offset * base * wfactor.
 """
 
+import csv
 import gzip
+import io
 import json
 import math
+import zipfile
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from collections import defaultdict
 from pathlib import Path
@@ -40,12 +43,13 @@ import mapbox_vector_tile
 import mercantile
 from pmtiles.tile import Compression, TileType, zxy_to_tileid
 from pmtiles.writer import Writer
-from shapely.geometry import LineString, MultiLineString, box
+from shapely.geometry import LineString, MultiLineString, Point, box
 from shapely.ops import linemerge
 from shapely.strtree import STRtree
 from tqdm import tqdm
 
 LAYER = "routes"
+GTFS_STOP_LAYER = "gtfs_stops"
 EXTENT = 4096
 BUFFER = 64  # MVT units of overdraw past the tile edge, so strokes/offsets
              # that lean inward from outside the tile still get drawn
@@ -173,8 +177,89 @@ def load_edges(path: Path, solo_scale: float) -> list[dict]:
     return out
 
 
+def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
+    """Stops straight from the feed, rather than from loom's graph nodes.
+
+    The graph-node version spans the whole corridor, which asserts that every
+    route in the bundle stops there. In this feed that is false at 72% of
+    multi-route stops — a route running through without stopping is exactly what
+    the marker should distinguish. The graph also collapses the 47% of stops
+    that have a counterpart across the street into a single node, discarding
+    which kerb the pole is actually on.
+
+    So take positions and route sets from GTFS. The cost is that a stop sits
+    ~6.5 m off the drawn line instead of on it, which is under 4 px at z16 and
+    is where the pole really is.
+
+    Returns the stop features plus a sprite table: one pie per distinct route
+    set, keyed by a stable name the style can look up via ["get", "sprite"].
+    """
+    if gtfs.is_dir():
+        def rd(name):
+            return csv.DictReader(open(gtfs / name, encoding="utf-8-sig", newline=""))
+    else:
+        zf = zipfile.ZipFile(gtfs)
+
+        def rd(name):
+            return csv.DictReader(
+                io.TextIOWrapper(zf.open(name), encoding="utf-8-sig", newline=""))
+
+    route_info = {}
+    for r in rd("routes.txt"):
+        route_info[r["route_id"]] = ((r.get("route_short_name") or "").strip(),
+                                     _hex_color(r.get("route_color", "")))
+    trip2route = {t["trip_id"]: t["route_id"] for t in rd("trips.txt")}
+
+    stop_routes: dict[str, set] = defaultdict(set)
+    for row in rd("stop_times.txt"):
+        rid = trip2route.get(row.get("trip_id", ""))
+        if rid in route_info:
+            stop_routes[row["stop_id"]].add(rid)
+
+    positions = {}
+    for row in rd("stops.txt"):
+        try:
+            positions[row["stop_id"]] = (
+                _to_mercator(float(row["stop_lon"]), float(row["stop_lat"])),
+                (row.get("stop_name") or "").strip(),
+            )
+        except (KeyError, ValueError):
+            continue
+
+    # One sprite per distinct route set. Sorted by short name so the slice
+    # order is stable — the same set of routes always draws the same pie.
+    combos: dict[tuple, str] = {}
+    sprites: dict[str, dict] = {}
+    out: list[dict] = []
+    for stop_id, rids in sorted(stop_routes.items()):
+        if stop_id not in positions or not rids:
+            continue
+        pos, name = positions[stop_id]
+        ordered = sorted(rids, key=lambda r: (route_info[r][0], r))
+        key = tuple(ordered)
+        if key not in combos:
+            sprite = f"pie-{len(combos)}"
+            combos[key] = sprite
+            sprites[sprite] = {
+                "colors": [route_info[r][1] for r in ordered],
+                "routes": [route_info[r][0] for r in ordered],
+            }
+        out.append({
+            "geom": Point(pos),
+            "props": {
+                "name": name,
+                "sprite": combos[key],
+                "routes": ", ".join(route_info[r][0] for r in ordered),
+                "n_routes": len(ordered),
+            },
+        })
+    print(f"  {gtfs}: {len(out)} stops, {len(sprites)} distinct route sets")
+    return out, sprites
+
+
 def build(sources: list[tuple[Path, int, int]], out_path: Path,
-          attribution: str, solo_scale: float):
+          attribution: str, solo_scale: float, stop_min_zoom: int,
+          gtfs: Path | None, sprite_table: Path | None):
     """Tile from possibly *different* line graphs at different zooms.
 
     A route's two directions on a divided road are ~20 m apart. Zoomed out that
@@ -191,6 +276,7 @@ def build(sources: list[tuple[Path, int, int]], out_path: Path,
     """
     loaded: dict[Path, list[dict]] = {}
     per_zoom: dict[int, tuple[list[dict], list, STRtree]] = {}
+    zoom_source: dict[int, Path] = {}
     for path, zmin, zmax in sources:
         if path not in loaded:
             feats = load_edges(path, solo_scale)
@@ -205,6 +291,15 @@ def build(sources: list[tuple[Path, int, int]], out_path: Path,
         entry = (feats, geoms, STRtree(geoms))
         for z in range(zmin, zmax + 1):
             per_zoom[z] = entry
+            zoom_source[z] = path
+
+    gtfs_stops: list[dict] = []
+    if gtfs:
+        gtfs_stops, sprites = load_gtfs_stops(gtfs)
+        if sprite_table:
+            sprite_table.parent.mkdir(parents=True, exist_ok=True)
+            sprite_table.write_text(json.dumps(sprites, indent=2))
+            print(f"  sprite table -> {sprite_table}")
 
     min_zoom, max_zoom = min(per_zoom), max(per_zoom)
     missing = [z for z in range(min_zoom, max_zoom + 1) if z not in per_zoom]
@@ -242,15 +337,28 @@ def build(sources: list[tuple[Path, int, int]], out_path: Path,
                     "geometry": clipped,
                     "properties": feats[idx]["props"],
                 })
-            if not layer_feats:
+            gtfs_feats = []
+            if z >= stop_min_zoom and gtfs_stops:
+                for st in gtfs_stops:
+                    if clip.contains(st["geom"]):
+                        gtfs_feats.append({"geometry": st["geom"],
+                                           "properties": st["props"]})
+
+            if not layer_feats and not gtfs_feats:
                 continue
+
+            mvt_layers = []
+            if layer_feats:
+                mvt_layers.append({"name": LAYER, "features": layer_feats})
+            if gtfs_feats:
+                mvt_layers.append({"name": GTFS_STOP_LAYER, "features": gtfs_feats})
 
             # NB: these must go through `default_options`. Passing them as
             # bare kwargs hits a deprecated path that skips the y-axis flip,
             # producing tiles mirrored within each tile — which decodes
             # plausibly but renders wrong.
             encoded = mapbox_vector_tile.encode(
-                [{"name": LAYER, "features": layer_feats}],
+                mvt_layers,
                 default_options={
                     "quantize_bounds": (b.left, b.bottom, b.right, b.top),
                     "extents": EXTENT,
@@ -269,6 +377,13 @@ def build(sources: list[tuple[Path, int, int]], out_path: Path,
         "description": "GTFS routes, bundled and ordered by loom",
         "attribution": attribution,
         "vector_layers": [{
+            "id": GTFS_STOP_LAYER,
+            "description": "Stops from the feed: real kerbside positions, exact route set",
+            "minzoom": stop_min_zoom,
+            "maxzoom": max_zoom,
+            "fields": {"name": "String", "sprite": "String",
+                       "routes": "String", "n_routes": "Number"},
+        }, {
             "id": LAYER,
             "description": "One feature per route per shared edge",
             "minzoom": min_zoom,
@@ -335,6 +450,12 @@ parser.add_argument("--max-zoom", type=int, default=14,
                     help="only with the positional shorthand; MapLibre overzooms "
                          "past this, so 14 still renders at z18")
 parser.add_argument("--attribution", default="")
+parser.add_argument("--gtfs", type=Path,
+                    help="GTFS feed (zip or dir) for the kerbside stop layer")
+parser.add_argument("--sprite-table", type=Path,
+                    help="write the pie sprite table here for make_style.py")
+parser.add_argument("--stop-min-zoom", type=int, default=14,
+                    help="lowest zoom that carries the stops layer")
 parser.add_argument("--solo-scale", type=float, default=0.5,
                     help="width multiplier ceiling for every line, which in "
                          "practice thins lone routes (1.0 = raster behaviour)")
@@ -359,4 +480,5 @@ elif args.loom_geojson:
 else:
     raise SystemExit("Need a line graph: positional argument or --source")
 
-build(sources, args.output, args.attribution, args.solo_scale)
+build(sources, args.output, args.attribution, args.solo_scale,
+      args.stop_min_zoom, args.gtfs, args.sprite_table)

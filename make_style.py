@@ -168,6 +168,71 @@ def _transit_layers() -> list[dict]:
                 "text-halo-width": 1.5,
             },
         },
+        {
+            # Stops, from the feed itself: real kerbside positions, with one
+            # slice per route that actually *stops* here.
+            #
+            # Taken from GTFS rather than loom's station nodes deliberately. A
+            # marker spanning the corridor would assert that every route in the
+            # bundle stops there, which is false at 204 of 282 multi-route stops
+            # in this feed, and loom's nodes collapse the 318 stops that have a
+            # counterpart across the street into one point — discarding which
+            # kerb the pole is on. Both matter for a map whose job is helping
+            # someone find the stop.
+            #
+            # The cost is that a marker sits ~6.5 m off the drawn line rather
+            # than on it, which is under 4 px at z16, and is where the pole is.
+            #
+            # allow-overlap is on because these are positional markers, not
+            # labels: dropping one would misinform.
+            "id": "transit-stops-pie",
+            "type": "symbol",
+            "source": "transit",
+            "source-layer": "gtfs_stops",
+            "minzoom": 15,
+            "layout": {
+                "icon-image": ["get", "sprite"],
+                "icon-size": ["interpolate", ["linear"], ["zoom"],
+                              15, 14 / PIE_PX, 18, 20 / PIE_PX, 20, 24 / PIE_PX],
+                "icon-allow-overlap": True,
+                "icon-ignore-placement": True,
+            },
+        },
+        {
+            # Stop names. Nothing was added to the tiles for this — `name` was
+            # already on the stop features, so labels are a style-only change.
+            #
+            # Unlike the pie icons, which are baked PNGs, text is genuinely
+            # vector: SDF glyphs from the self-hosted Open Sans, restyleable
+            # live and sharp at any size.
+            #
+            # Decluttering is the entire design here, not a refinement. A
+            # 23-character name is ~126 px wide while cross-street twins sit
+            # 13 px apart at z16, so most labels *must* be dropped. Leaving
+            # allow-overlap off lets MapLibre do that, and symbol-sort-key
+            # decides who survives: lower sorts first, so negating the route
+            # count means the busiest stop in any cluster keeps its label.
+            "id": "transit-stop-labels",
+            "type": "symbol",
+            "source": "transit",
+            "source-layer": "gtfs_stops",
+            "minzoom": 16,
+            "layout": {
+                "text-field": ["get", "name"],
+                "text-font": ["Open Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 16, 10, 19, 13],
+                "text-anchor": "top",
+                "text-offset": [0, 0.9],
+                "text-max-width": 9,
+                "text-padding": 4,
+                "symbol-sort-key": ["-", 0, ["get", "n_routes"]],
+            },
+            "paint": {
+                "text-color": "#333333",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1.5,
+            },
+        },
     ]
 
 
@@ -246,31 +311,94 @@ def extract_fonts(zip_path: Path, out_dir: Path, fonts: set[str]):
             print(f"Extracted {total} glyph range files into {out_dir}")
 
 
-def make_sprite(out_dir: Path):
-    """Emit the one icon Voyager declares (`circle-11`, a 17px dot).
+# Pie markers for the kerbside stop layer. Drawn at PIE_PX and scaled by the
+# style, following draw_stops.py's zoomIconSizes table (14px at z15 -> 24 at z20).
+PIE_PX = 24
+PIE_OUTLINE = (0.38, 0.38, 0.38)   # MUI grey[700], as the React StopIcon used
 
-    Every layer that references it sets `icon-image` to "", so nothing actually
-    draws it — but MapLibre still fetches the sprite the style declares, and a
-    404 there logs errors on every load. Generating it keeps the bundle
-    self-contained and CARTO-free.
+
+def _draw_pie(ctx, cx, cy, size, colors, ratio):
+    """One slice per route that stops here.
+
+    A single-route stop is a solid dot, which is 82% of them — the pie only
+    does work on the rest. Crucially the slices are the routes that *stop*
+    here, not the routes that pass through, so a route running express is
+    simply absent. That is the distinction the corridor-spanning pill cannot
+    make, and it is wrong about at 72% of multi-route stops.
+    """
+    import math as _m
+    outline = max(1.0, size / 14.0) * ratio
+    radius = size / 2.0 - outline / 2.0
+    n = len(colors)
+    if n == 1:
+        r, g, b = colors[0]
+        ctx.set_source_rgb(r, g, b)
+        ctx.arc(cx, cy, radius, 0, 2 * _m.pi)
+        ctx.fill()
+    else:
+        for i, (r, g, b) in enumerate(colors):
+            start = (i - 0.5) / n * 2 * _m.pi
+            end = (i + 0.5) / n * 2 * _m.pi
+            ctx.set_source_rgb(r, g, b)
+            ctx.move_to(cx, cy)
+            ctx.arc(cx, cy, radius, start, end)
+            ctx.close_path()
+            ctx.fill()
+    ctx.set_source_rgb(*PIE_OUTLINE)
+    ctx.set_line_width(outline)
+    ctx.arc(cx, cy, radius, 0, 2 * _m.pi)
+    ctx.stroke()
+
+
+def _hex_rgb(h: str) -> tuple[float, float, float]:
+    h = h.lstrip("#")
+    return (int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255)
+
+
+def make_sprite(out_dir: Path, pies: dict | None = None):
+    """Emit the sprite sheet: Voyager's `circle-11` plus one pie per route set.
+
+    `circle-11` is declared by 11 Voyager layers, all of which set `icon-image`
+    to "", so nothing draws it — but MapLibre still fetches the sprite a style
+    declares, and a 404 there logs errors on every load.
+
+    The pies come from the tiler's sprite table: one per distinct set of routes
+    serving a stop, 44 for this feed. Baking them is what makes them raster
+    rather than vector — a route colour change means regenerating this sheet,
+    unlike the lines, which restyle live from tile attributes.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     for suffix, ratio in (("", 1), ("@2x", 2)):
-        size = 17 * ratio
-        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+        circle = 17 * ratio
+        pad = 2 * ratio
+        pie = PIE_PX * ratio
+        n_pies = len(pies or {})
+        sheet_w = circle + pad + n_pies * (pie + pad)
+        sheet_h = max(circle, pie + pad)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, int(sheet_w), int(sheet_h))
         ctx = cairo.Context(surface)
         ctx.set_antialias(cairo.ANTIALIAS_BEST)
+
+        index = {}
         ctx.set_source_rgba(1, 1, 1, 1)
-        ctx.arc(size / 2, size / 2, size / 2 - ratio * 0.5, 0, 2 * 3.141592653589793)
+        ctx.arc(circle / 2, circle / 2, circle / 2 - ratio * 0.5, 0, 2 * 3.14159265358979)
         ctx.fill()
+        index["circle-11"] = {"width": circle, "height": circle, "x": 0, "y": 0,
+                              "pixelRatio": ratio, "sdf": False}
+
+        x = circle + pad
+        for name, spec in sorted((pies or {}).items()):
+            colors = [_hex_rgb(c) for c in spec["colors"]]
+            _draw_pie(ctx, x + pie / 2, pie / 2, pie, colors, ratio)
+            index[name] = {"width": int(pie), "height": int(pie),
+                           "x": int(x), "y": 0,
+                           "pixelRatio": ratio, "sdf": False}
+            x += int(pie) + pad
+
         surface.write_to_png(str(out_dir / f"sprite{suffix}.png"))
-        (out_dir / f"sprite{suffix}.json").write_text(json.dumps({
-            "circle-11": {
-                "width": size, "height": size,
-                "x": 0, "y": 0, "pixelRatio": ratio, "sdf": False,
-            }
-        }, indent=2))
-    print(f"Wrote sprite/sprite@2x (png+json) into {out_dir}")
+        (out_dir / f"sprite{suffix}.json").write_text(json.dumps(index, indent=2))
+    print(f"Wrote sprite/sprite@2x: {len(pies or {})} stop pies into {out_dir}")
 
 
 parser = ArgumentParser(
@@ -288,13 +416,16 @@ parser.add_argument("--fonts-zip", type=Path, default=Path("vendor/noto-open-san
                     help="openmaptiles/fonts release zip of prebuilt glyph ranges")
 parser.add_argument("--basemap", default="./basemap.pmtiles")
 parser.add_argument("--transit", default="./transit.pmtiles")
+parser.add_argument("--sprite-table", type=Path,
+                    help="pie sprite table written by make_transit_tiles.py")
 parser.add_argument("--page", type=Path, default=Path("web/index.html"),
                     help="map page copied into the bundle as index.html")
 
 args = parser.parse_args()
 used = build_style(args.style, args.out_dir / "style.json", args.basemap, args.transit)
 extract_fonts(args.fonts_zip, args.out_dir / "fonts", used)
-make_sprite(args.out_dir)
+pies = json.loads(args.sprite_table.read_text()) if args.sprite_table and args.sprite_table.exists() else {}
+make_sprite(args.out_dir, pies)
 
 # The bundle has to include its own entry point: the whole point is that
 # out_dir can be dropped onto nginx or S3 as-is, and a web root with no

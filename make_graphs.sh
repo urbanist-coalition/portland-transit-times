@@ -51,7 +51,10 @@ echo "==> Detail graph (-d $DETAIL_DIST)"
 AGGR_DIST="$DETAIL_DIST" SMOOTH=0 CROSS_PEN="$CROSS_PEN" \
     "$SCRIPT_DIR/run_loom.sh" "$GTFS" "$OUT/loom-detail.geojson" "$MODE"
 
-echo "==> Done."
+echo "==> Done. Next:"
 echo "    python make_transit_tiles.py $OUT/web/transit.pmtiles \\"
 echo "        --source $OUT/loom-overview.geojson:9-13 \\"
-echo "        --source $OUT/loom-detail.geojson:14-16"
+echo "        --source $OUT/loom-detail.geojson:14-16 \\"
+echo "        --gtfs $GTFS --sprite-table $OUT/stop-sprites.json"
+echo "    python make_style.py $OUT/web --sprite-table $OUT/stop-sprites.json"
+echo "    python serve.py $OUT/web"
