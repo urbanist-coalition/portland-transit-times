@@ -38,3 +38,8 @@ Thumbs.db
 # Project
 out/
 *.zip
+
+# Downloaded build tools and their scratch space. Re-fetched by pipeline.sh;
+# planetiler ignores --data-dir and insists on ./data.
+vendor/*.jar
+data/
