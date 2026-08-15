@@ -1,0 +1,39 @@
+Third-party notices
+===================
+
+Material Icons
+--------------
+
+The SVG path data in src/components/icons.tsx is taken from Google's Material
+Icons, which are licensed under the Apache License, Version 2.0:
+
+    https://github.com/google/material-design-icons
+
+A copy of the Apache License 2.0 is included at LICENSE-APACHE-2.0.txt.
+
+The paths are reproduced verbatim; only the surrounding React component markup
+is our own. Google's project ships no NOTICE file of its own, and its README
+states that attribution is appreciated but not required. This notice is
+provided anyway.
+
+Instagram mark
+--------------
+
+The Instagram glyph in src/components/icons.tsx is NOT part of Google's
+Material Icons set and is NOT covered by the Apache 2.0 grant above. It is a
+trademark of Meta Platforms, Inc., displayed here solely to link to the
+Urbanist Coalition of Portland's own Instagram presence. Meta's brand
+guidelines ask that the glyph be sourced from their Brand Resource Center:
+
+    https://www.meta.com/brand/resources/instagram/instagram-brand/
+
+This project is not affiliated with, endorsed by, or sponsored by Meta.
+
+Map data and tiles
+------------------
+
+Map data is © OpenStreetMap contributors, available under the Open Database
+License. Map tiles are by CARTO.
+
+    https://www.openstreetmap.org/copyright
+    https://carto.com/

@@ -3,7 +3,11 @@
  *
  * Each icon is a plain function component with no client-side dependencies, so
  *   it renders in server components and inside `renderToString` for the Leaflet
- *   div icons. Path data is from the Material Symbols set (Apache-2.0).
+ *   div icons.
+ *
+ * Path data is Google's Material Icons, used under the Apache License 2.0.
+ *   See NOTICE at the repository root. The one exception is InstagramIcon —
+ *   see the note on that export.
  */
 
 export interface IconProps {
@@ -128,6 +132,15 @@ export const SearchIcon = makeIcon(
   "SearchIcon"
 );
 
+/**
+ * NOT a Material icon — Google's set excludes third-party brand marks. This
+ *   geometry came from @mui/icons-material's hand-maintained `custom/`
+ *   directory, which redraws Pictogrammers' MDI glyph; MDI in turn excludes
+ *   its "Brand / Logos" category from its Apache-2.0 grant. So no open source
+ *   license actually covers this mark — permission to display it rests on
+ *   Meta's brand guidelines, which ask that you use the glyph files from their
+ *   Brand Resource Center. Worth replacing with Meta's official asset.
+ */
 export const InstagramIcon = makeIcon(
   [
     "M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6m9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z",
