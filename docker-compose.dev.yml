@@ -34,6 +34,8 @@ services:
     volumes:
       - ./_site:/usr/share/nginx/html:ro
       - ${TILES_DIR:-../gtfs-route-tiles/out/web}:/srv/tiles:ro
+      # Where the worker will write its JSON snapshots; empty until then.
+      - ./_data:/srv/data:ro
       - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:

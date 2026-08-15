@@ -16,6 +16,13 @@ module.exports = function (eleventyConfig) {
   // Assets change without templates changing, so a rebuild has to notice.
   eleventyConfig.addWatchTarget("public/");
 
+  // The stop list the search box and the quick stops chips read, trimmed to
+  // the two fields they use and flattened to pairs — the difference between
+  // 25 KB and 200 KB inlined into the home page.
+  eleventyConfig.addFilter("stopIndex", (stops) =>
+    stops.map((stop) => [stop.stopCode, stop.stopName])
+  );
+
   return {
     dir: {
       input: "site",
