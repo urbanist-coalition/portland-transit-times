@@ -1,18 +1,26 @@
-"""Build a fully self-hosted MapLibre style bundle from CARTO's Voyager style.
+"""Build fully self-hosted MapLibre style bundles from CARTO's base styles.
 
-CARTO's Voyager style is open source (BSD-3 for the code, CC-BY 4.0 for the
-design), but CARTO's *tile service* is enterprise-only. Happily the style is
+Two styles come out, one per appearance: Voyager for light, Dark Matter for
+dark. They share everything expensive — the same basemap archive, the same
+transit archive, the same glyph ranges — and differ only in the JSON and in
+which sprite sheet they point at, so the second appearance costs a few hundred
+kilobytes rather than another copy of the map. A page switches between them at
+runtime with `map.setStyle()`.
+
+CARTO's styles are open source (BSD-3 for the code, CC-BY 4.0 for the
+design), but CARTO's *tile service* is enterprise-only. Happily the styles are
 written against the OpenMapTiles schema — the same schema planetiler emits — so
-the style renders unmodified against our own basemap once the URLs are
-repointed. Four things tether the stock style to CARTO's CDN, and this script
-cuts all of them:
+they render unmodified against our own basemap once the URLs are repointed.
+Four things tether a stock style to CARTO's CDN, and this script cuts all of
+them:
 
   sources   -> pmtiles://./basemap.pmtiles  (planetiler, from OSM)
   glyphs    -> ./fonts/{fontstack}/{range}.pbf
-  sprite    -> ./sprite
+  sprite    -> ./sprite  (or ./sprite-dark)
   text-font -> rewritten to fonts we actually host
 
-That last one needs explaining. Every fontstack in Voyager is five deep, e.g.
+That last one needs explaining. Every fontstack in these styles is five deep,
+e.g.
 
     Montserrat Medium, Open Sans Bold, Noto Sans Regular,
     HanWangHeiLight Regular, NanumBarunGothic Regular
@@ -47,6 +55,35 @@ ATTRIBUTION = (
 
 # Base stroke width per zoom, matching the raster renderer's max(1, z - 8).
 WIDTH_STOPS = [(9, 1), (10, 2), (14, 6), (18, 10)]
+
+# Everything about the transit layers that depends on which appearance the
+# style is for. The basemap's half of that difference is CARTO's, already baked
+# into the two source styles; this is the half we add.
+#
+# `pie_outline` is the odd one out. Line colours and label colours are style
+# properties and restyle live, but the stop pies are raster sprites, so their
+# outline is a *pixel* and needs a second sheet rather than a second paint
+# property. Hence `sprite` here as well: each style points at its own sheet.
+THEMES = {
+    "light": {
+        "style": "style.json",
+        "sprite": "sprite",
+        "halo": "#ffffff",
+        "stop_label": "#333333",
+        "pie_outline": (0.38, 0.38, 0.38),   # MUI grey[700], as the React StopIcon used
+    },
+    "dark": {
+        "style": "style-dark.json",
+        "sprite": "sprite-dark",
+        # Dark Matter's own background colour, so halos read as the map showing
+        # through the label rather than as a second stroke around it.
+        "halo": "#0e0e0e",
+        "stop_label": "#e9edf1",
+        # Deliberately well below white: the ring is a fixed fraction of a
+        # 14-24 px marker, so a bright outline reads as a halo, not an edge.
+        "pie_outline": (0.50, 0.53, 0.57),
+    },
+}
 
 
 def _zoom_interp(*factors: list) -> list:
@@ -122,7 +159,7 @@ def _resolve_fontstack(stack: list[str]) -> list[str]:
     return ["Open Sans Regular"]
 
 
-def _transit_layers() -> list[dict]:
+def _transit_layers(theme: dict) -> list[dict]:
     return [
         {
             "id": "transit-routes",
@@ -164,7 +201,7 @@ def _transit_layers() -> list[dict]:
             },
             "paint": {
                 "text-color": ["get", "color"],
-                "text-halo-color": "#ffffff",
+                "text-halo-color": theme["halo"],
                 "text-halo-width": 1.5,
             },
         },
@@ -228,15 +265,16 @@ def _transit_layers() -> list[dict]:
                 "symbol-sort-key": ["-", 0, ["get", "n_routes"]],
             },
             "paint": {
-                "text-color": "#333333",
-                "text-halo-color": "#ffffff",
+                "text-color": theme["stop_label"],
+                "text-halo-color": theme["halo"],
                 "text-halo-width": 1.5,
             },
         },
     ]
 
 
-def build_style(src: Path, out: Path, basemap: str, transit: str) -> set[str]:
+def build_style(src: Path, out: Path, basemap: str, transit: str,
+                theme: dict) -> set[str]:
     style = json.loads(src.read_text())
 
     style["sources"] = {
@@ -251,7 +289,7 @@ def build_style(src: Path, out: Path, basemap: str, transit: str) -> set[str]:
         },
     }
     style["glyphs"] = "./fonts/{fontstack}/{range}.pbf"
-    style["sprite"] = "./sprite"
+    style["sprite"] = f"./{theme['sprite']}"
 
     fonts_used: set[str] = set()
     for layer in style["layers"]:
@@ -272,7 +310,7 @@ def build_style(src: Path, out: Path, basemap: str, transit: str) -> set[str]:
          if i > last_road and l["type"] == "symbol"),
         len(style["layers"]),
     )
-    transit_layers = _transit_layers()
+    transit_layers = _transit_layers(theme)
     style["layers"][insert_at:insert_at] = transit_layers
     fonts_used.update(transit_layers[1]["layout"]["text-font"])
 
@@ -314,10 +352,9 @@ def extract_fonts(zip_path: Path, out_dir: Path, fonts: set[str]):
 # Pie markers for the kerbside stop layer. Drawn at PIE_PX and scaled by the
 # style, following draw_stops.py's zoomIconSizes table (14px at z15 -> 24 at z20).
 PIE_PX = 24
-PIE_OUTLINE = (0.38, 0.38, 0.38)   # MUI grey[700], as the React StopIcon used
 
 
-def _draw_pie(ctx, cx, cy, size, colors, ratio):
+def _draw_pie(ctx, cx, cy, size, colors, ratio, outline_rgb):
     """One slice per route that stops here.
 
     A single-route stop is a solid dot, which is 82% of them — the pie only
@@ -344,7 +381,7 @@ def _draw_pie(ctx, cx, cy, size, colors, ratio):
             ctx.arc(cx, cy, radius, start, end)
             ctx.close_path()
             ctx.fill()
-    ctx.set_source_rgb(*PIE_OUTLINE)
+    ctx.set_source_rgb(*outline_rgb)
     ctx.set_line_width(outline)
     ctx.arc(cx, cy, radius, 0, 2 * _m.pi)
     ctx.stroke()
@@ -355,10 +392,11 @@ def _hex_rgb(h: str) -> tuple[float, float, float]:
     return (int(h[0:2], 16) / 255, int(h[2:4], 16) / 255, int(h[4:6], 16) / 255)
 
 
-def make_sprite(out_dir: Path, pies: dict | None = None):
-    """Emit the sprite sheet: Voyager's `circle-11` plus one pie per route set.
+def make_sprite(out_dir: Path, pies: dict | None, sheet: str,
+                outline_rgb: tuple[float, float, float]):
+    """Emit one sprite sheet: CARTO's `circle-11` plus one pie per route set.
 
-    `circle-11` is declared by 11 Voyager layers, all of which set `icon-image`
+    `circle-11` is declared by 11 stock layers, all of which set `icon-image`
     to "", so nothing draws it — but MapLibre still fetches the sprite a style
     declares, and a 404 there logs errors on every load.
 
@@ -366,6 +404,10 @@ def make_sprite(out_dir: Path, pies: dict | None = None):
     serving a stop, 44 for this feed. Baking them is what makes them raster
     rather than vector — a route colour change means regenerating this sheet,
     unlike the lines, which restyle live from tile attributes.
+
+    That bakedness is also why each appearance gets its own sheet, under its
+    own `sheet` name: the ring around a pie has to change with the map underneath it,
+    and a PNG cannot be restyled at runtime the way `text-color` can.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     for suffix, ratio in (("", 1), ("@2x", 2)):
@@ -390,28 +432,32 @@ def make_sprite(out_dir: Path, pies: dict | None = None):
         x = circle + pad
         for name, spec in sorted((pies or {}).items()):
             colors = [_hex_rgb(c) for c in spec["colors"]]
-            _draw_pie(ctx, x + pie / 2, pie / 2, pie, colors, ratio)
+            _draw_pie(ctx, x + pie / 2, pie / 2, pie, colors, ratio, outline_rgb)
             index[name] = {"width": int(pie), "height": int(pie),
                            "x": int(x), "y": 0,
                            "pixelRatio": ratio, "sdf": False}
             x += int(pie) + pad
 
-        surface.write_to_png(str(out_dir / f"sprite{suffix}.png"))
-        (out_dir / f"sprite{suffix}.json").write_text(json.dumps(index, indent=2))
-    print(f"Wrote sprite/sprite@2x: {len(pies or {})} stop pies into {out_dir}")
+        surface.write_to_png(str(out_dir / f"{sheet}{suffix}.png"))
+        (out_dir / f"{sheet}{suffix}.json").write_text(json.dumps(index, indent=2))
+    print(f"Wrote {sheet}/{sheet}@2x: {len(pies or {})} stop pies into {out_dir}")
 
 
 parser = ArgumentParser(
-    description="Build a self-hosted MapLibre style bundle: CARTO Voyager "
-                "repointed at our own PMTiles, with self-hosted glyphs and "
-                "sprite, plus the transit route layers.",
+    description="Build the self-hosted MapLibre style bundle: CARTO Voyager "
+                "and Dark Matter repointed at our own PMTiles, with "
+                "self-hosted glyphs and sprites, plus the transit route "
+                "layers. One style per appearance, sharing everything else.",
     epilog="Example:\n"
            "  python make_style.py out/web --fonts-zip vendor/noto-open-sans.zip",
     formatter_class=RawDescriptionHelpFormatter,
 )
 parser.add_argument("out_dir", type=Path, help="web root to write into")
 parser.add_argument("--style", type=Path, default=Path("vendor/voyager-gl-style.json"),
-                    help="vendored CARTO Voyager style JSON")
+                    help="vendored CARTO Voyager style JSON (light)")
+parser.add_argument("--dark-style", type=Path,
+                    default=Path("vendor/darkmatter-gl-style.json"),
+                    help="vendored CARTO Dark Matter style JSON (dark)")
 parser.add_argument("--fonts-zip", type=Path, default=Path("vendor/noto-open-sans.zip"),
                     help="openmaptiles/fonts release zip of prebuilt glyph ranges")
 parser.add_argument("--basemap", default="./basemap.pmtiles")
@@ -422,10 +468,22 @@ parser.add_argument("--page", type=Path, default=Path("web/index.html"),
                     help="map page copied into the bundle as index.html")
 
 args = parser.parse_args()
-used = build_style(args.style, args.out_dir / "style.json", args.basemap, args.transit)
-extract_fonts(args.fonts_zip, args.out_dir / "fonts", used)
 pies = json.loads(args.sprite_table.read_text()) if args.sprite_table and args.sprite_table.exists() else {}
-make_sprite(args.out_dir, pies)
+
+sources = {"light": args.style, "dark": args.dark_style}
+used: set[str] = set()
+for name, theme in THEMES.items():
+    src = sources[name]
+    if not src.is_file():
+        raise SystemExit(f"No {name} source style at {src}")
+    print(f"==> {name}: {src.name}")
+    used |= build_style(src, args.out_dir / theme["style"], args.basemap,
+                        args.transit, theme)
+    make_sprite(args.out_dir, pies, theme["sprite"], theme["pie_outline"])
+
+# Both styles resolve to the same fontstacks, so the glyph ranges are extracted
+# once for the union rather than per style.
+extract_fonts(args.fonts_zip, args.out_dir / "fonts", used)
 
 # The bundle has to include its own entry point: the whole point is that
 # out_dir can be dropped onto nginx or S3 as-is, and a web root with no

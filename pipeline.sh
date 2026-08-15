@@ -24,7 +24,9 @@
 #   out/web/basemap.pmtiles   OSM basemap, OpenMapTiles schema, ~5 min, ~120 MB
 #   out/loom-{overview,detail}.geojson   two line graphs, see make_graphs.sh
 #   out/web/transit.pmtiles   routes + stops
-#   out/web/{style.json,sprite*,fonts/,index.html}   the rest of the site
+#   out/web/{style.json,style-dark.json,sprite*,fonts/,index.html}  the rest
+#                             of the site — one style per appearance, both
+#                             reading the same two archives
 #
 # Environment knobs (defaults shown):
 #   GTFS_URL        GTFS feed URL                (Portland, ME GPTD)
