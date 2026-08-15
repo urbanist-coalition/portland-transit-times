@@ -4,8 +4,9 @@ Third-party notices
 Material Symbols
 ----------------
 
-The SVG path data in src/components/icons.tsx is taken from Google's Material
-Symbols, which are licensed under the Apache License, Version 2.0:
+The SVG path data in src/components/icons.tsx and public/map/index.html is
+taken from Google's Material Symbols, which are licensed under the Apache
+License, Version 2.0:
 
     https://github.com/google/material-design-icons
 
@@ -13,8 +14,7 @@ Specifically the Outlined style at weight 400, from symbols/web/ in that
 repository. A copy of the Apache License 2.0 is included at
 LICENSE-APACHE-2.0.txt.
 
-The paths are reproduced verbatim; only the surrounding React component markup
-is our own. Google's project ships no NOTICE file of its own, and its README
+The paths are reproduced verbatim; only the surrounding markup is our own. Google's project ships no NOTICE file of its own, and its README
 states that attribution is appreciated but not required. This notice is
 provided anyway.
 
@@ -42,8 +42,25 @@ This project is not affiliated with, endorsed by, or sponsored by Meta.
 Map data and tiles
 ------------------
 
-Map data is © OpenStreetMap contributors, available under the Open Database
-License. Map tiles are by CARTO.
+The map at /by-location renders vector tiles built by the gtfs-route-tiles
+pipeline and served from /tiles. Those tiles carry their own attribution,
+which the map displays: map data is © OpenStreetMap contributors under the
+Open Database License, the tile schema is OpenMapTiles', and the basemap
+styles are CARTO's Voyager and Dark Matter (BSD-3-Clause for the style code,
+CC-BY 4.0 for the design). No CARTO service is used — the styles are rendered
+against our own tiles.
 
     https://www.openstreetmap.org/copyright
+    https://openmaptiles.org/
     https://carto.com/
+
+Map renderer
+------------
+
+The map page loads MapLibre GL JS and the PMTiles protocol shim from
+public/map/vendor/, copied out of node_modules at build time by
+scripts/copy-map-vendor.mjs. Both are licensed BSD-3-Clause; MapLibre's license
+travels with it as public/map/vendor/maplibre-gl-LICENSE.txt.
+
+    https://github.com/maplibre/maplibre-gl-js
+    https://github.com/protomaps/PMTiles

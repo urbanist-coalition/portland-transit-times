@@ -4,19 +4,17 @@
  * @file Light/dark mode without a UI framework.
  *
  * The resolved mode lives in exactly one place — the `data-theme` attribute on
- *   <html> — and everything reads from there:
+ *   <html> — and CSS reads it directly (see public/app.css), so the entire
+ *   palette swaps with no JavaScript on the render path and nothing in React
+ *   has to hold the value.
  *
- *   - CSS reads it directly (see globals.css), so the entire palette swaps with
- *     no JavaScript involved on the render path.
- *   - `useColorMode()` mirrors it into React for the few places that genuinely
- *     need the value in JS (the Leaflet basemap and route styling).
+ * The map page is not React at all and reads the same attribute and the same
+ *   storage key, so a choice made here carries over to it and back.
  *
  * `ColorModeScript` applies the stored preference before first paint so there
  *   is no flash of the wrong theme. When no preference is stored the attribute
  *   is absent and the OS preference wins via `prefers-color-scheme`.
  */
-
-import { useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "color-mode";
 
@@ -33,22 +31,6 @@ export function ColorModeScript() {
   return <script dangerouslySetInnerHTML={{ __html: INIT_SCRIPT }} />;
 }
 
-const listeners = new Set<() => void>();
-
-// Cached so `getSnapshot` can return a referentially stable value; it is only
-//   replaced when one of the two fields actually changes.
-let snapshot: { mode: ColorMode; resolved: ResolvedColorMode } = {
-  mode: "system",
-  resolved: "light",
-};
-
-// The server has no way to know the user's preference. React swaps to the
-//   client snapshot right after hydration, so this never causes a mismatch.
-const SERVER_SNAPSHOT: { mode: ColorMode; resolved: ResolvedColorMode } = {
-  mode: "system",
-  resolved: "light",
-};
-
 function darkMediaQuery() {
   return window.matchMedia("(prefers-color-scheme: dark)");
 }
@@ -63,36 +45,10 @@ function storedMode(): ColorMode {
   return "system";
 }
 
-function getSnapshot() {
+function resolvedMode(): ResolvedColorMode {
   const mode = storedMode();
-  const resolved =
-    mode === "system" ? (darkMediaQuery().matches ? "dark" : "light") : mode;
-
-  if (snapshot.mode !== mode || snapshot.resolved !== resolved) {
-    snapshot = { mode, resolved };
-  }
-  return snapshot;
-}
-
-function subscribe(onChange: () => void) {
-  if (listeners.size === 0) {
-    darkMediaQuery().addEventListener("change", notify);
-    // Keep other tabs in sync
-    window.addEventListener("storage", notify);
-  }
-  listeners.add(onChange);
-
-  return () => {
-    listeners.delete(onChange);
-    if (listeners.size === 0) {
-      darkMediaQuery().removeEventListener("change", notify);
-      window.removeEventListener("storage", notify);
-    }
-  };
-}
-
-function notify() {
-  for (const listener of listeners) listener();
+  if (mode !== "system") return mode;
+  return darkMediaQuery().matches ? "dark" : "light";
 }
 
 export function setColorMode(mode: ColorMode) {
@@ -111,7 +67,6 @@ export function setColorMode(mode: ColorMode) {
   } else {
     document.documentElement.dataset.theme = mode;
   }
-  notify();
 }
 
 /**
@@ -119,22 +74,16 @@ export function setColorMode(mode: ColorMode) {
  * produces the appearance the user asked for. This way a user whose OS is set
  * to dark and who toggles light-then-dark ends up following their OS again
  * rather than being pinned to an explicit choice.
+ *
+ * public/map/map.js repeats this rule for the map page; the two have to agree
+ * about what the toggle does.
  */
 export function toggleColorMode() {
-  const { resolved } = getSnapshot();
   const systemIsDark = darkMediaQuery().matches;
 
-  if (resolved === "light") {
+  if (resolvedMode() === "light") {
     setColorMode(systemIsDark ? "system" : "dark");
   } else {
     setColorMode(systemIsDark ? "light" : "system");
   }
-}
-
-/**
- * Reactive access to the current mode. Prefer plain CSS where possible — this
- * is for values that must be read in JavaScript, like the Leaflet tile URL.
- */
-export function useColorMode() {
-  return useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
 }

@@ -7,5 +7,21 @@ services:
     volumes:
       - redis_data_dev:/data
 
+  # The map's vector tiles. `npm run dev` reaches this through the /tiles
+  # rewrite in next.config.ts, which needs TILES_URL=http://localhost:8001 in
+  # the environment.
+  #
+  # TILES_DIR points at a bundle built by the gtfs-route-tiles pipeline —
+  # its `out/web` directory, which holds basemap.pmtiles, transit.pmtiles, both
+  # styles, the sprites and the glyphs.
+  tile-server:
+    image: nginx:alpine
+    container_name: transit-tiles-dev
+    ports:
+      - "8001:80"
+    volumes:
+      - ${TILES_DIR:-../gtfs-route-tiles/out/web}:/usr/share/nginx/html:ro
+      - ./nginx-tiles.conf:/etc/nginx/conf.d/default.conf:ro
+
 volumes:
   redis_data_dev:

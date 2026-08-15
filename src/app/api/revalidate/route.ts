@@ -10,7 +10,11 @@ export async function POST(req: NextRequest) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  revalidatePath("/by-location");
+  // The map used to be the page that cached feed-derived data; it is now a
+  // static page reading vector tiles, and the tiles are rebuilt by the tile
+  // pipeline rather than by this app. What is left to revalidate is everything
+  // else rendered from the static feed.
+  revalidatePath("/", "layout");
 
   return Response.json({ revalidated: true, now: Date.now() });
 }

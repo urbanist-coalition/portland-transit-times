@@ -1,13 +1,7 @@
 "use server";
 
 import { subMinutes } from "date-fns";
-import {
-  Alert,
-  LiveStopTimeInstance,
-  RouteWithShape,
-  Stop,
-  StopSummary,
-} from "@/types";
+import { Alert, LiveStopTimeInstance, Stop, StopSummary } from "@/types";
 import { getModel } from "@/lib/model";
 import { stopCodeToStopId } from "@/lib/utils";
 
@@ -23,19 +17,6 @@ export async function predictionsByStopCode(
 
 export async function getServiceAlerts(): Promise<Alert[]> {
   return getModel().getAlerts();
-}
-
-export async function getLines(): Promise<RouteWithShape[]> {
-  return await getModel().getRoutesWithShape();
-}
-
-export async function getStops(): Promise<Record<string, Stop>> {
-  const stops = await getModel().getStops();
-  const stopsRecord: Record<string, Stop> = {};
-  for (const stop of stops) {
-    stopsRecord[stop.stopId] = stop;
-  }
-  return stopsRecord;
 }
 
 /**

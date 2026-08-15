@@ -15,8 +15,6 @@ import {
 } from "@/components/icons";
 import { toggleColorMode } from "@/components/color-mode";
 
-import styles from "./nav-menu.module.css";
-
 const LINKS = [
   { href: "/", label: "Home", Icon: HomeIcon },
   { href: "/by-location", label: "Map", Icon: MapIcon },
@@ -55,10 +53,10 @@ export default function NavMenu() {
   }, [open]);
 
   return (
-    <div className={styles.root} ref={rootRef} data-open={open}>
+    <div className="nav" ref={rootRef} data-open={open}>
       <nav
         id="nav-menu-actions"
-        className={styles.actions}
+        className="nav-actions"
         aria-label="Site"
         // Keeping the actions mounted lets them animate, but they must not be
         //   reachable by keyboard or screen readers while collapsed.
@@ -68,11 +66,11 @@ export default function NavMenu() {
           <Link
             key={href}
             href={href}
-            className={styles.action}
+            className="nav-action"
             aria-current={pathname === href ? "page" : undefined}
           >
-            <span className={styles.actionLabel}>{label}</span>
-            <span className={styles.actionIcon}>
+            <span className="nav-action-label">{label}</span>
+            <span className="nav-action-icon">
               <Icon size={20} />
             </span>
           </Link>
@@ -80,7 +78,7 @@ export default function NavMenu() {
 
         <button
           type="button"
-          className={styles.action}
+          className="nav-action"
           onClick={() => {
             toggleColorMode();
             setOpen(false);
@@ -88,15 +86,15 @@ export default function NavMenu() {
         >
           {/* Which of these shows is decided in CSS rather than JS so the
               correct one is painted on the very first frame. */}
-          <span className={styles.actionLabel}>
-            <span className={styles.whenLight}>Dark mode</span>
-            <span className={styles.whenDark}>Light mode</span>
+          <span className="nav-action-label">
+            <span className="when-light">Dark mode</span>
+            <span className="when-dark">Light mode</span>
           </span>
-          <span className={styles.actionIcon}>
-            <span className={styles.whenLight}>
+          <span className="nav-action-icon">
+            <span className="when-light">
               <DarkModeIcon size={20} />
             </span>
-            <span className={styles.whenDark}>
+            <span className="when-dark">
               <LightModeIcon size={20} />
             </span>
           </span>
@@ -106,13 +104,13 @@ export default function NavMenu() {
       <button
         type="button"
         ref={toggleRef}
-        className={styles.fab}
+        className="nav-fab"
         aria-expanded={open}
         aria-controls="nav-menu-actions"
         aria-label={open ? "Close menu" : "Open menu"}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
       >
-        <span className={styles.fabIcon}>
+        <span className="nav-fab-icon">
           {open ? <CloseIcon size={26} /> : <MenuIcon size={26} />}
         </span>
       </button>

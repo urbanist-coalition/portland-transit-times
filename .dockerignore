@@ -37,6 +37,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# copied out of node_modules by the build (scripts/copy-map-vendor.mjs)
+/public/map/vendor
+
 # data directories
 /_data
 /public/_data

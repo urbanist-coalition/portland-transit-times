@@ -2,8 +2,8 @@
  * @file Inline SVG icons, replacing @mui/icons-material.
  *
  * Each icon is a plain function component with no client-side dependencies, so
- *   it renders in server components and inside `renderToString` for the Leaflet
- *   div icons.
+ *   it renders in server components as readily as client ones. The map page,
+ *   which is not React, inlines the same path data directly into its HTML.
  *
  * Path data is Google's Material Symbols (Outlined), used under the Apache
  *   License 2.0 — see NOTICE at the repository root. Symbols replaced the
