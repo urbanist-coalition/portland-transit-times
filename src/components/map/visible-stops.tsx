@@ -11,8 +11,11 @@ import LinePill from "@/components/line-pill";
 import styles from "./map.module.css";
 
 // The ring drawn around each stop marker, picked to stay visible against both
-//   the light and dark base maps.
-const MARKER_OUTLINE = { light: "#616161", dark: "#c9d1d9" };
+//   the light and dark base maps. The ring is a fixed 4px while markers are
+//   only 10-24px across, so it takes up enough of the icon that a bright color
+//   reads as a halo rather than an outline — the dark value is deliberately
+//   held well below white. It still clears 4.5:1 against the dark basemap.
+const MARKER_OUTLINE = { light: "#616161", dark: "#7f8891" };
 
 const generatePieSlices = (colors: string[], radius: number) => {
   const slicePaths = [];
