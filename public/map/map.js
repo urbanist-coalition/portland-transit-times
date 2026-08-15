@@ -14,16 +14,19 @@
  *     dark following the site's own theme setting;
  *   - popups for stops, which link into the arrivals pages;
  *   - live vehicles, the one thing not in the tiles, as a GeoJSON source
- *     updated in place;
- *   - the nav menu, mirroring components/nav-menu.tsx.
+ *     updated in place.
+ *
+ * The nav menu and the theme toggle are the site's, from /js/nav.js and
+ * /js/theme.js. This page is only unusual in caring what the theme *is*: its
+ * appearance is a different style document, not a different palette.
  */
+
+import { onModeChange, resolvedMode } from "/js/theme.js";
 
 /** Where the tile bundle is served. See next.config.ts and nginx-tiles.conf. */
 const TILES = "/tiles";
 const VEHICLE_ENDPOINT = "/api/vehicle-positions";
 const VEHICLE_INTERVAL_MS = 1000;
-/** Shared with components/color-mode.tsx, so a theme choice carries across. */
-const COLOR_MODE_KEY = "color-mode";
 const START_CENTER = [-70.2864549, 43.6632339];
 const START_ZOOM = 13;
 /** Stops draw above vehicles: a bus must never hide the stop it is heading to. */
@@ -35,45 +38,6 @@ function showError(message) {
   errorBox.textContent = message;
   errorBox.hidden = false;
   console.error(message);
-}
-
-/* -------------------------------------------------------------- color mode */
-
-function resolvedMode() {
-  const explicit = document.documentElement.dataset.theme;
-  if (explicit === "light" || explicit === "dark") return explicit;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-/**
- * Flips to the opposite appearance, preferring "system" whenever that already
- * produces it — the same rule as toggleColorMode() in color-mode.tsx, so the
- * two pages cannot disagree about what the toggle does.
- */
-function toggleColorMode() {
-  const systemIsDark = window.matchMedia(
-    "(prefers-color-scheme: dark)"
-  ).matches;
-  const next =
-    resolvedMode() === "light"
-      ? systemIsDark
-        ? "system"
-        : "dark"
-      : systemIsDark
-        ? "light"
-        : "system";
-
-  try {
-    if (next === "system") localStorage.removeItem(COLOR_MODE_KEY);
-    else localStorage.setItem(COLOR_MODE_KEY, next);
-  } catch {
-    // Private browsing can throw; the current page still switches.
-  }
-
-  if (next === "system") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = next;
 }
 
 /* ------------------------------------------------------------------- style */
@@ -529,55 +493,9 @@ async function main() {
       .catch((error) => showError(`Could not switch theme: ${error.message}`));
   }
 
-  window
-    .matchMedia("(prefers-color-scheme: dark)")
-    .addEventListener("change", applyMode);
-  // Keeps other tabs in sync, as the React pages do.
-  window.addEventListener("storage", applyMode);
-  document.getElementById("theme-toggle").addEventListener("click", () => {
-    toggleColorMode();
-    applyMode();
-    closeNav();
-  });
+  // Fires for our own toggle, the OS preference, and other tabs alike.
+  onModeChange(applyMode);
 }
-
-/* ---------------------------------------------------------------- nav menu */
-
-const MENU_PATH = "M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z";
-const CLOSE_PATH =
-  "m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z";
-
-const nav = document.getElementById("nav");
-const navActions = document.getElementById("nav-menu-actions");
-const navToggle = document.getElementById("nav-toggle");
-const navFabPath = document.getElementById("nav-fab-path");
-
-function setNavOpen(open) {
-  nav.dataset.open = String(open);
-  navToggle.setAttribute("aria-expanded", String(open));
-  navToggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-  navFabPath.setAttribute("d", open ? CLOSE_PATH : MENU_PATH);
-  // The actions stay in the DOM so they can animate, but must not be reachable
-  // by keyboard or screen reader while collapsed.
-  navActions.inert = !open;
-}
-
-function closeNav() {
-  setNavOpen(false);
-}
-
-navToggle.addEventListener("click", () =>
-  setNavOpen(nav.dataset.open !== "true")
-);
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape" || nav.dataset.open !== "true") return;
-  closeNav();
-  navToggle.focus();
-});
-document.addEventListener("pointerdown", (event) => {
-  if (nav.dataset.open !== "true" || nav.contains(event.target)) return;
-  closeNav();
-});
 
 main().catch((error) =>
   showError(`Could not load the map: ${error.message || error}`)

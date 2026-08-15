@@ -1,0 +1,26 @@
+---
+layout: layout.njk
+title: Page Not Found
+permalink: /404.html
+styles: ["/css/not-found.css"]
+scripts: ["/js/back.js"]
+---
+{% from "icon.njk" import icon with context %}
+{#
+  nginx serves this for anything it cannot find, which on this site mostly
+  means a stop number that does not exist — every real stop has a page built
+  for it. So the page leads with that case rather than a bare "404".
+#}
+<main class="container container-sm not-found">
+  <h1 class="not-found-title">We couldn&rsquo;t find that page</h1>
+  <p class="not-found-body">
+    If you were looking for a stop, check the number on the sign at the stop —
+    it may have changed, or the stop may no longer be served.
+  </p>
+  <div class="not-found-actions">
+    <a class="btn btn-primary" href="/">Find a stop</a>
+    <button type="button" class="btn btn-outline" data-back>
+      {{ icon("arrowBack", 20) }} Go back
+    </button>
+  </div>
+</main>

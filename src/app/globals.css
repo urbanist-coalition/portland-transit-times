@@ -9,4 +9,4 @@
  *   page get the same tokens, reset, and component classes from the same file,
  *   rather than a copy that drifts.
  */
-@import "../../public/app.css";
+@import "../../public/css/app.css";

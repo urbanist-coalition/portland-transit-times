@@ -51,6 +51,9 @@ crash.log
 .terraform/
 .terraform.lock.hcl
 
+# Eleventy output
+/_site/
+
 # Copied out of node_modules by scripts/copy-map-vendor.mjs
 /public/map/vendor/
 

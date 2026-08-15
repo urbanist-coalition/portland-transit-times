@@ -23,5 +23,18 @@ services:
       - ${TILES_DIR:-../gtfs-route-tiles/out/web}:/usr/share/nginx/html:ro
       - ./nginx-tiles.conf:/etc/nginx/conf.d/default.conf:ro
 
+  # The static site being built to replace the Next.js app: Eleventy's output
+  # plus the tile bundle, served the way production will serve it. Run
+  # `npm run site:watch` alongside it and refresh.
+  site:
+    image: nginx:alpine
+    container_name: transit-site-dev
+    ports:
+      - "8080:80"
+    volumes:
+      - ./_site:/usr/share/nginx/html:ro
+      - ${TILES_DIR:-../gtfs-route-tiles/out/web}:/srv/tiles:ro
+      - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
+
 volumes:
   redis_data_dev:

@@ -40,7 +40,7 @@
     </script>
 
     <link rel="stylesheet" href="/map/vendor/maplibre-gl.css" />
-    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/css/app.css" />
     <link rel="stylesheet" href="/map/map.css" />
   </head>
   <body>
@@ -50,11 +50,11 @@
     <p id="map-error" class="map-error" role="alert" hidden></p>
 
     <!--
-      Mirrors components/nav-menu.tsx: same markup, same classes out of
-      app.css. The behaviour it needs — open, close, toggle theme — is at the
-      bottom of map.js.
+      The site nav, with the same markup and classes every other page uses.
+      Behaviour comes from /js/nav.js; this copy of the markup goes away once
+      the page is generated from the same template as the rest of the site.
     -->
-    <div class="nav" id="nav" data-open="false">
+    <div class="nav" data-open="false">
       <nav id="nav-menu-actions" class="nav-actions" aria-label="Site" inert>
         <a class="nav-action" href="/">
           <span class="nav-action-label">Home</span>
@@ -105,7 +105,7 @@
           </span>
         </a>
 
-        <button type="button" class="nav-action" id="theme-toggle">
+        <button type="button" class="nav-action nav-theme">
           <!-- Which of these shows is decided in CSS, so the right one is
                painted on the first frame rather than after a script runs. -->
           <span class="nav-action-label">
@@ -146,7 +146,6 @@
       <button
         type="button"
         class="nav-fab"
-        id="nav-toggle"
         aria-expanded="false"
         aria-controls="nav-menu-actions"
         aria-label="Open menu"
@@ -159,17 +158,19 @@
             height="26"
             aria-hidden="true"
           >
-            <path
-              id="nav-fab-path"
-              d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"
-            />
+            <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
           </svg>
         </span>
       </button>
     </div>
 
+    <!--
+      MapLibre and pmtiles are classic scripts publishing globals, so they run
+      during parsing; the modules below are deferred and see them ready.
+    -->
     <script src="/map/vendor/pmtiles.js"></script>
     <script src="/map/vendor/maplibre-gl.js"></script>
-    <script src="/map/map.js"></script>
+    <script type="module" src="/js/nav.js"></script>
+    <script type="module" src="/map/map.js"></script>
   </body>
 </html>

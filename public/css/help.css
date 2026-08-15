@@ -1,0 +1,64 @@
+/* Help page: a stack of disclosure panels. */
+
+.help-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.help-title {
+  font-size: 1.5rem;
+}
+
+.help-item {
+  margin-bottom: 0.625rem;
+  overflow: hidden;
+}
+
+.help-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.help-summary::-webkit-details-marker {
+  display: none;
+}
+
+.help-summary:hover {
+  background-color: var(--surface-2);
+}
+
+/* The chevron is the last thing in the summary, so it takes the free space. */
+.help-summary svg {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.help-item[open] .help-summary svg {
+  transform: rotate(180deg);
+}
+
+.help-answer {
+  padding: 1rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+  text-wrap: pretty;
+}
+
+.help-figure {
+  display: block;
+  width: 300px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 1rem;
+  border-radius: var(--r-md);
+}

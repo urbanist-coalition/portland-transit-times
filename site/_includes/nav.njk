@@ -1,0 +1,43 @@
+{% from "icon.njk" import icon with context %}
+{#
+  The floating menu, on every page. `page.url` marks the current one, and the
+  behaviour — open, close, escape, theme — is in /js/nav.js.
+
+  The two theme labels are both rendered and CSS decides which shows, so the
+  right one is painted on the first frame rather than after a script runs.
+#}
+<div class="nav" data-open="false">
+  <nav id="nav-menu-actions" class="nav-actions" aria-label="Site" inert>
+    {% for link in [
+      { href: "/", label: "Home", glyph: "home" },
+      { href: "/by-location/", label: "Map", glyph: "map" },
+      { href: "/help/", label: "Help", glyph: "help" }
+    ] %}
+    <a class="nav-action" href="{{ link.href }}"{% if page.url == link.href %} aria-current="page"{% endif %}>
+      <span class="nav-action-label">{{ link.label }}</span>
+      <span class="nav-action-icon">{{ icon(link.glyph, 20) }}</span>
+    </a>
+    {% endfor %}
+
+    <button type="button" class="nav-action nav-theme">
+      <span class="nav-action-label">
+        <span class="when-light">Dark mode</span>
+        <span class="when-dark">Light mode</span>
+      </span>
+      <span class="nav-action-icon">
+        <span class="when-light">{{ icon("darkMode", 20) }}</span>
+        <span class="when-dark">{{ icon("lightMode", 20) }}</span>
+      </span>
+    </button>
+  </nav>
+
+  <button
+    type="button"
+    class="nav-fab"
+    aria-expanded="false"
+    aria-controls="nav-menu-actions"
+    aria-label="Open menu"
+  >
+    <span class="nav-fab-icon">{{ icon("menu", 26) }}</span>
+  </button>
+</div>
