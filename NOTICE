@@ -1,15 +1,17 @@
 Third-party notices
 ===================
 
-Material Icons
---------------
+Material Symbols
+----------------
 
 The SVG path data in src/components/icons.tsx is taken from Google's Material
-Icons, which are licensed under the Apache License, Version 2.0:
+Symbols, which are licensed under the Apache License, Version 2.0:
 
     https://github.com/google/material-design-icons
 
-A copy of the Apache License 2.0 is included at LICENSE-APACHE-2.0.txt.
+Specifically the Outlined style at weight 400, from symbols/web/ in that
+repository. A copy of the Apache License 2.0 is included at
+LICENSE-APACHE-2.0.txt.
 
 The paths are reproduced verbatim; only the surrounding React component markup
 is our own. Google's project ships no NOTICE file of its own, and its README
