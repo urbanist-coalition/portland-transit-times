@@ -191,6 +191,10 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
     ~6.5 m off the drawn line instead of on it, which is under 4 px at z16 and
     is where the pole really is.
 
+    Each stop carries its feed identifiers as well as its name, so a site
+    rendering these tiles can link straight from a marker to its own page for
+    that stop without matching on position or name.
+
     Returns the stop features plus a sprite table: one pie per distinct route
     set, keyed by a stable name the style can look up via ["get", "sprite"].
     """
@@ -206,8 +210,16 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
 
     route_info = {}
     for r in rd("routes.txt"):
+        # The feed's own text colour travels with the route colour: agencies
+        # pick it deliberately, and it is not always what a contrast
+        # calculation would choose (route 5's #00b050 is specified white).
+        # Left empty when the feed omits it, rather than defaulted, so a
+        # consumer can tell "unspecified" from "specified" and fall back to its
+        # own contrast rule.
+        text_raw = (r.get("route_text_color") or "").strip()
         route_info[r["route_id"]] = ((r.get("route_short_name") or "").strip(),
-                                     _hex_color(r.get("route_color", "")))
+                                     _hex_color(r.get("route_color", "")),
+                                     _hex_color(text_raw) if text_raw else "")
     trip2route = {t["trip_id"]: t["route_id"] for t in rd("trips.txt")}
 
     stop_routes: dict[str, set] = defaultdict(set)
@@ -222,6 +234,10 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
             positions[row["stop_id"]] = (
                 _to_mercator(float(row["stop_lon"]), float(row["stop_lat"])),
                 (row.get("stop_name") or "").strip(),
+                # The rider-facing number on the pole, and the only stop
+                # identifier a consuming site can link to — GTFS stop_ids are
+                # feed-internal. Not every stop has one; those get "".
+                (row.get("stop_code") or "").strip(),
             )
         except (KeyError, ValueError):
             continue
@@ -234,7 +250,7 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
     for stop_id, rids in sorted(stop_routes.items()):
         if stop_id not in positions or not rids:
             continue
-        pos, name = positions[stop_id]
+        pos, name, code = positions[stop_id]
         ordered = sorted(rids, key=lambda r: (route_info[r][0], r))
         key = tuple(ordered)
         if key not in combos:
@@ -248,8 +264,16 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
             "geom": Point(pos),
             "props": {
                 "name": name,
+                "stop_id": stop_id,
+                "stop_code": code,
                 "sprite": combos[key],
+                # `routes` and `route_colors` are parallel, comma-joined and in
+                # the same order as the pie's slices, so a popup can rebuild
+                # the route pills from the tile alone — no second data source
+                # to fetch and keep in step with the feed.
                 "routes": ", ".join(route_info[r][0] for r in ordered),
+                "route_colors": ",".join(route_info[r][1] for r in ordered),
+                "route_text_colors": ",".join(route_info[r][2] for r in ordered),
                 "n_routes": len(ordered),
             },
         })
@@ -381,8 +405,10 @@ def build(sources: list[tuple[Path, int, int]], out_path: Path,
             "description": "Stops from the feed: real kerbside positions, exact route set",
             "minzoom": stop_min_zoom,
             "maxzoom": max_zoom,
-            "fields": {"name": "String", "sprite": "String",
-                       "routes": "String", "n_routes": "Number"},
+            "fields": {"name": "String", "stop_id": "String",
+                       "stop_code": "String", "sprite": "String",
+                       "routes": "String", "route_colors": "String",
+                       "route_text_colors": "String", "n_routes": "Number"},
         }, {
             "id": LAYER,
             "description": "One feature per route per shared edge",
