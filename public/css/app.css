@@ -367,6 +367,27 @@ h6 {
   flex-direction: column;
   align-items: flex-end;
   gap: 0.625rem;
+
+  /*
+   * Only the buttons themselves catch a finger; the column around them does
+   * not exist as far as touches are concerned.
+   *
+   * The collapsed actions are `visibility: hidden`, which hides them but keeps
+   * their boxes, so this container stands roughly 142x250px tall in the corner
+   * whether the menu is open or shut. Over a page that scrolls, an invisible
+   * box costs nothing. Over the map it swallowed every pan and pinch that
+   * started in the bottom-right quadrant, while the same gesture a few
+   * centimetres up and left worked perfectly — the map never saw the touch.
+   *
+   * MapLibre does exactly this with its own control corners, for the same
+   * reason.
+   */
+  pointer-events: none;
+}
+
+.nav-action,
+.nav-fab {
+  pointer-events: auto;
 }
 
 .nav-actions {
