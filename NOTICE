@@ -42,8 +42,8 @@ This project is not affiliated with, endorsed by, or sponsored by Meta.
 Map data and tiles
 ------------------
 
-The map at /by-location renders vector tiles built by the gtfs-route-tiles
-pipeline and served from /tiles. Those tiles carry their own attribution,
+The map at /by-location renders vector tiles built by the pipeline in tiles/
+and served from /tiles. Those tiles carry their own attribution,
 which the map displays: map data is © OpenStreetMap contributors under the
 Open Database License, the tile schema is OpenMapTiles', and the basemap
 styles are CARTO's Voyager and Dark Matter (BSD-3-Clause for the style code,
