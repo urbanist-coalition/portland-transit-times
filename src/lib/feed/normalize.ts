@@ -97,13 +97,20 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
     lastCall.set(tripId, sorted[sorted.length - 1]!);
   }
 
+  /*
+   * A block is a vehicle's work on *one* service day, so the same block_id
+   * appears under Sunday, Saturday and No School with different trips. Ordered
+   * across all of them, "the next trip in the block" lands on another day's
+   * duty and the layover goes unrecognised — which is how City Hall kept
+   * showing the 9A arriving and the 9A leaving as two buses at 11:30.
+   */
   const blockOrder = new Map<string, string[]>();
   for (const trip of rawTrips) {
     if (!trip.block_id) continue;
-    (
-      blockOrder.get(trip.block_id) ??
-      blockOrder.set(trip.block_id, []).get(trip.block_id)!
-    ).push(trip.trip_id);
+    const duty = `${trip.block_id}\u0000${trip.service_id}`;
+    (blockOrder.get(duty) ?? blockOrder.set(duty, []).get(duty)!).push(
+      trip.trip_id
+    );
   }
   const continuesFrom = new Set<ScheduledCall>();
   const realEndings = new Set<ScheduledCall>();

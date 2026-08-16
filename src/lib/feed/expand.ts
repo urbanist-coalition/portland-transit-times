@@ -109,6 +109,7 @@ export function expandInstances(
             scheduledTime,
             route,
             trip,
+            ...(call.terminates ? { terminates: true } : {}),
           });
           byStop.set(call.stopId, instances);
         }

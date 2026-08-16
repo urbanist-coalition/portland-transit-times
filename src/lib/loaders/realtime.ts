@@ -5,18 +5,18 @@ import {
   VehiclePosition,
   StopTimeUpdate,
 } from "@/types";
-import { Model } from "@/lib/model";
+import { TransitStore } from "@/lib/feed/store";
 import { formatInTimeZone } from "date-fns-tz";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { indexBy } from "../utils";
 
 export class GTFSRealtimeLoader {
   system: GTFSSystem;
-  model: Model;
+  store: TransitStore;
 
-  constructor(system: GTFSSystem, model: Model) {
+  constructor(system: GTFSSystem, store: TransitStore) {
     this.system = system;
-    this.model = model;
+    this.store = store;
   }
 
   private gtfsFetch(url: string) {
@@ -30,10 +30,8 @@ export class GTFSRealtimeLoader {
   async loadVehiclePositions() {
     console.log("Loading vehicle positions...");
 
-    const [response, currentUpdatedAt] = await Promise.all([
-      this.gtfsFetch(this.system.vehicleURL),
-      this.model.getVehiclePositionsUpdatedAt(),
-    ]);
+    const response = await this.gtfsFetch(this.system.vehicleURL);
+    const currentUpdatedAt = this.store.getVehiclePositionsUpdatedAt();
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -53,7 +51,7 @@ export class GTFSRealtimeLoader {
       return;
     }
 
-    const routes = await this.model.getRoutes();
+    const routes = this.store.routes();
     const routesById = indexBy(routes, "routeId");
 
     const vehiclesData: VehiclePosition[] = [];
@@ -71,7 +69,7 @@ export class GTFSRealtimeLoader {
         continue;
       }
 
-      const trip = await this.model.getTrip(tripId);
+      const trip = this.store.trip(tripId);
       if (!trip) {
         console.warn("Missing trip", tripId);
         continue;
@@ -94,7 +92,7 @@ export class GTFSRealtimeLoader {
 
       vehiclesData.push(vehicleData);
     }
-    await this.model.setVehiclePositions(vehiclesData, updatedAt);
+    this.store.setVehiclePositions(JSON.stringify(vehiclesData), updatedAt);
 
     if (process.env.VEHICLE_POSITIONS_HEARTBEAT_URL) {
       await fetch(process.env.VEHICLE_POSITIONS_HEARTBEAT_URL);
@@ -145,7 +143,7 @@ export class GTFSRealtimeLoader {
       .map(this.mapAlertEntityToServiceAlert)
       .filter((alert): alert is Alert => alert !== null);
 
-    await this.model.setAlerts(alerts);
+    this.store.setAlerts(alerts);
 
     if (process.env.SERVICE_ALERTS_HEARTBEAT_URL) {
       await fetch(process.env.SERVICE_ALERTS_HEARTBEAT_URL);
@@ -173,7 +171,7 @@ export class GTFSRealtimeLoader {
       ? new Date(this.longToNumber(maybeTimestamp) * 1000)
       : new Date();
 
-    const currentUpdatedAt = await this.model.getStopsLastUpdatedAt();
+    const currentUpdatedAt = this.store.getPredictionsUpdatedAt();
     if (currentUpdatedAt && currentUpdatedAt >= updatedAt) {
       return;
     }
@@ -244,9 +242,8 @@ export class GTFSRealtimeLoader {
           status,
         });
       }
-      await this.model.setStopTimeUpdates(stopTimeInstanceData, updatedAt);
+      this.store.setStopTimeUpdates(stopTimeInstanceData, updatedAt);
     }
-    await this.model.setStopsLastUpdatedAt(updatedAt);
 
     if (process.env.TRIP_UPDATES_HEARTBEAT_URL) {
       await fetch(process.env.TRIP_UPDATES_HEARTBEAT_URL);

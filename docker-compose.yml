@@ -87,7 +87,9 @@ services:
     networks:
       - web
 
-  # Feeds in, files out. The only writer on the system.
+  # Feeds in, files out. The only writer on the system, and the only process
+  # holding any state — the schedule is a file it wrote, and a few seconds of
+  # predictions live in its heap.
   worker:
     image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
     container_name: transit-worker
@@ -101,7 +103,6 @@ services:
           memory: 1G
           cpus: '0.5'
     environment:
-      - REDIS_URL=redis://redis:6379
       - SITE_DIR=/app/_site
       - DATA_DIR=/app/_data
     volumes:
@@ -114,27 +115,6 @@ services:
         max-file: "3"
     networks:
       - backend
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:latest
-    container_name: transit-redis
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.25'
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    networks:
-      - backend
 
 volumes:
   # The built pages. Kept on disk rather than in memory so a restart serves the
@@ -143,14 +123,14 @@ volumes:
   site_html:
 
   # The JSON the pages poll, rewritten every few seconds and derived entirely
-  # from Redis — so it lives in RAM, where rewriting it costs nothing and wears
-  # nothing out. Losing it on reboot costs one refresh.
+  # from the release's schedule and the realtime feeds — so it lives in RAM,
+  # where rewriting it costs nothing and wears nothing out. Losing it on reboot
+  # costs one refresh.
   site_data:
     driver_opts:
       type: tmpfs
       device: tmpfs
 
-  redis_data:
   certs:
   vhost.d:
   html:

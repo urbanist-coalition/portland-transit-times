@@ -83,6 +83,12 @@ export interface StopTimeUpdate extends StopTimeInstanceBase {
 
 export interface StopTimeInstance extends StopTimeInstanceBase {
   scheduledTime: number; // Unix timestamp in seconds
+  /**
+   * The bus finishes its run here — it arrives and nobody boards. Rendered as
+   * an arrival rather than a departure, because offering it as one you can
+   * catch is how someone ends up waiting for a bus going to the garage.
+   */
+  terminates?: boolean;
 
   // Denormalized Route Info
   route: Route;

@@ -1,12 +1,4 @@
 services:
-  redis:
-    image: redis:latest
-    container_name: transit-redis-dev
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data_dev:/data
-
   # The same nginx and the same config as production, over the working tree:
   # Eleventy's output, the worker's JSON, and a tile bundle from the
   # gtfs-route-tiles pipeline.
@@ -22,6 +14,3 @@ services:
       - ./_data:/srv/data:ro
       - ${TILES_DIR:-../gtfs-route-tiles/out/web}:/srv/tiles:ro
       - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
-
-volumes:
-  redis_data_dev:

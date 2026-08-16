@@ -32,14 +32,17 @@ import { promisify } from "node:util";
 import { subMinutes } from "date-fns";
 
 import { renderArrivals } from "../../public/js/render-arrivals.js";
-import { Model } from "@/lib/model";
+import { ARRIVALS_LIMIT } from "@/lib/feed/expand";
+import { TransitStore } from "@/lib/feed/store";
 
 /** The comments site/stops.njk puts around the arrivals block. */
 const ARRIVALS_START = "<!--arrivals:start-->";
 const ARRIVALS_END = "<!--arrivals:end-->";
 
-/** Matches what the old /api/arrivals route returned. */
-const ARRIVAL_LIMIT = 20;
+/**
+ * How far back a departure stays on the page after it has gone — long enough
+ * that someone who just missed one sees why.
+ */
 const ARRIVAL_WINDOW_MINUTES = 10;
 
 /** Stops queried at once. Redis is fast; the point is to not open 650 at once. */
@@ -84,7 +87,7 @@ export class SnapshotWriter {
   private lastSiteBuild = 0;
 
   constructor(
-    private model: Model,
+    private store: TransitStore,
     private dataDir: string,
     private siteDir: string
   ) {}
@@ -188,8 +191,8 @@ export class SnapshotWriter {
   }
 
   async writeArrivals(now: number): Promise<void> {
-    const stops = await this.model.getStops();
-    const after = subMinutes(new Date(now), ARRIVAL_WINDOW_MINUTES);
+    const stops = this.store.stops();
+    const after = subMinutes(new Date(now), ARRIVAL_WINDOW_MINUTES).getTime();
     await mkdir(join(this.dataDir, "arrivals"), { recursive: true });
 
     for (let index = 0; index < stops.length; index += BATCH) {
@@ -197,10 +200,10 @@ export class SnapshotWriter {
         stops.slice(index, index + BATCH).map(async (stop) => {
           if (!stop.stopCode) return;
 
-          const arrivals = await this.model.getStopTimeInstances(
+          const arrivals = this.store.departures(
             stop.stopId,
             after,
-            ARRIVAL_LIMIT
+            ARRIVALS_LIMIT
           );
 
           await this.writeIfChanged(
@@ -235,7 +238,7 @@ export class SnapshotWriter {
    * pipeline can take it from a running site and be run from anywhere.
    */
   async writeStopNames(): Promise<void> {
-    const stops = await this.model.getStops();
+    const stops = this.store.stops();
     const names: Record<string, string> = {};
     for (const stop of stops) names[stop.stopId] = stop.stopName;
 
@@ -248,7 +251,7 @@ export class SnapshotWriter {
   }
 
   async writeVehiclePositions(): Promise<void> {
-    const raw = await this.model.getVehiclePositionsRaw();
+    const raw = this.store.getVehiclePositionsRaw();
     await this.writeIfChanged(
       join(this.dataDir, "vehicle-positions.json"),
       raw ?? "[]"
@@ -256,7 +259,7 @@ export class SnapshotWriter {
   }
 
   async writeAlerts(): Promise<void> {
-    const alerts = await this.model.getAlerts();
+    const alerts = this.store.getAlerts();
     await this.writeIfChanged(
       join(this.dataDir, "alerts.json"),
       JSON.stringify(alerts)
@@ -276,8 +279,9 @@ export class SnapshotWriter {
     await this.adoptRebuiltSite();
 
     const now = Date.now();
-    const feedUpdate =
-      (await this.model.getStopsLastUpdatedAt())?.getTime() ?? 0;
+    // Yesterday's expansion does not cover tomorrow.
+    this.store.expandIfStale(now);
+    const feedUpdate = this.store.getPredictionsUpdatedAt()?.getTime() ?? 0;
     const feedMoved = feedUpdate !== this.lastFeedUpdate;
     const minuteTurned =
       Math.floor(now / MINUTE_MS) !== this.lastRenderedMinute;

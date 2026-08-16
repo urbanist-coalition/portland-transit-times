@@ -139,7 +139,12 @@ function renderArrival(arrival, now) {
     ` style="--route-color:${escapeHtml(route.routeColor)}">`,
     `<h3 class="arrival-route">`,
     `<span class="arrival-route-name">${escapeHtml(route.routeShortName)}</span>`,
-    `<span class="arrival-headsign">to ${escapeHtml(trip.tripHeadsign)}</span>`,
+    // A terminating run is an arrival, not a departure: naming its headsign
+    // would read as "to Portland City Hall" while standing at City Hall, with
+    // a countdown, as though it were a bus to catch.
+    arrival.terminates
+      ? `<span class="arrival-headsign arrival-ends">ends here</span>`
+      : `<span class="arrival-headsign">to ${escapeHtml(trip.tripHeadsign)}</span>`,
     `</h3>`,
     `<p class="arrival-times">${times}</p>`,
     countdown,

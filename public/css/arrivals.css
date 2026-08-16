@@ -91,6 +91,12 @@
   font-weight: 500;
 }
 
+/* The bus ends its run here; there is no destination to name. */
+.arrival-ends {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 .arrival-times {
   display: flex;
   align-items: center;

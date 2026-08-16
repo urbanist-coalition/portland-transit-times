@@ -23,17 +23,16 @@ import unzipper from "unzipper";
 
 import { GPMETRO } from "@/lib/constants";
 import { GTFSStatic } from "@/lib/gtfs/static";
-import { loadStatic } from "@/lib/loaders/static";
-import { Model } from "@/lib/model";
+import { StaticSink, loadStatic } from "@/lib/loaders/static";
 import { normalizeFeed } from "@/lib/feed/normalize";
 import { DEFAULT_WINDOW, expandInstances } from "@/lib/feed/expand";
-import { Route, Stop, StopTimeInstance, Trip } from "@/types";
+import { Route, RouteWithShape, Stop, StopTimeInstance, Trip } from "@/types";
 
 /** Keeps whatever the loader writes, instead of writing it anywhere. */
-class RecordingModel implements Partial<Model> {
+class RecordingModel implements StaticSink {
   stops: Stop[] = [];
   trips: Trip[] = [];
-  routes: Route[] = [];
+  routes: RouteWithShape[] = [];
   instances: StopTimeInstance[] = [];
 
   async setStops(stops: Stop[]) {
@@ -42,14 +41,13 @@ class RecordingModel implements Partial<Model> {
   async setTrips(trips: Trip[]) {
     this.trips = trips;
   }
-  async setRoutes(routes: Route[]) {
+  async setRoutes(routes: RouteWithShape[]) {
     this.routes = routes;
   }
   async setStopTimeInstances(instances: StopTimeInstance[]) {
     this.instances = instances;
   }
   async cleanupStopTimeInstances() {}
-  async setStopsLastUpdatedAt() {}
 }
 
 const key = (instance: StopTimeInstance) =>
@@ -104,7 +102,7 @@ async function main() {
 
   console.log("running the current loader...");
   const recorder = new RecordingModel();
-  await loadStatic({ ...GPMETRO }, recorder as unknown as Model, feedDirectory);
+  await loadStatic({ ...GPMETRO }, recorder, feedDirectory);
 
   console.log("running the new one...");
   const feed = await normalizeFeed(feedDirectory);

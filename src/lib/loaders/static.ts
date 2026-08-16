@@ -3,14 +3,33 @@ import { differenceInDays, parse, subDays } from "date-fns";
 import { GTFSStatic, StopTime } from "@/lib/gtfs/static";
 import { gtfsTimestamp } from "@/lib/gtfs/utils";
 import { GTFSSystem } from "@/lib/gtfs/types";
-import { Stop, Route, Location, StopTimeInstance } from "@/types";
-import { Model } from "@/lib/model";
+import {
+  Stop,
+  Route,
+  RouteWithShape,
+  Location,
+  StopTimeInstance,
+  Trip,
+} from "@/types";
 import {
   fixCapitalization,
   normalizeInOutBound,
 } from "@/lib/name-normalization";
 import { indexBy, groupBy } from "@/lib/utils";
 import { generateStopNameOverrides } from "@/lib/loaders/stop-name-deduplication";
+
+/**
+ * What the previous loader writes. It exists only so scripts/compare-loaders.ts
+ * can still run this code against the new pipeline; nothing in the running
+ * system calls it any more.
+ */
+export interface StaticSink {
+  setStops(stops: Stop[]): Promise<void>;
+  setTrips(trips: Trip[]): Promise<void>;
+  setRoutes(routes: RouteWithShape[]): Promise<void>;
+  setStopTimeInstances(instances: StopTimeInstance[]): Promise<void>;
+  cleanupStopTimeInstances(before: Date): Promise<void>;
+}
 
 let hash: string | undefined = undefined;
 
@@ -56,7 +75,7 @@ function buildLastStopNames(
  */
 export async function loadStatic(
   system: GTFSSystem,
-  model: Model,
+  model: StaticSink,
   /**
    * A feed already on disk. The release builder downloads once and hands the
    * same bytes to every step; a comparison run passes a fixed feed so both

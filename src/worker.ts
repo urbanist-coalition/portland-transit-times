@@ -1,74 +1,115 @@
+/**
+ * @file The worker: feeds in, files out.
+ *
+ * Three things happen here, on three clocks.
+ *
+ *   the feed        downloaded when it changes, normalised into the artifact a
+ *                   release carries, and the site rebuilt from it
+ *   realtime        vehicle positions and predictions, every second
+ *   the snapshots   what the pages read, written whenever any of it moves
+ *
+ * There is no database. The schedule is a file on disk and everything else
+ * lives in this process — see lib/feed/store.ts for why that is enough.
+ */
+
 import { CronJob } from "cron";
 
-import { loadStatic } from "@/lib/loaders/static";
-import { GTFSRealtimeLoader } from "@/lib/loaders/realtime";
 import { GPMETRO } from "@/lib/constants";
-import { RedisModel } from "@/lib/model";
+import { writeStaticFeed } from "@/lib/feed/artifact";
+import { normalizeFeed } from "@/lib/feed/normalize";
+import { TransitStore } from "@/lib/feed/store";
+import { GTFSStatic } from "@/lib/gtfs/static";
+import { GTFSRealtimeLoader } from "@/lib/loaders/realtime";
 import { SnapshotWriter } from "@/lib/snapshots";
 
 async function main() {
-  const model = new RedisModel();
+  const dataDir = process.env.DATA_DIR ?? "_data";
+  const siteDir = process.env.SITE_DIR ?? "_site";
+  const artifactPath = process.env.STATIC_FEED ?? `${dataDir}/static.json`;
 
-  // The site is files: nginx serves them, and this is the only thing that
-  // writes them. `_site` is the built HTML, `_data` the JSON the pages poll.
-  const snapshots = new SnapshotWriter(
-    model,
-    process.env.DATA_DIR ?? "_data",
-    process.env.SITE_DIR ?? "_site"
-  );
+  const store = new TransitStore(GPMETRO.timeZone);
+  const snapshots = new SnapshotWriter(store, dataDir, siteDir);
 
-  async function loadStaticGPMetro() {
-    await loadStatic(GPMETRO, model);
-    // Stop names, numbers and route pills live in the HTML, so a new feed
-    // means the pages themselves are out of date, not just their data.
-    await snapshots.buildSite();
-    // The map's labels are built from these by the tile pipeline, which runs
-    // on its own schedule and reads them as a file.
-    await snapshots.writeStopNames();
-    if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
-      await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
+  /**
+   * Downloads the feed if it has changed, writes the artifact, and rebuilds
+   * everything derived from it.
+   *
+   * The artifact is written and then read back rather than kept: the file is
+   * what the site build and the next worker start will use, so loading it here
+   * too means this process is running on exactly what it published.
+   */
+  async function loadFeed() {
+    const gtfs = await GTFSStatic.create(GPMETRO, store.feedHash);
+    try {
+      if (!gtfs.changed && store.loaded) {
+        console.log("[feed] unchanged");
+        return;
+      }
+      if (!(await gtfs.hasRequiredData())) {
+        console.warn("[feed] missing required files, keeping what we have");
+        return;
+      }
+
+      const feed = await normalizeFeed(gtfs);
+      await writeStaticFeed(artifactPath, feed);
+      await store.loadStatic(artifactPath);
+
+      // Stop names, numbers and route pills live in the HTML, so a new feed
+      // means the pages themselves are out of date, not just their data.
+      await snapshots.buildSite();
+      await snapshots.writeStopNames();
+      if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
+        await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
+      }
+    } finally {
+      await gtfs.cleanup();
     }
   }
 
-  // Load the static data once at startup
-  await loadStaticGPMetro();
+  await loadFeed();
 
-  const gtfsRealtimeLoader = new GTFSRealtimeLoader(GPMETRO, model);
+  const realtime = new GTFSRealtimeLoader(GPMETRO, store);
 
-  // This will run every 10 minutes, it is cached so it won't redownload if not changed
+  // The feed is small and rarely changes; most of these are one conditional
+  // request that comes back "not modified".
   CronJob.from({
     cronTime: "0 */10 * * * *",
-    onTick: loadStaticGPMetro,
-    start: true,
-    waitForCompletion: true,
-  });
-
-  // This will run every second
-  CronJob.from({
-    cronTime: "* * * * * *",
-    onTick: gtfsRealtimeLoader.loadVehiclePositions.bind(gtfsRealtimeLoader),
+    onTick: loadFeed,
     start: true,
     waitForCompletion: true,
   });
 
   CronJob.from({
     cronTime: "* * * * * *",
-    onTick: gtfsRealtimeLoader.loadTripUpdates.bind(gtfsRealtimeLoader),
+    onTick: () => realtime.loadVehiclePositions(),
     start: true,
     waitForCompletion: true,
   });
 
-  // This will run every hour
+  CronJob.from({
+    cronTime: "* * * * * *",
+    onTick: () => realtime.loadTripUpdates(),
+    start: true,
+    waitForCompletion: true,
+  });
+
   CronJob.from({
     cronTime: "0 0 * * * *",
-    onTick: gtfsRealtimeLoader.loadServiceAlerts.bind(gtfsRealtimeLoader),
+    onTick: () => realtime.loadServiceAlerts(),
     start: true,
-    // Run when the job is started, useful for shipping changes to the loader
+    // Useful when shipping changes to the loader.
     runOnInit: true,
     waitForCompletion: true,
   });
 
-  // Everything above puts data in Redis; this puts it on disk, where the site
+  // Predictions for departures that have left the window are dead weight.
+  CronJob.from({
+    cronTime: "0 0 4 * * *",
+    onTick: () => store.prunePredictions(),
+    start: true,
+  });
+
+  // Everything above puts data in memory; this puts it on disk, where the site
   // is served from. It decides for itself what has changed, so it is safe to
   // run every second regardless of what the loaders did.
   CronJob.from({
