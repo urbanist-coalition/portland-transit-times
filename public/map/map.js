@@ -25,7 +25,7 @@ import { contrastText, isTooLight } from "/js/colors.js";
 import { compareRouteNames } from "/js/routes.js";
 import { onModeChange, resolvedMode } from "/js/theme.js";
 
-/** Where the tile bundle is served. See next.config.ts and nginx-tiles.conf. */
+/** Where the tile bundle is served: the current release's, via nginx-site.conf. */
 const TILES = "/tiles";
 /** Written by the worker every second, like everything else the site polls. */
 const VEHICLE_ENDPOINT = "/data/vehicle-positions.json";

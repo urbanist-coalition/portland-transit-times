@@ -25,8 +25,8 @@ jobs:
       # The site has to build, or the worker has nothing to fill in.
       - run: npm run site:build
         env:
-          # No Redis in CI, so the stop pages are skipped; this proves the
-          # templates and the config are sound.
+          # No release to read a static.json from, so the stop pages are
+          # skipped; this proves the templates and the config are sound.
           SKIP_STOPS: "1"
 
   build-and-push:

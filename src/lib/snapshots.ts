@@ -42,7 +42,7 @@ const ARRIVALS_END = "<!--arrivals:end-->";
  */
 const ARRIVAL_WINDOW_MINUTES = 10;
 
-/** Stops queried at once. Redis is fast; the point is to not open 650 at once. */
+/** Stops written at once. The work is cheap; the point is to not open 650 files at once. */
 const BATCH = 32;
 
 const MINUTE_MS = 60_000;

@@ -11,16 +11,18 @@ The site is files. nginx serves them, and nothing runs at request time — there
 is no application server, no API, and no framework in the browser.
 
 ```
-GTFS + GTFS-realtime  ->  worker  ->  Redis
-                            |
-                            +-> _site/   pages, built by Eleventy
-                            +-> _data/   the JSON those pages poll
-                                             |
-                                          nginx  ->  reader
+GTFS (schedule)  ->  builder  ->  releases/<id>/  ->  flip `current`
+                                    site/   pages, built by Eleventy
+                                    tiles/  the map bundle
+                                    data/   the JSON those pages poll
+                                        ^
+GTFS-realtime    ->  worker  ---------- +          nginx  ->  reader
 ```
 
-The worker is the only thing that writes. It loads the feeds into Redis, and
-every second it writes out what the pages need:
+A release is built from one feed download and becomes live in a single rename.
+The worker owns nothing static: it polls the realtime feeds, joins them onto
+the current release's schedule, and every second writes out what the pages
+need:
 
 | file | rewritten | why |
 |---|---|---|
@@ -102,7 +104,7 @@ down until nginx restarts.
 To work on templates without running the worker, `npm run site:watch` rebuilds
 `_site` on change; the stop pages will say "Loading arrivals" until the worker
 fills them in. `SKIP_STOPS=1 npm run site:build` builds everything except the
-stop pages, with no Redis at all.
+stop pages, with no feed artifact at all.
 
 ## Deploying
 
