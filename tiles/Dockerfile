@@ -4,7 +4,11 @@
 # `transitmap` (SVG/MVT rendering) are deliberately left out: they produce
 # schematic maps, and this pipeline renders geographically, with MapLibre doing
 # the drawing from vector tiles.
-FROM python:3.12-slim AS loom-builder
+# Pinned to a Debian release rather than floating. This image had stopped
+# building: the base moved to trixie, which renamed libzip4 to libzip5, and an
+# image whose base changes under it is not a reproducible build of anything.
+# Trixie is the one that has both libzip5 and a JDK 21 for planetiler.
+FROM python:3.12-slim-trixie AS loom-builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git ca-certificates cmake g++ make libzip-dev pkg-config \
@@ -22,10 +26,10 @@ RUN mkdir build && cd build && cmake .. && make -j"$(nproc)"
 # The JRE is here for planetiler, which builds the OSM basemap. That step is
 # skipped whenever out/web/basemap.pmtiles already exists, so mounting a volume
 # for out/ means it runs once rather than per container.
-FROM python:3.12-slim
+FROM python:3.12-slim-trixie
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libcairo2 libzip4 curl ca-certificates openjdk-21-jre-headless \
+        libcairo2 libzip5 curl ca-certificates openjdk-21-jre-headless \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=loom-builder /build/loom/build/gtfs2graph /usr/local/bin/

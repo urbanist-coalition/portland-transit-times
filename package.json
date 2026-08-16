@@ -8,6 +8,8 @@
     "presite:watch": "node scripts/copy-map-vendor.mjs",
     "site:watch": "eleventy --watch",
     "worker": "tsx src/worker.ts",
+    "build:release": "tsx src/builder.ts",
+    "build:loop": "tsx src/build-loop.ts",
     "format": "prettier --write \"src/**/*.ts\" \"public/**/*.{js,css}\"",
     "prepare": "husky",
     "test": "jest",

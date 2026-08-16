@@ -11,9 +11,12 @@
 # testing
 /coverage
 
-# build output — the worker writes these into volumes at runtime
+# build output — written into volumes at runtime
 /_site/
 /_data/
+/releases/
+/tiles/out/
+/tiles/data/
 
 # production
 /build

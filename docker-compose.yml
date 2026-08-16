@@ -60,10 +60,11 @@ services:
     expose:
       - "80"
     volumes:
-      - site_html:/usr/share/nginx/html:ro
-      - site_data:/srv/data:ro
-      # The tile bundle built by tiles/, on the host.
-      - ${TILES_DIR:-./tiles}:/srv/tiles:ro
+      # Siblings under /srv, because a release points at its data directory
+      # with a relative symlink. Pages, map and arrivals all come from
+      # whichever release `current` points at.
+      - releases:/srv/releases:ro
+      - live_data:/srv/_data:ro
       - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
     deploy:
       resources:
@@ -87,9 +88,60 @@ services:
     networks:
       - web
 
-  # Feeds in, files out. The only writer on the system, and the only process
-  # holding any state — the schedule is a file it wrote, and a few seconds of
-  # predictions live in its heap.
+  # Makes releases. One feed download becomes the pages, the map and the
+  # schedule, and a symlink flip makes all three live at once. Runs on a timer;
+  # a build that fails publishes nothing and leaves the previous release
+  # serving.
+  builder:
+    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
+    container_name: transit-builder
+    restart: unless-stopped
+    command: npm run build:loop
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          # Enough for loom, which the whole per-feed build was measured
+          # inside. An overrun kills this container and nothing else.
+          memory: 1G
+          cpus: '1.5'
+    volumes:
+      - releases:/srv/releases
+      - live_data:/srv/_data
+      - tiles_work:/app/tiles/out
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - backend
+
+  # The OpenStreetMap basemap: heavy, rare, and nothing to do with the transit
+  # feed. Never starts with the stack.
+  #
+  #   docker compose --profile basemap run --rm basemap
+  basemap:
+    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
+    container_name: transit-basemap
+    profiles: ["basemap"]
+    command: ./tiles/build-basemap.sh
+    environment:
+      - OUT=/app/tiles/out
+      - JAVA_HEAP=768m
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.5'
+    volumes:
+      - tiles_work:/app/tiles/out
+    networks:
+      - backend
+
+  # Keeps the current release live: realtime feeds joined onto its schedule,
+  # written as the files every page polls.
   worker:
     image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
     container_name: transit-worker
@@ -102,12 +154,9 @@ services:
         limits:
           memory: 1G
           cpus: '0.5'
-    environment:
-      - SITE_DIR=/app/_site
-      - DATA_DIR=/app/_data
     volumes:
-      - site_html:/app/_site
-      - site_data:/app/_data
+      - releases:/srv/releases
+      - live_data:/srv/_data
     logging:
       driver: "json-file"
       options:
@@ -117,19 +166,22 @@ services:
       - backend
 
 volumes:
-  # The built pages. Kept on disk rather than in memory so a restart serves the
-  # previous site immediately, instead of 404ing for the half minute the worker
-  # takes to load the feed and rebuild.
-  site_html:
+  # Releases: pages, map and schedule. On disk, so a restart serves the last
+  # one immediately rather than nothing while a build runs.
+  releases:
 
   # The JSON the pages poll, rewritten every few seconds and derived entirely
   # from the release's schedule and the realtime feeds — so it lives in RAM,
   # where rewriting it costs nothing and wears nothing out. Losing it on reboot
   # costs one refresh.
-  site_data:
+  live_data:
     driver_opts:
       type: tmpfs
       device: tmpfs
+
+  # planetiler's downloads and the tile pipeline's intermediates. Kept between
+  # runs so the basemap is not rebuilt for every release.
+  tiles_work:
 
   certs:
   vhost.d:

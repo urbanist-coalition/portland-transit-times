@@ -43,6 +43,9 @@
 #   OVERVIEW_ZOOMS  zoom range served by the merged graph   9-13
 #   DETAIL_ZOOMS    zoom range served by the detail graph  14-16
 #   SOLO_SCALE      width ceiling for a single line      0.5
+#   GTFS_FILE       a feed already on disk, instead of downloading one. The
+#                   release builder passes the bytes it downloaded, so the map
+#                   and the pages are built from one snapshot of the feed.
 #   STOP_NAMES      stop_id -> display name JSON, a path or a URL. The site
 #                   that renders these tiles publishes it at
 #                   /data/stop-names.json; without it the labels fall back to
@@ -67,7 +70,9 @@ FONTS_URL="https://github.com/openmaptiles/fonts/releases/download/v2.0/noto-ope
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENDOR="$SCRIPT_DIR/vendor"
-PY="${PYTHON:-python}"
+# python3 everywhere but a venv, which is what PYTHON is for. The image
+# installs the dependencies globally; a laptop usually has them in tiles/.venv.
+PY="${PYTHON:-python3}"
 WEB="$OUT/web"
 mkdir -p "$OUT" "$WEB" "$VENDOR"
 
@@ -85,12 +90,18 @@ else
     echo "    glyph pack present"
 fi
 
-# The feed is fetched every run, unlike the heavy artefacts, because it is
-# 1.4 MB and it is the one input that changes on its own. Caching it is how a
-# map ends up drawing stops the agency retired months ago, with no sign that
-# anything is wrong.
+# GTFS_FILE is how the release builder hands over the feed it already
+# downloaded, so both halves of a release are built from the same bytes. On its
+# own, the pipeline fetches every run: the feed is 1.4 MB and it is the one
+# input that changes by itself, and caching it is how a map ends up drawing
+# stops the agency retired months ago with no sign that anything is wrong.
 echo "==> GTFS feed"
-curl -fL --retry 3 -o "$OUT/gtfs.zip.new" "$GTFS_URL"
+if [ -n "${GTFS_FILE:-}" ]; then
+    echo "    using $GTFS_FILE"
+    cp "$GTFS_FILE" "$OUT/gtfs.zip.new"
+else
+    curl -fL --retry 3 -o "$OUT/gtfs.zip.new" "$GTFS_URL"
+fi
 if [ -f "$OUT/gtfs.zip" ] && cmp -s "$OUT/gtfs.zip.new" "$OUT/gtfs.zip"; then
     echo "    unchanged since the last build"
     rm -f "$OUT/gtfs.zip.new"

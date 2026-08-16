@@ -1,83 +1,64 @@
 /**
- * @file The worker: feeds in, files out.
+ * @file The worker: realtime in, files out.
  *
- * Three things happen here, on three clocks.
+ * It owns nothing static. The release builder decides what the site is — the
+ * pages, the map, the schedule — and this keeps that release current: it polls
+ * the agency's realtime feeds, joins them onto the release's schedule, and
+ * writes the arrivals every page reads.
  *
- *   the feed        downloaded when it changes, normalised into the artifact a
- *                   release carries, and the site rebuilt from it
- *   realtime        vehicle positions and predictions, every second
- *   the snapshots   what the pages read, written whenever any of it moves
- *
- * There is no database. The schedule is a file on disk and everything else
- * lives in this process — see lib/feed/store.ts for why that is enough.
+ * When a build makes a new release live, the symlink under it changes. That is
+ * the only signal needed: reload the schedule, re-read the pages, carry on.
  */
+
+import { readlink } from "node:fs/promises";
+import { join } from "node:path";
 
 import { CronJob } from "cron";
 
 import { GPMETRO } from "@/lib/constants";
-import { writeStaticFeed } from "@/lib/feed/artifact";
-import { normalizeFeed } from "@/lib/feed/normalize";
 import { TransitStore } from "@/lib/feed/store";
-import { GTFSStatic } from "@/lib/gtfs/static";
 import { GTFSRealtimeLoader } from "@/lib/loaders/realtime";
+import { Releases } from "@/lib/release";
 import { SnapshotWriter } from "@/lib/snapshots";
 
 async function main() {
-  const dataDir = process.env.DATA_DIR ?? "_data";
-  const siteDir = process.env.SITE_DIR ?? "_site";
-  const artifactPath = process.env.STATIC_FEED ?? `${dataDir}/static.json`;
+  const releases = new Releases(
+    process.env.RELEASES_DIR ?? "releases",
+    process.env.DATA_DIR ?? "_data"
+  );
+  const current = releases.currentLink;
 
   const store = new TransitStore(GPMETRO.timeZone);
-  const snapshots = new SnapshotWriter(store, dataDir, siteDir);
+  const snapshots = new SnapshotWriter(
+    store,
+    join(current, "data"),
+    join(current, "site")
+  );
 
-  /**
-   * Downloads the feed if it has changed, writes the artifact, and rebuilds
-   * everything derived from it.
-   *
-   * The artifact is written and then read back rather than kept: the file is
-   * what the site build and the next worker start will use, so loading it here
-   * too means this process is running on exactly what it published.
-   */
-  async function loadFeed() {
-    const gtfs = await GTFSStatic.create(GPMETRO, store.feedHash);
+  /** The release the worker is currently serving, so a flip can be noticed. */
+  let serving: string | null = null;
+
+  async function followCurrentRelease() {
+    let target: string;
     try {
-      if (!gtfs.changed && store.loaded) {
-        console.log("[feed] unchanged");
-        return;
-      }
-      if (!(await gtfs.hasRequiredData())) {
-        console.warn("[feed] missing required files, keeping what we have");
-        return;
-      }
-
-      const feed = await normalizeFeed(gtfs);
-      await writeStaticFeed(artifactPath, feed);
-      await store.loadStatic(artifactPath);
-
-      // Stop names, numbers and route pills live in the HTML, so a new feed
-      // means the pages themselves are out of date, not just their data.
-      await snapshots.buildSite();
-      await snapshots.writeStopNames();
-      if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
-        await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
-      }
-    } finally {
-      await gtfs.cleanup();
+      target = await readlink(current);
+    } catch {
+      console.warn(
+        `[worker] no release yet at ${current} — waiting for a build`
+      );
+      return;
     }
+    if (target === serving) return;
+
+    console.log(`[worker] release ${target}`);
+    await store.loadStatic(join(current, "static.json"));
+    await snapshots.loadShells();
+    serving = target;
   }
 
-  await loadFeed();
+  await followCurrentRelease();
 
   const realtime = new GTFSRealtimeLoader(GPMETRO, store);
-
-  // The feed is small and rarely changes; most of these are one conditional
-  // request that comes back "not modified".
-  CronJob.from({
-    cronTime: "0 */10 * * * *",
-    onTick: loadFeed,
-    start: true,
-    waitForCompletion: true,
-  });
 
   CronJob.from({
     cronTime: "* * * * * *",
@@ -99,6 +80,14 @@ async function main() {
     start: true,
     // Useful when shipping changes to the loader.
     runOnInit: true,
+    waitForCompletion: true,
+  });
+
+  // A build can land at any moment; this is how the worker finds out.
+  CronJob.from({
+    cronTime: "*/5 * * * * *",
+    onTick: followCurrentRelease,
+    start: true,
     waitForCompletion: true,
   });
 

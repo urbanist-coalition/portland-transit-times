@@ -24,16 +24,16 @@ every second it writes out what the pages need:
 
 | file | rewritten | why |
 |---|---|---|
-| `_data/arrivals/<code>.json` | on each feed refresh (~5s) | the stop page polls it as times tick over |
-| `_data/alerts.json` | when alerts change | fetched once per page load |
-| `_data/vehicle-positions.json` | every second | the map's live buses |
-| `_site/stops/<code>/index.html` | on each feed refresh, and each minute | so a stop page arrives with real times in it, not a skeleton |
+| `data/arrivals/<code>.json` | on each feed refresh (~5s) | the stop page polls it as times tick over |
+| `data/alerts.json` | when alerts change | fetched once per page load |
+| `data/vehicle-positions.json` | every second | the map's live buses |
+| `site/stops/<code>/index.html` | on each feed refresh, and each minute | so a stop page arrives with real times in it, not a skeleton |
 
 Identical writes are skipped, so nginx can keep answering conditional requests
 with a 304 instead of resending an unchanged payload.
 
-Stop pages are rebuilt — all 656 of them, in about a second — when the static
-GTFS feed changes, because a stop's name, number and route pills live in its
+Stop pages are rebuilt — all 656 of them, in about a second — whenever the feed
+or the code changes, because a stop's name, number and route pills live in its
 HTML rather than in a payload every visitor downloads.
 
 ### No framework, on purpose
@@ -82,10 +82,15 @@ requirement is HTTP range requests, which nginx does natively for static files
 ## Getting Started
 
 ```bash
-cd tiles && ./pipeline.sh && cd ..   # once: builds the map into tiles/out/web
+npm run build:release              # feed -> releases/<id>, and flips `current`
 docker compose -f docker-compose.dev.yml up -d     # nginx
-npm run worker                                     # feeds -> files
+npm run worker                                     # realtime -> the current release
 ```
+
+The first build needs the map pipeline, which wants Python, a JRE and loom. If
+you have none of those, point it at a bundle someone else built:
+`TILES_FROM=tiles/out/web npm run build:release`. Subsequent builds reuse the
+map whenever the feed has not changed.
 
 Open [http://localhost:8080](http://localhost:8080).
 
@@ -101,11 +106,19 @@ stop pages, with no Redis at all.
 
 ## Deploying
 
-`make run` pulls the worker image and starts the stack: nginx, the worker,
-Redis, and the certificate companion. The worker writes into two volumes the
-site container reads — `site_html` on disk, so a restart serves the previous
-site immediately, and `site_data` in tmpfs, since it is rewritten every few
-seconds and derived entirely from Redis.
+`make run` starts the stack: nginx, the builder, the worker, and the
+certificate companion. Releases live in a volume on disk; the JSON the pages
+poll lives in tmpfs, keyed by release, and the release points at it with a
+relative symlink so one flip switches everything.
 
-Rebuilding the map is a separate job: re-run the tile pipeline and swap
-`TILES_DIR`. Nothing in this repo changes for it.
+The basemap is the exception, and deliberately: it comes from OpenStreetMap
+rather than the transit feed, wants far more memory than anything else here,
+and changes on nobody's schedule. It is a profile of its own, capped so an
+overrun can only kill itself:
+
+```bash
+docker compose --profile basemap run --rm basemap
+```
+
+The next release picks the result up. Its URL carries a content hash, so
+browsers re-fetch those 117 MB only when they have actually changed.

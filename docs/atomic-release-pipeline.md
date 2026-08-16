@@ -1,7 +1,7 @@
 # Atomic release pipeline
 
-**Status:** phase 1 is built — Redis is gone and the schedule is a file.
-Phases 2 to 5 are proposed. Written to be argued with.
+**Status:** built. Every phase below is in the tree; what remains is deploying
+it. Kept as the explanation of why the system has the shape it does.
 
 ## The problem
 
@@ -167,7 +167,7 @@ schedule, where the bug cannot recur.
 the async `Model` interface, and the `SKIP_STOPS` escape hatch in CI — the site
 build reads a file, so it no longer needs a database to run.
 
-## Phase 2 — releases and the flip
+## Phase 2 — releases and the flip  ✅
 
 The builder writes to `releases/<id>.partial`, renames it to `releases/<id>`
 when every step has succeeded, and only then swaps the pointer:
@@ -184,7 +184,7 @@ it changes — the mechanism it already has for noticing an external rebuild.
 Keep three releases; prune the rest. Rollback is the same two commands against
 an older directory.
 
-## Phase 3 — the tiler moves in
+## Phase 3 — the tiler moves in  ✅
 
 The builder image builds both toolchains from one context, with loom compiled
 in a stage of the same Dockerfile that `tiles/Dockerfile` already describes:
@@ -217,7 +217,7 @@ await prune();
 There is no queue, no DAG engine and no Docker socket. Failure handling is
 `try`/`catch`: anything that throws means `flip` is never reached.
 
-## Phase 4 — the basemap, capped
+## Phase 4 — the basemap, capped  ✅
 
 A second cron in the same builder, monthly at 2am, guarded by a lock so it can
 never overlap a release build:
@@ -238,7 +238,7 @@ serving", not "the box fell over".
 Each stage pings its own heartbeat URL, so a wedged `loom` is distinguishable
 from a wedged download rather than both looking like silence.
 
-## Phase 5 — demolition
+## Phase 5 — demolition  ✅
 
 Remove `TILES_DIR`, the worker's own feed download and site build, the
 redis service, and the transitional paths left over from the Next.js
@@ -257,14 +257,14 @@ migration.
 | reboot | pages and tiles serve from disk; arrivals 404 until the first tick, and the pages say their times are stale |
 | basemap overruns memory | its container dies; releases keep using the last good basemap |
 
-## Unknowns worth measuring before building
+## What the measurements said
 
-1. **Does loom fit a capped container** on a 14-route feed? Everything else in
-   the per-feed build is known to be small — `transit.pmtiles` is 0.38 MB and
-   tiling takes seconds.
-2. **Does planetiler complete at `-Xmx768m --storage=mmap`?** The 8 GB in
-   `pipeline.sh` is a default nobody measured; Maine's extract is 87 MB, and
-   the 1.5 GB of sources is global auxiliary data, cached once.
+1. **loom fits.** The whole per-feed build — gtfs2graph, topo, loom twice,
+   tiling, styles and sprites — ran inside `--memory=1g --memory-swap=1g`.
+2. **planetiler is still unmeasured.** `tiles/build-basemap.sh` defaults to
+   `-Xmx768m --storage=mmap` on the reasoning that Maine's extract is 87 MB and
+   the 1.5 GB of sources is global auxiliary data cached once — but the basemap
+   step skips when the archive exists, so no run has proved it yet.
 3. **How much disk is free on the box?** Steady state is ~1.7 GB with sources
    cached, or ~150 MB if they are deleted after each basemap build and
    re-downloaded monthly.

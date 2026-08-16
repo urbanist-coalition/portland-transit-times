@@ -1,5 +1,5 @@
 /**
- * @file Writing the site's live data to disk.
+ * @file Writing the live data of the current release.
  *
  * This is what replaces the API. Instead of a server answering the same
  * question 650 different ways on demand, the worker — which already has every
@@ -17,7 +17,6 @@
  * the first refresh cannot disagree.
  */
 
-import { execFile } from "node:child_process";
 import {
   mkdir,
   readFile,
@@ -27,8 +26,6 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
-import { promisify } from "node:util";
-
 import { subMinutes } from "date-fns";
 
 import { renderArrivals } from "../../public/js/render-arrivals.js";
@@ -49,8 +46,6 @@ const ARRIVAL_WINDOW_MINUTES = 10;
 const BATCH = 32;
 
 const MINUTE_MS = 60_000;
-
-const run = promisify(execFile);
 
 export class SnapshotWriter {
   private shells = new Map<
@@ -78,13 +73,6 @@ export class SnapshotWriter {
 
   private lastFeedUpdate = 0;
   private lastRenderedMinute = 0;
-  /**
-   * The mtime of a page only Eleventy writes, so a build anyone starts — `npm
-   * run site:watch` during development — is noticed and adopted. Without this
-   * the worker would keep splicing arrivals into the shells it read at
-   * startup, quietly overwriting the rebuilt pages with the old templates.
-   */
-  private lastSiteBuild = 0;
 
   constructor(
     private store: TransitStore,
@@ -135,41 +123,6 @@ export class SnapshotWriter {
       });
     }
     console.log(`[snapshots] ${this.shells.size} stop pages ready to fill`);
-  }
-
-  /**
-   * Rebuilds the site, then reloads the shells. Runs when the static GTFS feed
-   * changes — stop names, codes and routes are baked into the HTML, so that is
-   * the moment they are wrong until rebuilt.
-   */
-  async buildSite(): Promise<void> {
-    console.log("[snapshots] rebuilding the site...");
-    try {
-      const { stdout } = await run("node_modules/.bin/eleventy", [], {
-        cwd: process.cwd(),
-      });
-      console.log(stdout.trim().split("\n").at(-1));
-      await this.loadShells();
-    } catch (error) {
-      // A failed build leaves the previous site in place, which is stale but
-      // whole — far better than tearing down a working site over it.
-      console.error("[snapshots] site build failed:", error);
-    }
-  }
-
-  /** Reloads the shells when the site has been rebuilt by anything but us. */
-  private async adoptRebuiltSite(): Promise<void> {
-    let stamp: number;
-    try {
-      stamp = (await stat(join(this.siteDir, "index.html"))).mtimeMs;
-    } catch {
-      return;
-    }
-    if (stamp === this.lastSiteBuild) return;
-
-    // Skips the reload the first time round: loadShells has just run.
-    if (this.lastSiteBuild !== 0) await this.loadShells();
-    this.lastSiteBuild = stamp;
   }
 
   private async writeIfChanged(path: string, content: string): Promise<void> {
@@ -223,33 +176,6 @@ export class SnapshotWriter {
     this.lastRenderedMinute = Math.floor(now / MINUTE_MS);
   }
 
-  /**
-   * Every stop's cleaned-up name, keyed by feed id.
-   *
-   * The names on this site are not the feed's: capitalisation is fixed, known
-   * acronyms are preserved, and stops that share a name are disambiguated by
-   * hand — see lib/name-normalization.ts and the overrides in
-   * loaders/stop-name-deduplication.ts. That is editorial work, so nothing
-   * else should try to reproduce it.
-   *
-   * The map's labels come from the tile pipeline, which is a separate build in
-   * another language, so it reads this file rather than reimplementing any of
-   * it. Published like everything else the worker writes, which means the
-   * pipeline can take it from a running site and be run from anywhere.
-   */
-  async writeStopNames(): Promise<void> {
-    const stops = this.store.stops();
-    const names: Record<string, string> = {};
-    for (const stop of stops) names[stop.stopId] = stop.stopName;
-
-    await mkdir(this.dataDir, { recursive: true });
-    await this.writeIfChanged(
-      join(this.dataDir, "stop-names.json"),
-      JSON.stringify(names, null, 2)
-    );
-    console.log(`[snapshots] ${stops.length} stop names published`);
-  }
-
   async writeVehiclePositions(): Promise<void> {
     const raw = this.store.getVehiclePositionsRaw();
     await this.writeIfChanged(
@@ -276,7 +202,6 @@ export class SnapshotWriter {
    */
   async tick(): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
-    await this.adoptRebuiltSite();
 
     const now = Date.now();
     // Yesterday's expansion does not cover tomorrow.

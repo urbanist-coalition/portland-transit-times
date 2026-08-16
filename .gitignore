@@ -51,8 +51,9 @@ crash.log
 .terraform/
 .terraform.lock.hcl
 
-# Eleventy output
+# Build output: releases and the live data of whichever is current
 /_site/
+/releases/
 
 # Copied out of node_modules by scripts/copy-map-vendor.mjs
 /public/map/vendor/
