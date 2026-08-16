@@ -108,13 +108,18 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/data/")) return;
   if (url.pathname.startsWith("/tiles/")) return;
+  // The manifest decides whether the site can be installed, and a stale copy
+  // of it is indistinguishable from a broken one — the browser reports the
+  // fields it lacks, not the age of what it read. It is 700 bytes and only
+  // ever needed online, so it always comes from the network.
+  if (url.pathname === "/site.webmanifest") return;
 
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  if (/\.(css|js|png|svg|ico|webmanifest)$/.test(url.pathname)) {
+  if (/\.(css|js|png|svg|ico)$/.test(url.pathname)) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });

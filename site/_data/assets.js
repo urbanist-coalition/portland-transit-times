@@ -16,7 +16,6 @@ const ROOT = join(__dirname, "..", "..", "public");
 
 /** Small enough to precache, and needed before anything can render. */
 const DIRECTORIES = ["css", "js"];
-const ALSO = ["site.webmanifest"];
 
 module.exports = function assets() {
   const files = [];
@@ -33,7 +32,7 @@ module.exports = function assets() {
   for (const file of files) hash.update(readFileSync(join(ROOT, file.slice(1))));
 
   return {
-    precache: [...files, ...ALSO.map((name) => `/${name}`)],
+    precache: files,
     version: hash.digest("hex").slice(0, 8),
   };
 };
