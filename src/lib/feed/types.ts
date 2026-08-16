@@ -1,0 +1,36 @@
+import { Route, Stop, Trip } from "@/types";
+
+/**
+ * One scheduled call at a stop, as the feed states it: a time of day on a
+ * service, with no date attached.
+ *
+ * Deliberately timeless. A concrete departure is this crossed with a service
+ * date, which depends on when you ask — see expandInstances.
+ */
+export interface ScheduledCall {
+  tripId: string;
+  stopId: string;
+  sequence: number;
+  /** "HH:MM:SS", and may exceed 24:00:00 for trips running past midnight. */
+  time: string;
+}
+
+/**
+ * Everything the site needs from a GTFS feed, normalised: names cleaned and
+ * disambiguated, routes and trips denormalised where the pages want them, and
+ * nothing derived from the current date.
+ *
+ * This is the artifact a release carries. It is a pure function of the feed,
+ * so the same feed always produces the same file, and a release from last week
+ * is as usable as one from this morning.
+ */
+export interface StaticFeed {
+  /** The feed's ETag, which is what a build is identified by. */
+  feedHash: string | undefined;
+  routes: Route[];
+  trips: Trip[];
+  stops: Stop[];
+  calls: ScheduledCall[];
+  /** service_id -> the dates it runs, from calendar_dates.txt. */
+  serviceDates: Record<string, string[]>;
+}

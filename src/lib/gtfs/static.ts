@@ -142,10 +142,35 @@ export class GTFSStatic {
   hash: string | undefined;
   changed: boolean = false;
   tempDir: string | undefined;
+  /** False when the directory was handed to us and is not ours to delete. */
+  private owned: boolean = true;
 
   static async create(system: GTFSSystem, otherHash?: string) {
     const gtfsStatic = new GTFSStatic(system);
     await gtfsStatic.load(otherHash);
+    return gtfsStatic;
+  }
+
+  /**
+   * A reader over a feed that is already on disk, extracted.
+   *
+   * The release builder downloads the feed once and hands the same bytes to
+   * every step, so most callers read a directory rather than a URL — and it is
+   * what lets a test run the loader over a fixed feed instead of whatever the
+   * agency is publishing this minute.
+   *
+   * Nothing is downloaded and `cleanup()` leaves the directory alone: it
+   * belongs to the caller.
+   */
+  static fromDirectory(directory: string, hash?: string) {
+    const gtfsStatic = new GTFSStatic({
+      staticURL: "",
+      timeZone: "",
+    } as GTFSSystem);
+    gtfsStatic.tempDir = directory;
+    gtfsStatic.hash = hash;
+    gtfsStatic.changed = true;
+    gtfsStatic.owned = false;
     return gtfsStatic;
   }
 
@@ -207,6 +232,9 @@ export class GTFSStatic {
   }
 
   async cleanup() {
+    // A directory we were handed is the caller's, and they may still be
+    // reading it — releasing nothing also means staying usable afterwards.
+    if (!this.owned) return;
     if (this.tempDir) {
       await rm(this.tempDir, { recursive: true, force: true });
       this.tempDir = undefined;

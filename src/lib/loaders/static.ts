@@ -54,8 +54,17 @@ function buildLastStopNames(
  * Downloads the GTFS, extracts it into a temp directory, reads `trips.txt`,
  * saves data to Redis, and then cleans up the temp folder.
  */
-export async function loadStatic(system: GTFSSystem, model: Model) {
-  await using gtfsStatic = await GTFSStatic.create(system, hash);
+export async function loadStatic(
+  system: GTFSSystem,
+  model: Model,
+  /**
+   * A feed already on disk. The release builder downloads once and hands the
+   * same bytes to every step; a comparison run passes a fixed feed so both
+   * readings of it are of the same thing.
+   */
+  provided?: GTFSStatic
+) {
+  await using gtfsStatic = provided ?? (await GTFSStatic.create(system, hash));
   if (!gtfsStatic.changed) {
     console.log("GTFS static data has not changed, skipping load");
     return;
