@@ -1,0 +1,6 @@
+mercantile
+tqdm
+shapely
+cairocffi
+pmtiles
+mapbox-vector-tile
