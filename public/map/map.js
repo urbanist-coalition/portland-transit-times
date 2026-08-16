@@ -451,7 +451,15 @@ async function main() {
     ask();
   });
 
-  const popup = new maplibregl.Popup({ offset: 14, maxWidth: "none" });
+  const popup = new maplibregl.Popup({
+    offset: 14,
+    // A stop on a shared corridor carries a dozen routes, and unbounded they
+    // ran off the side of the screen. Capped, the pills wrap down the page
+    // instead — of which there is plenty, since the popup sits over a map.
+    maxWidth: "17rem",
+    // Tapping the map dismisses it, which is what a finger does anyway.
+    closeButton: false,
+  });
   map.on("click", STOPS_LAYER, (event) => {
     const feature = event.features[0];
     popup
