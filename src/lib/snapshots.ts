@@ -220,6 +220,33 @@ export class SnapshotWriter {
     this.lastRenderedMinute = Math.floor(now / MINUTE_MS);
   }
 
+  /**
+   * Every stop's cleaned-up name, keyed by feed id.
+   *
+   * The names on this site are not the feed's: capitalisation is fixed, known
+   * acronyms are preserved, and stops that share a name are disambiguated by
+   * hand — see lib/name-normalization.ts and the overrides in
+   * loaders/stop-name-deduplication.ts. That is editorial work, so nothing
+   * else should try to reproduce it.
+   *
+   * The map's labels come from the tile pipeline, which is a separate build in
+   * another language, so it reads this file rather than reimplementing any of
+   * it. Published like everything else the worker writes, which means the
+   * pipeline can take it from a running site and be run from anywhere.
+   */
+  async writeStopNames(): Promise<void> {
+    const stops = await this.model.getStops();
+    const names: Record<string, string> = {};
+    for (const stop of stops) names[stop.stopId] = stop.stopName;
+
+    await mkdir(this.dataDir, { recursive: true });
+    await this.writeIfChanged(
+      join(this.dataDir, "stop-names.json"),
+      JSON.stringify(names, null, 2)
+    );
+    console.log(`[snapshots] ${stops.length} stop names published`);
+  }
+
   async writeVehiclePositions(): Promise<void> {
     const raw = await this.model.getVehiclePositionsRaw();
     await this.writeIfChanged(

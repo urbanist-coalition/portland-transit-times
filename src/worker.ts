@@ -22,6 +22,9 @@ async function main() {
     // Stop names, numbers and route pills live in the HTML, so a new feed
     // means the pages themselves are out of date, not just their data.
     await snapshots.buildSite();
+    // The map's labels are built from these by the tile pipeline, which runs
+    // on its own schedule and reads them as a file.
+    await snapshots.writeStopNames();
     if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
       await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
     }
