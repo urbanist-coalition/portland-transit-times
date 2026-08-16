@@ -34,6 +34,7 @@ import gzip
 import io
 import json
 import math
+import re
 import zipfile
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from collections import defaultdict
@@ -80,6 +81,23 @@ def _hex_color(raw: str) -> str:
     if len(h) != 6 or any(c not in "0123456789abcdefABCDEF" for c in h):
         return DEFAULT_COLOR
     return f"#{h.lower()}"
+
+
+def _route_sort_key(short_name: str) -> list:
+    """The order a rider reads a list of routes in.
+
+    Route names mix digits and letters — 1, 9A, 21, 24B, BRZ — so ordering them
+    as text puts 21 and 24A ahead of 4. Comparing the digit runs as numbers
+    gives 1, 2, 4, 5, 7, 8, 9A, 9B, 21, 24A, 24B, BRZ. The tuples keep numbers
+    and text separately comparable, since Python will not order an int against
+    a str.
+
+    Consumers of these tiles sort the same way; see public/js/routes.js in the
+    site that renders them.
+    """
+    parts = re.split(r"(\d+)", short_name)
+    return [(0, int(p), "") if p.isdigit() else (1, 0, p.lower())
+            for p in parts if p]
 
 
 def _width_factor(bundle: int, solo_scale: float) -> float:
@@ -251,7 +269,7 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
         if stop_id not in positions or not rids:
             continue
         pos, name, code = positions[stop_id]
-        ordered = sorted(rids, key=lambda r: (route_info[r][0], r))
+        ordered = sorted(rids, key=lambda r: (_route_sort_key(route_info[r][0]), r))
         key = tuple(ordered)
         if key not in combos:
             sprite = f"pie-{len(combos)}"
