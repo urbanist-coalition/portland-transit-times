@@ -1,70 +1,44 @@
-# dependencies
+# Dependencies are installed in the image, and the vendored copies are taken
+# out of them there — see the copy-map-vendor step in the Dockerfile.
 /node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+/public/map/vendor
 
-# testing
-/coverage
-
-# build output — written into volumes at runtime
+# Build output. Releases, their live data and the tile pipeline's scratch are
+# volumes at runtime; baking a copy into the image would only shadow them.
 /_site/
 /_data/
 /releases/
 /tiles/out/
 /tiles/data/
 
-# production
-/build
+# Leftovers from the Next.js build, if a working tree still has them
+/.next/
+/.swc/
 
-# misc
-.DS_Store
+# Tests
+/coverage
+
+# Secrets: the runtime gets these from env_file, never from a layer
+.env*
 *.pem
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# env files
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-
-# copied out of node_modules by the build (scripts/copy-map-vendor.mjs)
-/public/map/vendor
-
-# scratch data directories
-/public/_data
-/src/_data
-
-# Terraform
-*.tfstate
-*.tfstate.*
-*.tfbackend
-crash.log
-.terraform/
-.terraform.lock.hcl
-
-# Docker nginx-proxy directories
+# Written by the certificate companion on a production host
 /certs/
 /vhost.d/
 /html/
 /acme/
 
-# Docker-specific ignores (not in .gitignore)
+# Tooling scratch
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store
+
+# No use inside the image
 .git
 .gitignore
 docker-compose.yml
-Dockerfile
-README.md
+docker-compose.dev.yml
 .vscode
 .husky
+README.md
+docs/

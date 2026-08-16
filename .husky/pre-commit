@@ -1,1 +1,5 @@
-prettier --check "src/**/*.{ts,tsx}"
+# The same files `npm run format` writes, so a commit cannot land something
+# the formatter would immediately change. The browser modules are half the
+# code here and were not being checked; .prettierignore keeps the vendored
+# MapLibre out of it.
+prettier --check "src/**/*.ts" "public/**/*.{js,css}"

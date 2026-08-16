@@ -113,7 +113,8 @@ comes from OpenStreetMap rather than the transit feed and is built in its own
 container:
 
 ```bash
-make basemap    # ~2 minutes, capped at 1 GB
+cp .env.example .env    # hostname and certificate address, at minimum
+make basemap            # ~2 minutes, capped at 1 GB
 make run
 ```
 
