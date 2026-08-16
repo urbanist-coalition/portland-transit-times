@@ -1,10 +1,10 @@
 /*
  * Map page styles.
  *
- * Tokens, reset, nav and button classes all come from /app.css — the same file
- *   the React pages use. What is left here is the map itself: the full-bleed
- *   canvas, and the MapLibre chrome (popups, controls) dressed to match the
- *   rest of the site.
+ * Tokens, reset, nav and button classes all come from /css/app.css, the same
+ *   stylesheet every other page loads. What is left here is the map itself:
+ *   the full-bleed canvas, and the MapLibre chrome (popups, controls) dressed
+ *   to match the rest of the site.
  */
 
 html,

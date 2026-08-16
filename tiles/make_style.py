@@ -71,8 +71,8 @@ THEMES = {
         "sprite": "sprite",
         "halo": "#ffffff",
         "stop_label": "#333333",
-        # Darker than the grey[700] the React marker used: a stop sits on top
-        # of its own route line, in its own colour, and the ring is the only
+        # Dark enough to read against a saturated route colour: a stop sits on
+        # top of its own line, in its own colour, and this ring is the only
         # thing separating the two.
         "pie_outline": (0.22, 0.22, 0.22),
     },

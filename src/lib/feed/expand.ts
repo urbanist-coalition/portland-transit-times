@@ -71,8 +71,8 @@ export function datesInWindow(
  *
  * Route and trip travel with each instance because that is what the arrivals
  * payload shows and what the renderer reads; they are references to the same
- * objects, not copies, so this costs pointers rather than the 470 bytes a row
- * took in Redis.
+ * objects, not copies, so a departure costs a handful of pointers rather than
+ * its own flattened row.
  */
 export function expandInstances(
   feed: StaticFeed,
@@ -126,8 +126,8 @@ export function expandInstances(
 /**
  * The next `limit` departures at a stop after `after`.
  *
- * A binary search over the sorted array — the job the 656 Redis sorted sets
- * were doing.
+ * A binary search over the array `expandInstances` already sorted, so a stop
+ * page costs a lookup rather than a scan of the day.
  */
 export function departuresAfter(
   instances: StopTimeInstance[],

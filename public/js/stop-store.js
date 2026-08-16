@@ -1,12 +1,12 @@
 /**
  * @file The rider's saved and recently viewed stops.
  *
- * Kept in cookies, in the same two keys and the same JSON shape the React app
- * used, so anyone who has stops saved today still has them after the switch.
- * (Cookies rather than localStorage was originally so the server could render
- * them; nothing renders them on the server any more, but changing the storage
- * would silently drop everyone's stops, which is a far worse trade than a
- * slightly odd choice of store.)
+ * Kept in cookies, under two key names and a JSON shape that predate this
+ * version of the site and are frozen because of it: a rider who saved stops
+ * before the rebuild still has them. Cookies rather than localStorage was
+ * originally so the server could render them, and nothing renders them on the
+ * server any more — but changing the storage now would silently drop
+ * everyone's stops, which is a far worse trade than an odd choice of store.
  */
 
 const SAVED_KEY = "savedStops";

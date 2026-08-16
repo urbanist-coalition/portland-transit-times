@@ -20,7 +20,11 @@ import { CronJob } from "cron";
 
 const run = promisify(execFile);
 
-/** Every ten minutes, matching how often the old worker checked the feed. */
+/**
+ * Every ten minutes. A build that finds the same feed hash exits before doing
+ * any work, so checking often is nearly free — and it is what decides how long
+ * a schedule change sits unpublished.
+ */
 const SCHEDULE = process.env.BUILD_SCHEDULE ?? "0 */10 * * * *";
 
 let building = false;

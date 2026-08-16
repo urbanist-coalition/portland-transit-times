@@ -4,9 +4,9 @@
  * There is no framework here, and no state to keep in sync, because the map is
  *   already complete before this script does anything: every route line and
  *   every stop lives in the vector tile bundle served from /tiles, and MapLibre
- *   draws them straight from the style. The React version had to ship all ~500
- *   stops and every route shape to the browser and re-render markers on each
- *   pan; here that is the renderer's job, over data it fetches by tile.
+ *   draws them straight from the style. The browser fetches only the tiles for
+ *   what it is looking at, so panning and zooming cost a tile request rather
+ *   than a re-render, and nothing here holds the ~500 stops in memory at all.
  *
  * What is left for this file:
  *
@@ -160,7 +160,7 @@ const VEHICLE_SOURCE = "vehicles";
 const ARROW_BOX = 48;
 const ARROW_DOT = 12;
 
-/** Route dot radius, following the old map's 10-24 px icons. */
+/** Route dot radius, 7 px at the city scale growing to 14 px at the street. */
 const VEHICLE_RADIUS = [
   "interpolate",
   ["linear"],
@@ -439,9 +439,9 @@ async function main() {
     // Waits for the style so the first poll has somewhere to put its features.
     startVehiclePolling(map);
 
-    // Centering on the rider is the first thing the old map did once it had a
-    // fix. The control answers its own capability check asynchronously, so
-    // trigger() is a no-op until that lands — hence the few retries.
+    // Centering on the rider is the first thing this page should do once it
+    // has a fix. The control answers its own capability check asynchronously,
+    // so trigger() is a no-op until that lands — hence the few retries.
     if (!navigator.geolocation) return;
     let attempts = 0;
     const ask = () => {

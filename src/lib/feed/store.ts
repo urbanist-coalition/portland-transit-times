@@ -1,10 +1,10 @@
 /**
  * @file What the worker knows, in memory.
  *
- * This replaces Redis. With the API tier gone, exactly one process reads any of
- * this, and the whole of it — a feed's schedule and a few seconds of realtime —
- * fits comfortably in that process's heap. What Redis was providing was a
- * sorted set per stop, which is an array and a binary search.
+ * Exactly one process reads any of this — the worker that wrote it — and the
+ * whole of it, a feed's schedule and a few seconds of realtime, fits
+ * comfortably in that process's heap. So it is plain objects: a sorted array
+ * per stop and a binary search over it, with no database in the middle.
  *
  * Two halves with different lifetimes:
  *
