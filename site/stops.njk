@@ -32,7 +32,7 @@ eleventyComputed:
       <h1 class="stop-name">{{ stop.stopName }}</h1>
       {% if stop.routes.length %}
       <div class="stop-routes">
-        {%- for route in stop.routes %}
+        {%- for route in stop.routes | sortRoutes %}
         <span
           class="pill"
           style="background-color: {{ route.routeColor }}; color: {{ route.routeTextColor | default(route.routeColor | contrastText, true) }}; border-color: {{ 'currentColor' if route.routeColor | tooLight else 'transparent' }}"

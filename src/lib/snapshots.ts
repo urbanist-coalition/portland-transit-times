@@ -75,6 +75,13 @@ export class SnapshotWriter {
 
   private lastFeedUpdate = 0;
   private lastRenderedMinute = 0;
+  /**
+   * The mtime of a page only Eleventy writes, so a build anyone starts — `npm
+   * run site:watch` during development — is noticed and adopted. Without this
+   * the worker would keep splicing arrivals into the shells it read at
+   * startup, quietly overwriting the rebuilt pages with the old templates.
+   */
+  private lastSiteBuild = 0;
 
   constructor(
     private model: Model,
@@ -145,6 +152,21 @@ export class SnapshotWriter {
       // whole — far better than tearing down a working site over it.
       console.error("[snapshots] site build failed:", error);
     }
+  }
+
+  /** Reloads the shells when the site has been rebuilt by anything but us. */
+  private async adoptRebuiltSite(): Promise<void> {
+    let stamp: number;
+    try {
+      stamp = (await stat(join(this.siteDir, "index.html"))).mtimeMs;
+    } catch {
+      return;
+    }
+    if (stamp === this.lastSiteBuild) return;
+
+    // Skips the reload the first time round: loadShells has just run.
+    if (this.lastSiteBuild !== 0) await this.loadShells();
+    this.lastSiteBuild = stamp;
   }
 
   private async writeIfChanged(path: string, content: string): Promise<void> {
@@ -224,6 +246,7 @@ export class SnapshotWriter {
    */
   async tick(): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
+    await this.adoptRebuiltSite();
 
     const now = Date.now();
     const feedUpdate =

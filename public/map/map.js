@@ -22,6 +22,7 @@
  */
 
 import { contrastText, isTooLight } from "/js/colors.js";
+import { compareRouteNames } from "/js/routes.js";
 import { onModeChange, resolvedMode } from "/js/theme.js";
 
 /** Where the tile bundle is served. See next.config.ts and nginx-tiles.conf. */
@@ -120,8 +121,17 @@ function stopPopupHtml(stop) {
   const names = splitList(stop.routes);
   const colors = splitList(stop.route_colors);
   const textColors = splitList(stop.route_text_colors);
+
+  // The three lists are parallel, so they are zipped before sorting or the
+  // colours would come away from their routes.
   const pills = names
-    .map((name, index) => pill(name, colors[index], textColors[index]))
+    .map((name, index) => ({
+      name,
+      color: colors[index],
+      textColor: textColors[index],
+    }))
+    .sort((a, b) => compareRouteNames(a.name, b.name))
+    .map(({ name, color, textColor }) => pill(name, color, textColor))
     .join("");
 
   // A handful of stops in the feed carry no stop_code, and the arrivals pages

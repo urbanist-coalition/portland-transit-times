@@ -12,6 +12,7 @@
  */
 
 import { contrastText, isTooLight } from "./public/js/colors.js";
+import { compareRouteNames } from "./public/js/routes.js";
 
 export default function (eleventyConfig) {
   // `public/` is served verbatim at the site root: stylesheets, the ES modules,
@@ -34,6 +35,14 @@ export default function (eleventyConfig) {
   // filters are the shared module, not a second implementation.
   eleventyConfig.addFilter("contrastText", contrastText);
   eleventyConfig.addFilter("tooLight", (color) => isTooLight(color));
+
+  // The feed lists a stop's routes in whatever order it pleases. Riders read
+  // them in service order, and the map popups use the same comparator.
+  eleventyConfig.addFilter("sortRoutes", (routes) =>
+    [...(routes || [])].sort((a, b) =>
+      compareRouteNames(a.routeShortName, b.routeShortName)
+    )
+  );
 
   return {
     dir: {
