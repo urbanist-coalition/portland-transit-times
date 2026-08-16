@@ -169,6 +169,8 @@ async function buildTiles(
     env: {
       ...process.env,
       OUT: process.env.TILES_OUT ?? "./out",
+      // The basemap is a job of its own; a release build must not start one.
+      REQUIRE_BASEMAP: "1",
       GTFS_FILE: feedZip,
       // resolve, not join: the staging path is absolute in a container and
       // relative on a laptop, and join would happily make /app/srv/releases/…

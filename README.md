@@ -106,6 +106,18 @@ stop pages, with no Redis at all.
 
 ## Deploying
 
+On a new host the basemap has to exist before the first release, because it
+comes from OpenStreetMap rather than the transit feed and is built in its own
+container:
+
+```bash
+make basemap    # ~2 minutes, capped at 1 GB
+make run
+```
+
+A release build refuses to start one, rather than quietly running planetiler
+inside a container sized for loom.
+
 `make run` starts the stack: nginx, the builder, the worker, and the
 certificate companion. Releases live in a volume on disk; the JSON the pages
 poll lives in tmpfs, keyed by release, and the release points at it with a
@@ -122,3 +134,14 @@ docker compose --profile basemap run --rm basemap
 
 The next release picks the result up. Its URL carries a content hash, so
 browsers re-fetch those 117 MB only when they have actually changed.
+
+### Environment
+
+| variable | what it does |
+|---|---|
+| `IMG_TAG` | image tag to run; `make` derives it from the commit |
+| `VIRTUAL_HOST`, `LETSENCRYPT_*` | nginx-proxy and certificates |
+| `BUILD_SCHEDULE` | cron for the release builder (default: every 10 minutes) |
+| `HEARTBEAT_BUILD`, `HEARTBEAT_TILES` | pinged at the start, end and failure of each stage |
+| `TILES_FROM` | use a prebuilt map bundle instead of running the pipeline |
+| `APP_VERSION` | override the commit as the release's version |

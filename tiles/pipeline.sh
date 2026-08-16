@@ -43,6 +43,10 @@
 #   OVERVIEW_ZOOMS  zoom range served by the merged graph   9-13
 #   DETAIL_ZOOMS    zoom range served by the detail graph  14-16
 #   SOLO_SCALE      width ceiling for a single line      0.5
+#   REQUIRE_BASEMAP fail instead of building a missing basemap. The release
+#                   builder sets this: the basemap is a separate, heavier job,
+#                   and doing it inside a release build is how a container
+#                   sized for loom meets planetiler.
 #   GTFS_FILE       a feed already on disk, instead of downloading one. The
 #                   release builder passes the bytes it downloaded, so the map
 #                   and the pages are built from one snapshot of the feed.
@@ -114,6 +118,15 @@ fi
 # data, so it is skipped whenever the archive already exists. Delete it to
 # rebuild against fresher OSM.
 echo "==> Basemap (OpenStreetMap via planetiler)"
+if [ ! -f "$WEB/basemap.pmtiles" ] && [ -n "${REQUIRE_BASEMAP:-}" ]; then
+    echo "    no basemap at $WEB/basemap.pmtiles." >&2
+    echo "    It comes from OpenStreetMap rather than the transit feed and is" >&2
+    echo "    built on its own schedule, in its own container:" >&2
+    echo >&2
+    echo "        docker compose --profile basemap run --rm basemap" >&2
+    echo >&2
+    exit 1
+fi
 if [ ! -f "$WEB/basemap.pmtiles" ]; then
     echo "    building '$AREA' — several minutes, downloads ~1 GB of sources"
     java -Xmx"$JAVA_HEAP" -jar "$VENDOR/planetiler.jar" \

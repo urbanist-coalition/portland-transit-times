@@ -76,6 +76,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      # On a new host there is no release until the builder has made one, and
+      # nginx correctly says 404 in the meantime. Give it room to appear.
+      start_period: 15m
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - LETSENCRYPT_HOST=${VIRTUAL_HOST}
