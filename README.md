@@ -9,14 +9,25 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 ## Getting Started
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d   # redis, and the tile server
-npm run dev
+docker compose -f docker-compose.dev.yml up -d   # redis, nginx for the site and tiles
+npm run worker                                   # feeds -> Redis -> files
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:8080](http://localhost:8080).
 
-Arrival times come from Redis, which the worker (`npm run worker`) fills from
-the GTFS and GTFS-realtime feeds.
+The worker is the only thing that writes. It loads the GTFS and GTFS-realtime
+feeds into Redis, rebuilds the site when the static feed changes, and every
+second writes what the pages need as files: `_data/arrivals/<code>.json`,
+`_data/alerts.json`, `_data/vehicle-positions.json`, and the arrivals block of
+every stop page. nginx serves `_site` and `_data`; nothing runs at request
+time.
+
+To work on templates without the worker, `npm run site:watch` rebuilds `_site`
+on change — the pages will say "Loading arrivals" until the worker fills them
+in.
+
+The Next.js app it replaces is still here and still runs (`npm run dev`, on
+:3000) until the last page has moved.
 
 ## The map
 

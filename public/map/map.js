@@ -25,7 +25,8 @@ import { onModeChange, resolvedMode } from "/js/theme.js";
 
 /** Where the tile bundle is served. See next.config.ts and nginx-tiles.conf. */
 const TILES = "/tiles";
-const VEHICLE_ENDPOINT = "/api/vehicle-positions";
+/** Written by the worker every second, like everything else the site polls. */
+const VEHICLE_ENDPOINT = "/data/vehicle-positions.json";
 const VEHICLE_INTERVAL_MS = 1000;
 const START_CENTER = [-70.2864549, 43.6632339];
 const START_ZOOM = 13;
@@ -365,9 +366,9 @@ function startVehiclePolling(map) {
     try {
       const response = await fetch(VEHICLE_ENDPOINT, {
         // Without this the browser serves its own cached copy and the buses
-        // never move. With it the response is still cached — by Last-Modified,
-        // which is what the 304 below is answering.
-        headers: { "Cache-Control": "no-cache" },
+        // never move. nginx still answers most of these with a 304 from the
+        // file's mtime, which is the cheap part.
+        cache: "no-store",
       });
       if (response.status === 304 || !response.ok) return;
       const positions = await response.json();

@@ -12,6 +12,13 @@ import type { NextConfig } from "next";
  */
 const tilesUrl = process.env.TILES_URL;
 
+/**
+ * Where the worker's JSON snapshots are served, for as long as this app still
+ * hosts the map page. The static site serves them itself at /data; this is
+ * only so the transitional copy on :3000 keeps working.
+ */
+const dataUrl = process.env.DATA_URL;
+
 const nextConfig: NextConfig = {
   async rewrites() {
     return {
@@ -21,6 +28,9 @@ const nextConfig: NextConfig = {
         { source: "/by-location", destination: "/map/index.html" },
         ...(tilesUrl
           ? [{ source: "/tiles/:path*", destination: `${tilesUrl}/:path*` }]
+          : []),
+        ...(dataUrl
+          ? [{ source: "/data/:path*", destination: `${dataUrl}/:path*` }]
           : []),
       ],
       afterFiles: [],
