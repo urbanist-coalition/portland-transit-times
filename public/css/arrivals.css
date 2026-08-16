@@ -1,0 +1,185 @@
+/*
+ * The arrivals list on a stop page.
+ *
+ * The markup is produced by /js/render-arrivals.js — in the worker for the
+ * page's first paint, in the browser as the times tick over — so every class
+ * here is written by that module.
+ */
+
+.arrivals {
+  padding-block: 1rem;
+}
+
+.arrivals-none {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.0625rem;
+}
+
+.arrival {
+  position: relative;
+  margin-bottom: 0.75rem;
+  padding: 0.875rem 1rem 0.875rem 1.25rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+/* The route's color as a stripe down the leading edge of the card */
+.arrival::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 6px;
+  background-color: var(--route-color);
+}
+
+/*
+ * A near-white route color is invisible against a light surface, so the stripe
+ * is dropped there. In dark mode it reads fine and is kept.
+ */
+:root[data-theme="light"] .arrival[data-too-light="true"]::before {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .arrival[data-too-light="true"]::before {
+    display: none;
+  }
+}
+
+.arrival-route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.arrival-route-name {
+  color: var(--route-color);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Too-light route colors are unreadable as text, so fall back to body text */
+.arrival[data-too-light="true"] .arrival-route-name {
+  color: var(--text);
+}
+
+.arrival-headsign {
+  font-weight: 500;
+}
+
+.arrival-times {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The one icon that is a background rather than an <svg>: the renderer has to
+ * run in Node as well as the browser, so it emits no markup it cannot escape,
+ * and a decorative arrow belongs in the stylesheet anyway. Material Symbols
+ * arrow_right_alt — see NOTICE.
+ */
+.arrival-arrow {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background-color: var(--text-muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='m560-240-56-58 142-142H160v-80h486L504-662l56-58 240 240-240 240Z'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+}
+
+.arrival-time-superseded {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.arrival-status {
+  margin-left: 0.375rem;
+  padding: 0.0625rem 0.5rem;
+  border: 1px solid;
+  border-radius: var(--r-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+
+  color: var(--status-color);
+  border-color: color-mix(in srgb, var(--status-color) 40%, transparent);
+  background-color: color-mix(in srgb, var(--status-color) 14%, transparent);
+}
+
+.arrival-status[data-status="ok"] {
+  --status-color: var(--status-ok);
+}
+.arrival-status[data-status="late"] {
+  --status-color: var(--status-late);
+}
+.arrival-status[data-status="early"] {
+  --status-color: var(--status-early);
+}
+.arrival-status[data-status="warn"] {
+  --status-color: var(--status-warn);
+}
+.arrival-status[data-status="idle"] {
+  --status-color: var(--status-idle);
+}
+
+.arrival-countdown {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+/*
+ * Enter and exit animations. Only rows the browser adds or removes carry these
+ * classes — a row that is merely updated keeps its element, so nothing
+ * re-animates when a countdown ticks over.
+ */
+
+.arrival.is-entering {
+  animation: arrival-expand 0.35s ease;
+}
+
+.arrival.is-leaving {
+  animation: arrival-collapse 0.4s ease forwards;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+@keyframes arrival-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes arrival-collapse {
+  from {
+    opacity: 1;
+    /* Comfortably taller than any card, so the height animates the whole way */
+    max-height: 16rem;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-0.25rem);
+  }
+}

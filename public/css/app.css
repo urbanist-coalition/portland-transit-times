@@ -328,6 +328,28 @@ h6 {
 }
 
 /*
+ * Route pill
+ *
+ * Route colours come from the feed, so the three colours are set inline by
+ * whatever renders the pill — see public/js/colors.js for the rules.
+ */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/*
  * Nav menu
  *
  * Global rather than a CSS module because two different pages draw this menu:

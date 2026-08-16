@@ -1,0 +1,85 @@
+---
+pagination:
+  data: stops
+  size: 1
+  alias: stop
+permalink: "/stops/{{ stop.stopCode }}/"
+layout: layout.njk
+styles: ["/css/alerts.css", "/css/stop.css", "/css/arrivals.css"]
+scripts: ["/js/alerts.js", "/js/save-stop.js", "/js/arrivals.js"]
+eleventyComputed:
+  title: "{{ stop.stopName }}"
+  description: "Live arrivals for stop {{ stop.stopCode }}, {{ stop.stopName }}"
+---
+{% from "icon.njk" import icon with context %}
+{#
+  One page per stop, built when the GTFS feed changes. Everything here except
+  the arrivals is a property of the stop, so it is in the HTML: the name, the
+  routes that serve it, the stop number.
+
+  The arrivals block is delimited by comments because the worker rewrites what
+  is between them every few seconds, splicing in the same markup
+  /js/render-arrivals.js produces in the browser. Keep the markers exactly as
+  they are — see the worker's snapshot writer.
+#}
+<main class="container container-md">
+  <header class="surface stop-header">
+    <button type="button" class="icon-btn" data-back aria-label="Go back" title="Go back">
+      {{ icon("arrowBack") }}
+    </button>
+
+    <div class="stop-header-body">
+      <h1 class="stop-name">{{ stop.stopName }}</h1>
+      {% if stop.routes.length %}
+      <div class="stop-routes">
+        {%- for route in stop.routes %}
+        <span
+          class="pill"
+          style="background-color: {{ route.routeColor }}; color: {{ route.routeTextColor | default(route.routeColor | contrastText, true) }}; border-color: {{ 'currentColor' if route.routeColor | tooLight else 'transparent' }}"
+          >{{ route.routeShortName }}</span
+        >
+        {%- endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {#
+      Both stars ship and CSS picks one from aria-pressed, so the icons stay in
+      _data/icons.json and /js/save-stop.js only sets an attribute.
+    #}
+    <button
+      type="button"
+      class="icon-btn save-stop"
+      data-stop-code="{{ stop.stopCode }}"
+      aria-pressed="false"
+      aria-label="Save this stop"
+      title="Save this stop"
+    >
+      <span class="when-unsaved">{{ icon("starOutline") }}</span>
+      <span class="when-saved">{{ icon("star") }}</span>
+    </button>
+  </header>
+
+  {% include "alerts.njk" %}
+
+  <div class="arrivals" id="arrivals" data-stop-code="{{ stop.stopCode }}">
+<!--arrivals:start-->
+<p class="arrivals-none">Loading arrivals…</p>
+<!--arrivals:end-->
+  </div>
+
+  <div class="stop-switch">
+    <a class="btn btn-outline" href="/">Switch Stops</a>
+  </div>
+
+  <section class="stop-pitch">
+    <h2 class="stop-pitch-heading">Tired of waiting?</h2>
+    <p>
+      Join the Urbanist Coalition of Portland! Aside from projects like this
+      website we are advocating to improve Portland's transit network including
+      more frequency. Anyone can get involved regardless of of their
+      background!
+      <a class="link" href="https://urbanistportland.me" target="_blank" rel="noopener noreferrer">Learn more</a>.
+    </p>
+  </section>
+</main>
