@@ -3,8 +3,8 @@
 # tiles. The output directory is plain files; drop it on any host that honours
 # HTTP range requests and you have a map. No tile server, no backend.
 #
-# Every step skips work already on disk, so re-runs are cheap. Delete the
-# artefact you want rebuilt.
+# Every step but the feed download skips work already on disk, so re-runs are
+# cheap. Delete the artefact you want rebuilt.
 #
 # Local usage:
 #   ./pipeline.sh
@@ -43,6 +43,10 @@
 #   OVERVIEW_ZOOMS  zoom range served by the merged graph   9-13
 #   DETAIL_ZOOMS    zoom range served by the detail graph  14-16
 #   SOLO_SCALE      width ceiling for a single line      0.5
+#   STOP_NAMES      stop_id -> display name JSON, a path or a URL. The site
+#                   that renders these tiles publishes it at
+#                   /data/stop-names.json; without it the labels fall back to
+#                   the feed's own shouty, ambiguous names.
 #   OUT             output root                          ./out
 #   JAVA_HEAP       planetiler heap                      8g
 
@@ -54,6 +58,7 @@ MODE="${MODE:-bus}"
 OVERVIEW_ZOOMS="${OVERVIEW_ZOOMS:-9-13}"
 DETAIL_ZOOMS="${DETAIL_ZOOMS:-14-16}"
 SOLO_SCALE="${SOLO_SCALE:-0.5}"
+STOP_NAMES="${STOP_NAMES:-}"
 OUT="${OUT:-./out}"
 JAVA_HEAP="${JAVA_HEAP:-8g}"
 
@@ -80,11 +85,18 @@ else
     echo "    glyph pack present"
 fi
 
+# The feed is fetched every run, unlike the heavy artefacts, because it is
+# 1.4 MB and it is the one input that changes on its own. Caching it is how a
+# map ends up drawing stops the agency retired months ago, with no sign that
+# anything is wrong.
 echo "==> GTFS feed"
-if [ ! -f "$OUT/gtfs.zip" ]; then
-    curl -fL --retry 3 -o "$OUT/gtfs.zip" "$GTFS_URL"
+curl -fL --retry 3 -o "$OUT/gtfs.zip.new" "$GTFS_URL"
+if [ -f "$OUT/gtfs.zip" ] && cmp -s "$OUT/gtfs.zip.new" "$OUT/gtfs.zip"; then
+    echo "    unchanged since the last build"
+    rm -f "$OUT/gtfs.zip.new"
 else
-    echo "    $OUT/gtfs.zip present"
+    mv "$OUT/gtfs.zip.new" "$OUT/gtfs.zip"
+    echo "    new feed: $(cksum < "$OUT/gtfs.zip" | cut -d' ' -f1)"
 fi
 
 # The basemap is the slow, heavy step and has nothing to do with the transit
@@ -109,6 +121,7 @@ echo "==> Transit tiles"
     --gtfs "$OUT/gtfs.zip" \
     --sprite-table "$OUT/stop-sprites.json" \
     --solo-scale "$SOLO_SCALE" \
+    ${STOP_NAMES:+--stop-names "$STOP_NAMES"} \
     --attribution '&copy; OpenStreetMap contributors'
 
 echo "==> Style bundle (style.json, glyphs, sprites, page)"

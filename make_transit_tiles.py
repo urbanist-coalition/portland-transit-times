@@ -35,6 +35,7 @@ import io
 import json
 import math
 import re
+import urllib.request
 import zipfile
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from collections import defaultdict
@@ -195,7 +196,31 @@ def load_edges(path: Path, solo_scale: float) -> list[dict]:
     return out
 
 
-def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
+def load_stop_names(source: str | None) -> dict:
+    """A stop_id -> display name map, published by the site these tiles are for.
+
+    The feed's own stop names are shouty and ambiguous — "FOREST AVE + LIBBY
+    ST", and a dozen stops called "Congress & Forest" facing in four
+    directions. The site fixes capitalisation, keeps known acronyms, and
+    disambiguates the collisions by hand, all of which is editorial work in
+    TypeScript that this pipeline has no business reproducing. So it consumes
+    the result instead, and the map's labels read the same as the site's.
+
+    Takes a path or a URL, so a build can pull the names from a running site
+    without a copy of its database.
+    """
+    if not source:
+        return {}
+    if source.startswith(("http://", "https://")):
+        with urllib.request.urlopen(source, timeout=30) as response:
+            names = json.load(response)
+    else:
+        names = json.loads(Path(source).read_text())
+    print(f"  {len(names)} stop names from {source}")
+    return names
+
+
+def load_gtfs_stops(gtfs: Path, stop_names: dict | None = None) -> tuple[list[dict], dict]:
     """Stops straight from the feed, rather than from loom's graph nodes.
 
     The graph-node version spans the whole corridor, which asserts that every
@@ -246,12 +271,15 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
         if rid in route_info:
             stop_routes[row["stop_id"]].add(rid)
 
+    names = stop_names or {}
     positions = {}
     for row in rd("stops.txt"):
         try:
             positions[row["stop_id"]] = (
                 _to_mercator(float(row["stop_lon"]), float(row["stop_lat"])),
-                (row.get("stop_name") or "").strip(),
+                # The site's name where there is one; the feed's otherwise, so
+                # a stop added since the last publish still gets a label.
+                names.get(row["stop_id"]) or (row.get("stop_name") or "").strip(),
                 # The rider-facing number on the pole, and the only stop
                 # identifier a consuming site can link to — GTFS stop_ids are
                 # feed-internal. Not every stop has one; those get "".
@@ -296,12 +324,23 @@ def load_gtfs_stops(gtfs: Path) -> tuple[list[dict], dict]:
             },
         })
     print(f"  {gtfs}: {len(out)} stops, {len(sprites)} distinct route sets")
+    if names:
+        unnamed = sum(1 for stop_id in stop_routes if stop_id not in names)
+        if unnamed:
+            # Almost always means the two halves read different snapshots of
+            # the feed: stops the agency has since retired are still in this
+            # one, and the site never published names for them because it no
+            # longer knows about them. They will be drawn, labelled with the
+            # feed's own name, and link to a stop page that does not exist.
+            print(f"  WARNING: {unnamed} stops have no published name — is this "
+                  f"feed older than the one the site loaded?")
     return out, sprites
 
 
 def build(sources: list[tuple[Path, int, int]], out_path: Path,
           attribution: str, solo_scale: float, stop_min_zoom: int,
-          gtfs: Path | None, sprite_table: Path | None):
+          gtfs: Path | None, sprite_table: Path | None,
+          stop_names: dict | None = None):
     """Tile from possibly *different* line graphs at different zooms.
 
     A route's two directions on a divided road are ~20 m apart. Zoomed out that
@@ -337,7 +376,7 @@ def build(sources: list[tuple[Path, int, int]], out_path: Path,
 
     gtfs_stops: list[dict] = []
     if gtfs:
-        gtfs_stops, sprites = load_gtfs_stops(gtfs)
+        gtfs_stops, sprites = load_gtfs_stops(gtfs, stop_names)
         if sprite_table:
             sprite_table.parent.mkdir(parents=True, exist_ok=True)
             sprite_table.write_text(json.dumps(sprites, indent=2))
@@ -498,6 +537,10 @@ parser.add_argument("--gtfs", type=Path,
                     help="GTFS feed (zip or dir) for the kerbside stop layer")
 parser.add_argument("--sprite-table", type=Path,
                     help="write the pie sprite table here for make_style.py")
+parser.add_argument("--stop-names", metavar="PATH_OR_URL",
+                    help="JSON map of stop_id -> display name, as published by "
+                         "the site at /data/stop-names.json. Overrides the "
+                         "feed's names, which are shouty and ambiguous.")
 parser.add_argument("--stop-min-zoom", type=int, default=14,
                     help="lowest zoom that carries the stops layer")
 parser.add_argument("--solo-scale", type=float, default=0.5,
@@ -525,4 +568,5 @@ else:
     raise SystemExit("Need a line graph: positional argument or --source")
 
 build(sources, args.output, args.attribution, args.solo_scale,
-      args.stop_min_zoom, args.gtfs, args.sprite_table)
+      args.stop_min_zoom, args.gtfs, args.sprite_table,
+      load_stop_names(args.stop_names))
