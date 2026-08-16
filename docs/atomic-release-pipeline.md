@@ -1,6 +1,7 @@
 # Atomic release pipeline
 
-**Status:** proposed, not built. Written to be argued with.
+**Status:** phase 1 is built — Redis is gone and the schedule is a file.
+Phases 2 to 5 are proposed. Written to be argued with.
 
 ## The problem
 
@@ -51,8 +52,9 @@ one process.
 **Everything runs on the box.** One `docker compose`, one command, nothing
 external. No bucket, no CI artifacts, no registry beyond the image.
 
-**One fat builder image**, composed from the tiler's published image so a
-release is reproducible from one app commit plus one pinned digest.
+**One fat builder image.** The tiler now lives in `tiles/` in this repository
+rather than its own, so the image builds both toolchains from one context and a
+single commit describes both halves of a release.
 
 **Two cadences.** Releases build when the feed changes, because they are cheap
 and riders should not wait a day for a schedule change. The basemap rebuilds
@@ -71,7 +73,7 @@ downtime.
     tiles/           transit.pmtiles, styles, sprites, fonts
                      basemap.pmtiles — hardlink, not a copy
     static.json      the normalised feed the worker reads
-    manifest.json    feed hash, app version, tiler digest, built at
+    manifest.json    feed hash, app version, built at
     data ->          symlink to /srv/data/<build-id>
 /srv/current -> releases/<build-id>
 /srv/data/<build-id>/    arrivals, vehicles, alerts — tmpfs, keyed by build
@@ -115,16 +117,18 @@ A release is identified by what went into it, not when it was made:
 {
   "feedHash": "af3951aa",
   "appVersion": "<git sha>",
-  "tilerImage": "ghcr.io/…/gtfs-route-tiles@sha256:…",
   "builtAt": "2026-08-16T06:00:00Z"
 }
 ```
 
-The builder rebuilds when any of the first three differ from the current
+The tiler used to need pinning here as a third input. It lives in `tiles/` now,
+so one commit describes both halves and `appVersion` covers it.
+
+The builder rebuilds when either of the first two differ from the current
 release. That covers the case a feed hash alone would miss: a template edit
 deploys new code against an unchanged feed and must still produce a release.
 
-## Phase 1 — Redis out, a file in
+## Phase 1 — Redis out, a file in  ✅
 
 Redis holds 71 MB, of which 59.7 MB is one hash: 128,751 expanded stop-time
 instances, each carrying a full copy of its route *and* its trip.
@@ -182,14 +186,15 @@ an older directory.
 
 ## Phase 3 — the tiler moves in
 
-The builder image composes the two toolchains rather than reimplementing
-either:
+The builder image builds both toolchains from one context, with loom compiled
+in a stage of the same Dockerfile that `tiles/Dockerfile` already describes:
 
 ```dockerfile
-FROM ghcr.io/…/gtfs-route-tiles@sha256:… AS tiler
+FROM python:3.12-slim AS loom-builder    # tiles/Dockerfile's first stage
+...
 FROM node:24-bookworm-slim
-COPY --from=tiler /usr/local/bin/gtfs2graph /usr/local/bin/topo /usr/local/bin/loom /usr/local/bin/
-COPY --from=tiler /app /opt/tiler
+COPY --from=loom-builder /build/loom/build/gtfs2graph /usr/local/bin/topo /usr/local/bin/
+COPY tiles/ /opt/tiler/
 RUN apt-get install -y --no-install-recommends python3 openjdk-21-jre-headless …
 ```
 

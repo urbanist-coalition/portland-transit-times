@@ -62,7 +62,7 @@ services:
     volumes:
       - site_html:/usr/share/nginx/html:ro
       - site_data:/srv/data:ro
-      # The tile bundle from the gtfs-route-tiles pipeline, on the host.
+      # The tile bundle built by tiles/, on the host.
       - ${TILES_DIR:-./tiles}:/srv/tiles:ro
       - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
     deploy:

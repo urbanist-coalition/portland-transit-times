@@ -68,9 +68,11 @@ counting a pageview — goes through `whenActivated` in
 ### The map
 
 `/by-location` draws [MapLibre](https://maplibre.org) vector tiles built by the
-[gtfs-route-tiles](https://github.com/urbanist-coalition/gtfs-route-tiles)
-pipeline: an OpenStreetMap basemap and every route and stop, as two PMTiles
-archives with a light and a dark style. The browser fetches only the tiles it
+pipeline in [`tiles/`](tiles/): an OpenStreetMap basemap and every route and
+stop, as two PMTiles archives with a light and a dark style. It is Python and a
+compiled CLI rather than TypeScript, which is why it has its own directory
+rather than its own repository — one commit describes both halves of a
+release. The browser fetches only the tiles it
 is looking at, so there is nothing for a framework to re-render on pan or zoom.
 
 nginx serves that bundle at `/tiles` from `TILES_DIR`. The only hard
@@ -80,13 +82,9 @@ requirement is HTTP range requests, which nginx does natively for static files
 ## Getting Started
 
 ```bash
-# once, in a checkout of gtfs-route-tiles
-./pipeline.sh
-
-# here
-TILES_DIR=/path/to/gtfs-route-tiles/out/web \
-  docker compose -f docker-compose.dev.yml up -d   # redis + nginx
-npm run worker                                     # feeds -> Redis -> files
+cd tiles && ./pipeline.sh && cd ..   # once: builds the map into tiles/out/web
+docker compose -f docker-compose.dev.yml up -d     # nginx
+npm run worker                                     # feeds -> files
 ```
 
 Open [http://localhost:8080](http://localhost:8080).
