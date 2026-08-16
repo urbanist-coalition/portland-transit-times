@@ -149,6 +149,12 @@ echo "==> Transit tiles"
     --attribution '&copy; OpenStreetMap contributors'
 
 echo "==> Style bundle (style.json, glyphs, sprites, page)"
+# Sprite sheets carry a fingerprint of their contents in the filename, so a run
+# that changes them writes new names rather than overwriting the old ones. $WEB
+# persists between runs — it is a volume in production — so without this every
+# sheet the pipeline has ever produced accumulates here and is copied into every
+# release. The styles below name the two that matter; these are the rest.
+rm -f "$WEB"/sprite-*.json "$WEB"/sprite-*.png
 "$PY" "$SCRIPT_DIR/make_style.py" "$WEB" \
     --fonts-zip "$VENDOR/noto-open-sans.zip" \
     --sprite-table "$OUT/stop-sprites.json"
@@ -157,8 +163,8 @@ echo
 echo "==> Done. $WEB is a complete static site:"
 du -sh "$WEB"/* 2>/dev/null | sed 's/^/    /'
 echo
-echo "    Serve it:    $PY serve.py $WEB"
-echo "    Deploy it:   aws s3 sync $WEB s3://your-bucket/"
+echo "    Preview it:  $PY serve.py $WEB"
+echo "    Ship it:     npm run build:release  (copies this into a release)"
 echo
 echo "    Anything that honours HTTP range requests will do — PMTiles is read"
 echo "    by fetching byte ranges, so a server without them serves the whole"

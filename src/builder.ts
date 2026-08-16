@@ -57,6 +57,21 @@ async function link(from: string, to: string): Promise<void> {
   }
 }
 
+/**
+ * Puts a map bundle into the release, minus the pipeline's own entry point.
+ *
+ * `tiles/out/web` is a complete static site on purpose — `tiles/serve.py`
+ * serves it directly, which is how the map is developed without building a
+ * release. That entry point is a bare MapLibre harness that loads its
+ * libraries from unpkg, and a release has no use for it: the site's map is
+ * `/by-location`, with everything vendored. Left in place it would be a second,
+ * unstyled map hanging off `/tiles/` on the public site.
+ */
+async function linkBundle(from: string, to: string): Promise<void> {
+  await link(from, to);
+  await rm(join(to, "index.html"), { force: true });
+}
+
 const releasesDir = process.env.RELEASES_DIR ?? "releases";
 const dataDir = process.env.DATA_DIR ?? "_data";
 const tilesWorkDir = process.env.TILES_WORK_DIR ?? "tiles/out";
@@ -146,7 +161,10 @@ async function buildTiles(
 ): Promise<void> {
   if (reusable) {
     console.log("[build] same feed as the last release: reusing its map");
-    await link(join(releases.path(reusable), "tiles"), join(staging, "tiles"));
+    await linkBundle(
+      join(releases.path(reusable), "tiles"),
+      join(staging, "tiles")
+    );
     return;
   }
 
@@ -159,7 +177,7 @@ async function buildTiles(
    */
   if (process.env.TILES_FROM) {
     console.log(`[build] using the bundle at ${process.env.TILES_FROM}`);
-    await link(process.env.TILES_FROM, join(staging, "tiles"));
+    await linkBundle(process.env.TILES_FROM, join(staging, "tiles"));
     return;
   }
 
@@ -178,7 +196,7 @@ async function buildTiles(
     },
     maxBuffer: 64 * 1024 * 1024,
   });
-  await link(join(tilesWorkDir, "web"), join(staging, "tiles"));
+  await linkBundle(join(tilesWorkDir, "web"), join(staging, "tiles"));
   await beat("tiles");
 }
 
