@@ -91,6 +91,11 @@ npm run worker                                     # feeds -> Redis -> files
 
 Open [http://localhost:8080](http://localhost:8080).
 
+Eleventy does not prune files it no longer copies, so a renamed or deleted
+asset lingers in `_site` until it is cleared by hand — `rm -rf _site/*`, not
+`rm -rf _site`, which would break the container's bind mount and take the site
+down until nginx restarts.
+
 To work on templates without running the worker, `npm run site:watch` rebuilds
 `_site` on change; the stop pages will say "Loading arrivals" until the worker
 fills them in. `SKIP_STOPS=1 npm run site:build` builds everything except the

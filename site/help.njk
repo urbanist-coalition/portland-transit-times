@@ -29,9 +29,17 @@ scripts: ["/js/back.js"]
   </header>
 
   {% call question("What is a stop number?") %}
+    {#
+      600px wide for a 300px slot, so it is sharp on a phone, and lazy because
+      it sits inside a closed <details> that most readers never open.
+    #}
     <img
       class="help-figure"
-      src="/stop-number.png"
+      src="/stop-number.webp"
+      width="600"
+      height="888"
+      loading="lazy"
+      decoding="async"
       alt="A bus stop sign with the stop number highlighted"
     />
     <p>
