@@ -145,12 +145,6 @@ export class GTFSStatic {
   /** False when the directory was handed to us and is not ours to delete. */
   private owned: boolean = true;
 
-  static async create(system: GTFSSystem, otherHash?: string) {
-    const gtfsStatic = new GTFSStatic(system);
-    await gtfsStatic.load(otherHash);
-    return gtfsStatic;
-  }
-
   /**
    * A reader over a feed that is already on disk, extracted.
    *
@@ -178,6 +172,15 @@ export class GTFSStatic {
     this.staticURL = staticURL;
   }
 
+  /**
+   * Fetches the feed and extracts it, if the agency's ETag says it moved.
+   *
+   * Nothing that serves the site takes this route. The release builder
+   * downloads the feed itself and identifies it by a hash of the bytes, which
+   * means the same thing on every host — an ETag only means something to the
+   * server that issued it. What is left here is for the one-off scripts in
+   * `src/scripts/`, which want the current feed and have nowhere to get one.
+   */
   async load(otherHash?: string): Promise<boolean> {
     try {
       this.hash = await fetchETag(this.staticURL);
