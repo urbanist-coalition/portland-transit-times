@@ -13,11 +13,18 @@
  * second and undo the browser's text selection along with it.
  */
 
+import { whenActivated } from "/js/activation.js";
 import { renderArrivals } from "/js/render-arrivals.js";
 
 const POLL_MS = 1000;
 /** Must match the .is-leaving animation in arrivals.css. */
 const LEAVING_MS = 400;
+/**
+ * How old the times may get before the page says so. The feed moves every five
+ * seconds, so a minute and a half of silence means something is wrong — no
+ * signal, or a worker that has stopped writing.
+ */
+const STALE_AFTER_MS = 90_000;
 
 const container = document.getElementById("arrivals");
 const stopCode = container?.dataset.stopCode;
@@ -25,6 +32,13 @@ const stopCode = container?.dataset.stopCode;
 /** null until the first successful fetch: the page's own HTML stands in. */
 let arrivals = null;
 let lastModified = null;
+/**
+ * When the times on screen were worked out. Seeded from the page itself, which
+ * the worker stamped as it wrote it, so a page restored from the cache with no
+ * network knows how old it is.
+ */
+let dataAt =
+  Number(container?.querySelector(".arrivals-stale")?.dataset.at) || 0;
 const leavingTimers = new Map();
 
 const scratch = document.createElement("div");
@@ -48,7 +62,9 @@ function reconcile(fresh) {
     ])
   );
 
-  let previous = null;
+  // Rows go after the staleness notice, which is the first thing the renderer
+  // emits and the one element here that is not replaced on every pass.
+  let previous = container.querySelector(".arrivals-stale");
   for (const freshRow of freshRows) {
     const key = freshRow.dataset.key;
     let row = existing.get(key);
@@ -112,6 +128,26 @@ async function poll() {
 
   lastModified = response.headers.get("last-modified") || lastModified;
   arrivals = await response.json();
+  dataAt = Date.now();
+}
+
+/**
+ * Says how old the times are, once they are old enough to mislead. Runs on
+ * every tick rather than after a render, because the case that matters is the
+ * one where no render ever happens: offline, with the page as it was cached.
+ */
+function markStale() {
+  const notice = container.querySelector(".arrivals-stale");
+  if (!notice) return;
+
+  const age = Date.now() - dataAt;
+  if (!dataAt || age < STALE_AFTER_MS) {
+    notice.hidden = true;
+    return;
+  }
+  const minutes = Math.max(1, Math.round(age / 60_000));
+  notice.textContent = `Not updating — these times are about ${minutes} min old`;
+  notice.hidden = false;
 }
 
 async function tick() {
@@ -119,11 +155,13 @@ async function tick() {
     await poll();
   } catch {
     // A dropped poll is not worth reporting: the next one is a second away,
-    // and the times already on the page are still the best we have.
+    // and the times already on the page are still the best we have. What is
+    // worth reporting is a run of them, which markStale does.
   }
   // Runs whether or not the poll brought anything new: the countdowns are
   // relative to now, so they change on their own.
   paint();
+  markStale();
 }
 
 if (container && stopCode) {
@@ -144,5 +182,8 @@ if (container && stopCode) {
   document.addEventListener("visibilitychange", () =>
     document.hidden ? stop() : start()
   );
-  start();
+
+  // Nor does a prerendered page: the times it was born with are correct as of
+  // when the worker wrote them, and polling can wait until someone arrives.
+  whenActivated(start);
 }

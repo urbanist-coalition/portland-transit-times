@@ -50,6 +50,21 @@ first paint and the first refresh cannot disagree. `public/js/package.json`
 marks that directory as ESM so Node can import the very files the browser
 loads.
 
+### Installable, and useful with no signal
+
+`site/sw.njk` builds a service worker that precaches every stylesheet and
+module — the list and the cache name are generated from their contents, so
+adding a file cannot leave it uncached and a deploy retires the old cache by
+itself. Pages are network-first with a cache fallback; `/data/` is never
+cached, because a cached arrivals snapshot is a lie told confidently. When the
+times on screen get older than ninety seconds the page says so.
+
+Links are prerendered through speculation rules, which is what removes the
+browser's loading bar between pages. A prerendered page runs its scripts, so
+anything with an effect beyond drawing — polling, recording a recent stop,
+counting a pageview — goes through `whenActivated` in
+`public/js/activation.js` and waits until the reader actually arrives.
+
 ### The map
 
 `/by-location` draws [MapLibre](https://maplibre.org) vector tiles built by the

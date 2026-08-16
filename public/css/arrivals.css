@@ -17,6 +17,21 @@
   font-size: 1.0625rem;
 }
 
+/*
+ * Shown only once the times on screen are old enough to mislead — offline, or
+ * a worker that has stopped writing. /js/arrivals.js decides.
+ */
+.arrivals-stale {
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--status-warn) 40%, transparent);
+  border-radius: var(--r-md);
+  background-color: color-mix(in srgb, var(--status-warn) 14%, transparent);
+  color: var(--status-warn);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 .arrival {
   position: relative;
   margin-bottom: 0.75rem;

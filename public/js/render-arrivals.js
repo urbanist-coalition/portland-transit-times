@@ -158,8 +158,14 @@ export function renderArrivals(arrivals, now = Date.now()) {
       now - STALE_THRESHOLD_MS
   );
 
+  // When these times were worked out. The page can be served from a service
+  // worker cache long after that — on a platform with no signal, which is
+  // exactly when a rider is reading it — so the reader gets told rather than
+  // shown month-old departures as though they were live.
+  const stamp = `<p class="arrivals-stale" data-at="${now}" hidden></p>`;
+
   if (live.length === 0) {
-    return `<p class="arrivals-none">No upcoming arrivals</p>`;
+    return `${stamp}<p class="arrivals-none">No upcoming arrivals</p>`;
   }
-  return live.map((arrival) => renderArrival(arrival, now)).join("");
+  return stamp + live.map((arrival) => renderArrival(arrival, now)).join("");
 }

@@ -1,0 +1,120 @@
+---
+permalink: /sw.js
+eleventyExcludeFromCollections: true
+---
+/**
+ * @file The service worker.
+ *
+ * Deliberately a safety net rather than a speed layer. The site is already
+ * static files behind nginx, so there is little for a cache to win — but a
+ * rider is often underground, on a platform, or on one bar of signal, and the
+ * difference between "here are the times as of a minute ago" and a browser
+ * error page is the whole product.
+ *
+ * The rules follow from what each thing is:
+ *
+ *   pages    network first, falling back to the last copy we saw. Online you
+ *            always get the current times; offline you get the page.
+ *   assets   stale while revalidate. Stylesheets and modules are unhashed and
+ *            change only on deploy, so serving yesterday's for one load and
+ *            updating behind it is the right trade.
+ *   /data/   never cached. A cached arrivals snapshot is a lie told
+ *            confidently — if the network is gone, the times already rendered
+ *            into the page are the honest answer, and the page says when they
+ *            were written.
+ *   /tiles/  not handled at all. PMTiles archives are read with range
+ *            requests, and a 206 is not something the Cache API stores.
+ */
+
+/**
+ * Named after a fingerprint of every stylesheet and module, so a deploy that
+ * changes any of them lands in a fresh cache and the old one is dropped on
+ * activation. Nothing to remember to bump.
+ */
+const CACHE = "ucp-transit-{{ assets.version }}";
+
+/**
+ * Enough for a cold start with no network: the pages a first visit can reach,
+ * and every stylesheet and module the site has — all of it together is smaller
+ * than one photograph. The list is generated; see site/_data/assets.js.
+ */
+const PRECACHE = [
+  "/",
+  "/help/",
+  "/404.html",
+{%- for file in assets.precache %}
+  "{{ file }}",
+{%- endfor %}
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches
+      .open(CACHE)
+      // One missing file should not fail the whole install, so they are added
+      // individually and failures are tolerated.
+      .then((cache) =>
+        Promise.allSettled(PRECACHE.map((url) => cache.add(url)))
+      )
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(names.filter((name) => name !== CACHE).map((name) => caches.delete(name)))
+      )
+      .then(() => self.clients.claim())
+  );
+});
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) cache.put(request, response.clone());
+    return response;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    // Nothing for this URL, but the shell is there — better than the browser's
+    // error page, and every page on this site links back to somewhere useful.
+    const fallback = await cache.match("/404.html");
+    if (fallback) return fallback;
+    throw error;
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  const network = fetch(request)
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => cached);
+  return cached || network;
+}
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/data/")) return;
+  if (url.pathname.startsWith("/tiles/")) return;
+
+  if (request.mode === "navigate") {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  if (/\.(css|js|png|svg|ico|webmanifest)$/.test(url.pathname)) {
+    event.respondWith(staleWhileRevalidate(request));
+  }
+});
