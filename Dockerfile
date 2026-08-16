@@ -1,29 +1,35 @@
-FROM node:24-alpine
+# The worker image. There is no server image: nginx serves the site from the
+# files this writes, out of a shared volume.
+#
+# It carries the site build as well as the loaders, because building the site
+# is one of the worker's jobs — stop names and route pills live in the HTML, so
+# a new GTFS feed means new pages.
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+FROM node:24-alpine
 
 WORKDIR /app
 
-# Copy package files for better layer caching
+# Package files first, so a source change doesn't reinstall the world
 COPY package*.json ./
 
-# Install all dependencies (including dev for build)
-RUN npm ci
+# Eleventy and tsx are runtime dependencies here: the worker shells out to one
+# and is executed by the other.
+RUN npm ci --omit=dev
 
-# Copy source code
 COPY . .
 
-# Build the Next.js app
-RUN npm run build
+# MapLibre and the PMTiles shim are copied out of node_modules for the map page
+# to load directly. The site build does this too, but doing it here means the
+# image is complete before it runs.
+RUN node scripts/copy-map-vendor.mjs
 
-# Create non-root user
 RUN addgroup --system --gid 1001 appgroup
 RUN adduser --system --uid 1001 appuser
 
+# The site and data directories are volumes shared with nginx, and the worker
+# is the only writer.
+RUN mkdir -p /app/_site /app/_data && chown -R appuser:appgroup /app/_site /app/_data
+
 USER appuser
 
-EXPOSE 3000
-
-# Default command (can be overridden in docker-compose)
-CMD ["npm", "start"]
+CMD ["npm", "run", "worker"]

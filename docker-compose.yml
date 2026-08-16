@@ -51,75 +51,32 @@ services:
     networks:
       - web
 
-  webservice:
-    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
-    container_name: transit-webservice
-    restart: unless-stopped
-    expose:
-      - "3000"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    command: npm start
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - VIRTUAL_HOST=${VIRTUAL_HOST}
-      # Everything except /tiles/ is this app. Both containers on the host have
-      # to declare a path once either of them does, or nginx-proxy has no rule
-      # for the one that didn't.
-      - VIRTUAL_PATH=/
-      - LETSENCRYPT_HOST=${VIRTUAL_HOST}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - web
-      - backend
-    depends_on:
-      - redis
-
-  # The map: routes, stops and basemap as vector tiles, built by the
-  # gtfs-route-tiles pipeline and served as plain files. nginx-proxy sends
-  # /tiles/ here rather than to the app, so PMTiles range reads — many small
-  # requests into a 117 MB archive — never touch Node.
-  #
-  # TILES_DIR is the pipeline's `out/web` directory, copied onto the host.
-  tile-server:
+  # The whole site: pages, the JSON they poll, and the vector tiles. Static
+  # files and nothing else — no application server is involved in a request.
+  site:
     image: nginx:alpine
-    container_name: transit-tiles
+    container_name: transit-site
     restart: unless-stopped
     expose:
       - "80"
     volumes:
-      - ${TILES_DIR:-./tiles}:/usr/share/nginx/html:ro
-      - ./nginx-tiles.conf:/etc/nginx/conf.d/default.conf:ro
+      - site_html:/usr/share/nginx/html:ro
+      - site_data:/srv/data:ro
+      # The tile bundle from the gtfs-route-tiles pipeline, on the host.
+      - ${TILES_DIR:-./tiles}:/srv/tiles:ro
+      - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
     deploy:
       resources:
         limits:
           memory: 128M
-          cpus: '0.25'
+          cpus: '0.5'
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/style.json"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
       interval: 30s
       timeout: 5s
       retries: 3
     environment:
       - VIRTUAL_HOST=${VIRTUAL_HOST}
-      # /tiles/style.json on the public host reaches this container as
-      # /style.json, which is how the bundle is laid out on disk.
-      - VIRTUAL_PATH=/tiles/
-      - VIRTUAL_DEST=/
       - LETSENCRYPT_HOST=${VIRTUAL_HOST}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     logging:
@@ -130,6 +87,7 @@ services:
     networks:
       - web
 
+  # Feeds in, files out. The only writer on the system.
   worker:
     image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
     container_name: transit-worker
@@ -141,9 +99,14 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: '0.25'
+          cpus: '0.5'
     environment:
       - REDIS_URL=redis://redis:6379
+      - SITE_DIR=/app/_site
+      - DATA_DIR=/app/_data
+    volumes:
+      - site_html:/app/_site
+      - site_data:/app/_data
     logging:
       driver: "json-file"
       options:
@@ -174,6 +137,19 @@ services:
       - backend
 
 volumes:
+  # The built pages. Kept on disk rather than in memory so a restart serves the
+  # previous site immediately, instead of 404ing for the half minute the worker
+  # takes to load the feed and rebuild.
+  site_html:
+
+  # The JSON the pages poll, rewritten every few seconds and derived entirely
+  # from Redis — so it lives in RAM, where rewriting it costs nothing and wears
+  # nothing out. Losing it on reboot costs one refresh.
+  site_data:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
   redis_data:
   certs:
   vhost.d:
@@ -185,4 +161,3 @@ networks:
     external: false
   backend:
     external: false
-

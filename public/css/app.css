@@ -352,10 +352,8 @@ h6 {
 /*
  * Nav menu
  *
- * Global rather than a CSS module because two different pages draw this menu:
- *   the React component (`components/nav-menu.tsx`) and the map page
- *   (`public/map/index.html`), which is plain HTML with no bundler to hash
- *   class names for it. Same classes, same markup, one stylesheet.
+ * Rendered from `site/_includes/nav.njk` on every page, with its behaviour in
+ *   `public/js/nav.js`.
  */
 
 .nav {

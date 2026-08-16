@@ -4,9 +4,9 @@ Third-party notices
 Material Symbols
 ----------------
 
-The SVG path data in src/components/icons.tsx and public/map/index.html is
-taken from Google's Material Symbols, which are licensed under the Apache
-License, Version 2.0:
+The SVG path data in site/_data/icons.json, and the arrow in
+public/css/arrivals.css, is taken from Google's Material Symbols, which are
+licensed under the Apache License, Version 2.0:
 
     https://github.com/google/material-design-icons
 
@@ -14,14 +14,14 @@ Specifically the Outlined style at weight 400, from symbols/web/ in that
 repository. A copy of the Apache License 2.0 is included at
 LICENSE-APACHE-2.0.txt.
 
-The paths are reproduced verbatim; only the surrounding markup is our own. Google's project ships no NOTICE file of its own, and its README
-states that attribution is appreciated but not required. This notice is
-provided anyway.
+The paths are reproduced verbatim; only the surrounding markup is our own.
+Google's project ships no NOTICE file of its own, and its README states that
+attribution is appreciated but not required. This notice is provided anyway.
 
 Instagram mark
 --------------
 
-The Instagram glyph in src/components/icons.tsx is NOT part of Google's
+The Instagram glyph in site/_data/icons.json is NOT part of Google's
 Material Icons set and is NOT covered by the Apache 2.0 grant above. It is a
 trademark of Meta Platforms, Inc., displayed here solely to link to the
 Urbanist Coalition of Portland's own Instagram presence.

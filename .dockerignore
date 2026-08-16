@@ -11,9 +11,9 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
+# build output — the worker writes these into volumes at runtime
+/_site/
+/_data/
 
 # production
 /build
@@ -35,13 +35,11 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # copied out of node_modules by the build (scripts/copy-map-vendor.mjs)
 /public/map/vendor
 
-# data directories
-/_data
+# scratch data directories
 /public/_data
 /src/_data
 

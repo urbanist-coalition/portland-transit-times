@@ -16,6 +16,14 @@ const Redis = require("ioredis");
 const STOP_HASH = "stops";
 
 module.exports = async function stops() {
+  // CI builds the site to prove the templates and config are sound, with no
+  // Redis to read. Without stops there are no stop pages, which is fine for
+  // that purpose and never what you want anywhere else.
+  if (process.env.SKIP_STOPS) {
+    console.log("[stops] SKIP_STOPS set — building without stop pages");
+    return [];
+  }
+
   const redis = new Redis(process.env.REDIS_URL || "redis://127.0.0.1:6379", {
     maxRetriesPerRequest: 2,
     // A build that silently produces a site with no stops is worse than one
