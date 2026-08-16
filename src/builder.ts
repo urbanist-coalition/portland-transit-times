@@ -19,7 +19,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import unzipper from "unzipper";
@@ -170,7 +170,9 @@ async function buildTiles(
       ...process.env,
       OUT: process.env.TILES_OUT ?? "./out",
       GTFS_FILE: feedZip,
-      STOP_NAMES: join(process.cwd(), staging, "stop-names.json"),
+      // resolve, not join: the staging path is absolute in a container and
+      // relative on a laptop, and join would happily make /app/srv/releases/…
+      STOP_NAMES: resolve(staging, "stop-names.json"),
     },
     maxBuffer: 64 * 1024 * 1024,
   });

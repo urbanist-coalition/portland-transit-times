@@ -261,11 +261,11 @@ migration.
 
 1. **loom fits.** The whole per-feed build — gtfs2graph, topo, loom twice,
    tiling, styles and sprites — ran inside `--memory=1g --memory-swap=1g`.
-2. **planetiler is still unmeasured.** `tiles/build-basemap.sh` defaults to
-   `-Xmx768m --storage=mmap` on the reasoning that Maine's extract is 87 MB and
-   the 1.5 GB of sources is global auxiliary data cached once — but the basemap
-   step skips when the archive exists, so no run has proved it yet.
-3. **How much disk is free on the box?** Steady state is ~1.7 GB with sources
+2. **planetiler fits too.** A full basemap rebuild finished in 1 minute 40
+   seconds with `-Xmx768m --storage=mmap` inside `--memory=1g`, producing the
+   same 112 MB archive. The 8 GB the pipeline used to default to was an
+   assumption nobody had tested, and it was out by an order of magnitude.
+3. **How much disk is free on the box?** Still unanswered. Steady state is ~1.7 GB with sources
    cached, or ~150 MB if they are deleted after each basemap build and
    re-downloaded monthly.
 4. **How long does a per-feed release take end to end?** It sets how stale the

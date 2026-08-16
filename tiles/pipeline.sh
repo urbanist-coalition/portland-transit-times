@@ -51,7 +51,7 @@
 #                   /data/stop-names.json; without it the labels fall back to
 #                   the feed's own shouty, ambiguous names.
 #   OUT             output root                          ./out
-#   JAVA_HEAP       planetiler heap                      8g
+#   JAVA_HEAP       planetiler heap                      768m
 
 set -euo pipefail
 
@@ -63,7 +63,7 @@ DETAIL_ZOOMS="${DETAIL_ZOOMS:-14-16}"
 SOLO_SCALE="${SOLO_SCALE:-0.5}"
 STOP_NAMES="${STOP_NAMES:-}"
 OUT="${OUT:-./out}"
-JAVA_HEAP="${JAVA_HEAP:-8g}"
+JAVA_HEAP="${JAVA_HEAP:-768m}"
 
 PLANETILER_URL="https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar"
 FONTS_URL="https://github.com/openmaptiles/fonts/releases/download/v2.0/noto-open-sans.zip"

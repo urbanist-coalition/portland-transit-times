@@ -35,13 +35,15 @@ if [ ! -f "$VENDOR/planetiler.jar" ]; then
 fi
 
 # Written beside the live one and moved into place, so a failed or killed run
-# leaves the existing basemap serving.
+# leaves the existing basemap serving. The temporary name keeps the .pmtiles
+# suffix: planetiler picks its archive format from the extension and rejects
+# anything else.
 echo "==> building '$AREA' with -Xmx$JAVA_HEAP --storage=$STORAGE"
 java -Xmx"$JAVA_HEAP" -jar "$VENDOR/planetiler.jar" \
     --download --area="$AREA" --storage="$STORAGE" \
-    --output="$WEB/basemap.pmtiles.new" --force
+    --output="$WEB/basemap.new.pmtiles" --force
 
-mv "$WEB/basemap.pmtiles.new" "$WEB/basemap.pmtiles"
+mv "$WEB/basemap.new.pmtiles" "$WEB/basemap.pmtiles"
 echo "==> done: $(du -h "$WEB/basemap.pmtiles" | cut -f1)"
 echo "    the next release will pick it up; its URL carries a content hash, so"
 echo "    browsers fetch it again only because it actually changed."

@@ -42,7 +42,9 @@ COPY --from=loom /build/loom/build/loom       /usr/local/bin/
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+# --ignore-scripts because `prepare` installs git hooks, which an image has no
+# use for and no husky to run. Nothing here builds native code at install time.
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY tiles/requirements.txt ./tiles/
 RUN pip3 install --no-cache-dir --break-system-packages -r tiles/requirements.txt
