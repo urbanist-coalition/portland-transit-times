@@ -21,6 +21,7 @@
  * appearance is a different style document, not a different palette.
  */
 
+import { contrastText, isTooLight } from "/js/colors.js";
 import { onModeChange, resolvedMode } from "/js/theme.js";
 
 /** Where the tile bundle is served. See next.config.ts and nginx-tiles.conf. */
@@ -81,40 +82,6 @@ async function loadStyle(mode) {
   return style;
 }
 
-/* ------------------------------------------------------------ route colors */
-
-/**
- * WCAG relative luminance, and the two rules the site draws from it. Ported
- * from lib/utils.ts — the popups have to pill routes exactly the way the
- * arrivals pages do, and this page cannot import from the bundle.
- */
-function relativeLuminance(hexColor) {
-  const hex = hexColor.replace("#", "");
-  const full =
-    hex.length === 3
-      ? hex
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : hex;
-  const channel = (value) =>
-    value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
-  const r = channel(parseInt(full.substring(0, 2), 16) / 255);
-  const g = channel(parseInt(full.substring(2, 4), 16) / 255);
-  const b = channel(parseInt(full.substring(4, 6), 16) / 255);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** Black or white, whichever has the better contrast on this background. */
-function contrastText(hexColor) {
-  return relativeLuminance(hexColor) > 0.179 ? "#1a1a1a" : "#ffffff";
-}
-
-/** Very light routes need an outline or they vanish against the surface. */
-function isTooLight(hexColor) {
-  return relativeLuminance(hexColor) > 0.8;
-}
-
 /* ------------------------------------------------------------ stop popups */
 
 function escapeHtml(value) {
@@ -169,7 +136,7 @@ function stopPopupHtml(stop) {
       ${pills ? `<div class="map-popup-routes">${pills}</div>` : ""}
       ${
         code
-          ? `<a class="btn btn-primary map-popup-action" href="/stops/${encodeURIComponent(code)}">View Arrivals</a>`
+          ? `<a class="btn btn-primary map-popup-action" href="/stops/${encodeURIComponent(code)}/">View Arrivals</a>`
           : ""
       }
     </div>
@@ -359,6 +326,7 @@ function addVehicleLayers(map) {
 function startVehiclePolling(map) {
   let timer = null;
   let inFlight = false;
+  let succeeded = false;
 
   async function poll() {
     if (inFlight) return;
@@ -370,7 +338,8 @@ function startVehiclePolling(map) {
         // file's mtime, which is the cheap part.
         cache: "no-store",
       });
-      if (response.status === 304 || !response.ok) return;
+      if (response.status === 304) return;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const positions = await response.json();
 
       // The source is attached on style load and gone again for the moment a
@@ -384,8 +353,13 @@ function startVehiclePolling(map) {
         features: vehicleFeatures(map, positions),
       };
       source.setData(vehicleData);
-    } catch {
-      // A dropped poll is not worth reporting: the next one is a second away.
+      succeeded = true;
+    } catch (error) {
+      // A dropped poll is not worth reporting — the next one is a second away
+      // — but a feed that has never arrived is, because no buses and a broken
+      // feed look exactly the same on the map.
+      console.error("vehicle poll failed:", error);
+      if (!succeeded) showError(`Live buses unavailable: ${error.message}`);
     } finally {
       inFlight = false;
     }

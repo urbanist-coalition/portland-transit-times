@@ -6,7 +6,7 @@ pagination:
 permalink: "/stops/{{ stop.stopCode }}/"
 layout: layout.njk
 styles: ["/css/alerts.css", "/css/stop.css", "/css/arrivals.css"]
-scripts: ["/js/alerts.js", "/js/save-stop.js", "/js/arrivals.js"]
+scripts: ["/js/back.js", "/js/alerts.js", "/js/save-stop.js", "/js/arrivals.js"]
 eleventyComputed:
   title: "{{ stop.stopName }}"
   description: "Live arrivals for stop {{ stop.stopCode }}, {{ stop.stopName }}"

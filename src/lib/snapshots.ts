@@ -18,7 +18,14 @@
  */
 
 import { execFile } from "node:child_process";
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -48,7 +55,7 @@ export class SnapshotWriter {
     { path: string; head: string; tail: string }
   >();
   /**
-   * The last content written to each path.
+   * What was last written to each path, and the mtime it had afterwards.
    *
    * Skipping identical writes is not about disk — the data directory is a few
    * megabytes of tmpfs. It is about `Last-Modified`: nginx answers the page's
@@ -56,8 +63,15 @@ export class SnapshotWriter {
    * contents did not change turns a 304 into a fresh 7 KB download, once a
    * second, on a phone. Most stops do change on any given refresh; the quiet
    * ones, and every stop overnight, are the ones this protects.
+   *
+   * The mtime is what makes the skip safe. A site build — `npm run site:watch`
+   * during development, say — replaces these files underneath us with empty
+   * shells, and a stop whose arrivals happen not to have changed since would
+   * otherwise keep the placeholder until its next departure, which overnight
+   * is hours. So the write is skipped only when the file on disk is still the
+   * one we put there.
    */
-  private written = new Map<string, string>();
+  private written = new Map<string, { content: string; mtimeMs: number }>();
 
   private lastFeedUpdate = 0;
   private lastRenderedMinute = 0;
@@ -134,14 +148,21 @@ export class SnapshotWriter {
   }
 
   private async writeIfChanged(path: string, content: string): Promise<void> {
-    if (this.written.get(path) === content) return;
+    const previous = this.written.get(path);
+    if (previous?.content === content) {
+      try {
+        if ((await stat(path)).mtimeMs === previous.mtimeMs) return;
+      } catch {
+        // Gone. Write it again.
+      }
+    }
 
     // Written and renamed rather than written in place: a poll landing
     // mid-write would otherwise read half a file.
     const temporary = `${path}.tmp`;
     await writeFile(temporary, content);
     await rename(temporary, path);
-    this.written.set(path, content);
+    this.written.set(path, { content, mtimeMs: (await stat(path)).mtimeMs });
   }
 
   async writeArrivals(now: number): Promise<void> {
