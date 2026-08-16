@@ -70,7 +70,10 @@ THEMES = {
         "sprite": "sprite",
         "halo": "#ffffff",
         "stop_label": "#333333",
-        "pie_outline": (0.38, 0.38, 0.38),   # MUI grey[700], as the React StopIcon used
+        # Darker than the grey[700] the React marker used: a stop sits on top
+        # of its own route line, in its own colour, and the ring is the only
+        # thing separating the two.
+        "pie_outline": (0.22, 0.22, 0.22),
     },
     "dark": {
         "style": "style-dark.json",
@@ -79,9 +82,9 @@ THEMES = {
         # through the label rather than as a second stroke around it.
         "halo": "#0e0e0e",
         "stop_label": "#e9edf1",
-        # Deliberately well below white: the ring is a fixed fraction of a
-        # 14-24 px marker, so a bright outline reads as a halo, not an edge.
-        "pie_outline": (0.50, 0.53, 0.57),
+        # Still short of white — a ring this thick reads as a halo if it is
+        # too bright — but light enough to cut a route line in half.
+        "pie_outline": (0.68, 0.71, 0.75),
     },
 }
 
@@ -226,11 +229,12 @@ def _transit_layers(theme: dict) -> list[dict]:
             "type": "symbol",
             "source": "transit",
             "source-layer": "gtfs_stops",
-            "minzoom": 15,
+            "minzoom": 14,
             "layout": {
                 "icon-image": ["get", "sprite"],
                 "icon-size": ["interpolate", ["linear"], ["zoom"],
-                              15, 14 / PIE_PX, 18, 20 / PIE_PX, 20, 24 / PIE_PX],
+                              14, 12 / PIE_PX, 15, 16 / PIE_PX,
+                              18, 23 / PIE_PX, 20, 27 / PIE_PX],
                 "icon-allow-overlap": True,
                 "icon-ignore-placement": True,
             },
@@ -352,6 +356,9 @@ def extract_fonts(zip_path: Path, out_dir: Path, fonts: set[str]):
 # Pie markers for the kerbside stop layer. Drawn at PIE_PX and scaled by the
 # style, following draw_stops.py's zoomIconSizes table (14px at z15 -> 24 at z20).
 PIE_PX = 24
+# Ring width in the same units the pie is drawn in, so it scales with the
+# marker. Wide enough to survive being drawn over a line of its own colour.
+PIE_OUTLINE_PX = 4.0
 
 
 def _draw_pie(ctx, cx, cy, size, colors, ratio, outline_rgb):
@@ -364,7 +371,10 @@ def _draw_pie(ctx, cx, cy, size, colors, ratio, outline_rgb):
     make, and it is wrong about at 72% of multi-route stops.
     """
     import math as _m
-    outline = max(1.0, size / 14.0) * ratio
+    # `size` already carries the pixel ratio, so the ring must not be scaled by
+    # it twice — which it was, leaving the @2x sheet with a ring twice the
+    # relative width of the @1x one.
+    outline = PIE_OUTLINE_PX * ratio
     radius = size / 2.0 - outline / 2.0
     n = len(colors)
     if n == 1:
