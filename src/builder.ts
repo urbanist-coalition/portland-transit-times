@@ -148,10 +148,12 @@ async function buildSite(staging: string): Promise<void> {
 /**
  * Builds the map, or reuses the last one.
  *
- * The tile pipeline is slow and depends only on the feed, so a release that
- * carries the same feed as the previous one links to its bundle rather than
- * spending minutes reproducing it — which is the common case when a template
- * change triggers the build.
+ * The tile pipeline is slow and its *data* depends only on the feed, so a
+ * release that carries the same feed as the previous one links to its bundle
+ * rather than spending minutes reproducing it — which is the common case when a
+ * template change triggers the build. TILES_FROM overrides that, and is how a
+ * style change ships: an unchanged feed would otherwise relink the old map
+ * forever.
  */
 async function buildTiles(
   staging: string,
@@ -159,25 +161,30 @@ async function buildTiles(
   feedZip: string,
   reusable: string | null
 ): Promise<void> {
-  if (reusable) {
-    console.log("[build] same feed as the last release: reusing its map");
-    await linkBundle(
-      join(releases.path(reusable), "tiles"),
-      join(staging, "tiles")
-    );
-    return;
-  }
-
   /*
    * A bundle someone else built. The pipeline needs Python, a JRE and loom,
    * which the builder image has and a laptop generally does not — and CI wants
    * to prove a release assembles without spending five minutes on a map. Stated
    * explicitly rather than inferred, so a production build that cannot run the
    * pipeline fails instead of quietly shipping a stale map.
+   *
+   * Checked before the reuse below, because the reuse is an inference from the
+   * feed and this is an instruction. The map is not a pure function of the
+   * feed — the style is code — so a change to how the map looks reaches a
+   * release only by naming the rebuilt bundle here.
    */
   if (process.env.TILES_FROM) {
     console.log(`[build] using the bundle at ${process.env.TILES_FROM}`);
     await linkBundle(process.env.TILES_FROM, join(staging, "tiles"));
+    return;
+  }
+
+  if (reusable) {
+    console.log("[build] same feed as the last release: reusing its map");
+    await linkBundle(
+      join(releases.path(reusable), "tiles"),
+      join(staging, "tiles")
+    );
     return;
   }
 

@@ -34,7 +34,9 @@ Montserrat; everything else about the design is untouched.
 
 The transit layers go in above roads, buildings and boundaries but beneath
 every label, and do their line bundling with a data-driven `line-offset` —
-see make_transit_tiles.py for where those attributes come from.
+see make_transit_tiles.py for where those attributes come from. The one
+exception is the stop markers, which go on top of the whole style; see
+build_style for why.
 """
 
 import hashlib
@@ -56,6 +58,10 @@ ATTRIBUTION = (
 
 # Base stroke width per zoom, matching the raster renderer's max(1, z - 8).
 WIDTH_STOPS = [(9, 1), (10, 2), (14, 6), (18, 10)]
+
+# The one transit layer that does not go in with the others — build_style lifts
+# it to the top of the style.
+STOPS_LAYER = "transit-stops-pie"
 
 # Everything about the transit layers that depends on which appearance the
 # style is for. The basemap's half of that difference is CARTO's, already baked
@@ -179,7 +185,7 @@ def _transit_layers(theme: dict) -> list[dict]:
                 # Deliberately opaque. The raster renderer drew routes at 0.75
                 # because it composited them onto a basemap PNG that already
                 # had labels baked in — translucency was the only way to keep
-                # street names readable underneath. Here the transit layers sit
+                # street names readable underneath. Here the route lines sit
                 # below every symbol layer, so labels draw on top and the
                 # workaround is unnecessary. Opacity 1 also makes the
                 # double-blend at overlapping geometry structurally impossible.
@@ -225,8 +231,10 @@ def _transit_layers(theme: dict) -> list[dict]:
             # than on it, which is under 4 px at z16, and is where the pole is.
             #
             # allow-overlap is on because these are positional markers, not
-            # labels: dropping one would misinform.
-            "id": "transit-stops-pie",
+            # labels: dropping one would misinform. For the same reason
+            # build_style puts this layer above everything else in the style —
+            # a marker half-hidden under a street name points at no kerb at all.
+            "id": STOPS_LAYER,
             "type": "symbol",
             "source": "transit",
             "source-layer": "gtfs_stops",
@@ -352,11 +360,26 @@ def build_style(src: Path, out: Path, basemap: str, transit: str,
         len(style["layers"]),
     )
     transit_layers = _transit_layers(theme)
-    style["layers"][insert_at:insert_at] = transit_layers
-    fonts_used.update(transit_layers[1]["layout"]["text-font"])
+    for layer in transit_layers:
+        stack = (layer.get("layout") or {}).get("text-font")
+        if stack:
+            fonts_used.update(stack)
+
+    # Stop markers are the exception to "below every label". They are the one
+    # thing on this map someone walks towards, and the basemap's street names
+    # are drawn last, so anywhere a name crosses a pole the marker loses. Lift
+    # that layer to the very top and let the labels be the ones interrupted.
+    # It costs nothing in decluttering: the layer ignores placement entirely,
+    # so its position in the order changes what covers what and nothing else.
+    on_top = [l for l in transit_layers if l["id"] == STOPS_LAYER]
+    style["layers"][insert_at:insert_at] = [
+        l for l in transit_layers if l["id"] != STOPS_LAYER
+    ]
+    style["layers"].extend(on_top)
 
     print(f"Inserted transit layers at index {insert_at} "
-          f"(after '{style['layers'][insert_at - 1]['id']}')")
+          f"(after '{style['layers'][insert_at - 1]['id']}'), "
+          f"{STOPS_LAYER} on top")
 
     validate(style)
 

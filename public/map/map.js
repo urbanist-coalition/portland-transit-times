@@ -32,8 +32,15 @@ const VEHICLE_ENDPOINT = "/data/vehicle-positions.json";
 const VEHICLE_INTERVAL_MS = 1000;
 const START_CENTER = [-70.2864549, 43.6632339];
 const START_ZOOM = 13;
-/** Stops draw above vehicles: a bus must never hide the stop it is heading to. */
+/** The stop markers: what a tap on a stop hits. Topmost layer in the style. */
 const STOPS_LAYER = "transit-stops-pie";
+/**
+ * Vehicles go in under the stop names, which puts them above the route lines
+ * and below the basemap's labels. Stops sit above them either way, since the
+ * marker layer is on top of everything — a bus must never hide the stop it is
+ * heading to.
+ */
+const VEHICLE_INSERT_BEFORE = "transit-stop-labels";
 
 const errorBox = document.getElementById("map-error");
 
@@ -279,7 +286,9 @@ function addVehicleLayers(map) {
 
   map.addSource(VEHICLE_SOURCE, { type: "geojson", data: vehicleData });
 
-  const before = map.getLayer(STOPS_LAYER) ? STOPS_LAYER : undefined;
+  const before = map.getLayer(VEHICLE_INSERT_BEFORE)
+    ? VEHICLE_INSERT_BEFORE
+    : undefined;
   map.addLayer(
     {
       id: "vehicle-dot",
