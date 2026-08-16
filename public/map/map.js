@@ -35,12 +35,14 @@ const START_ZOOM = 13;
 /** The stop markers: what a tap on a stop hits. Topmost layer in the style. */
 const STOPS_LAYER = "transit-stops-pie";
 /**
- * Vehicles go in under the stop names, which puts them above the route lines
- * and below the basemap's labels. Stops sit above them either way, since the
- * marker layer is on top of everything — a bus must never hide the stop it is
- * heading to.
+ * Vehicles go directly under the stop markers, which is the top of the style —
+ * so a bus covers street names and stop names rather than being cut up by them.
+ * A bus is the one thing on this map that is only true for a second, and a
+ * label it happens to sit under is not worth losing it to.
+ *
+ * The stop markers stay above: a bus must never hide the stop it is heading to.
  */
-const VEHICLE_INSERT_BEFORE = "transit-stop-labels";
+const VEHICLE_INSERT_BEFORE = STOPS_LAYER;
 
 const errorBox = document.getElementById("map-error");
 
@@ -163,80 +165,210 @@ function stopPopupHtml(stop) {
 /* ---------------------------------------------------------- live vehicles */
 
 const VEHICLE_SOURCE = "vehicles";
-/** Logical size of the bearing arrow image, drawn for a 12 px dot. */
-const ARROW_BOX = 48;
-const ARROW_DOT = 12;
+/**
+ * The badge is drawn once per route, heading and appearance at this reference
+ * radius, then scaled by icon-size. The box has to hold the badge at every
+ * heading, so it is sized off the nose — the furthest any part of the shape
+ * gets from the center it turns around — with room for the casing.
+ */
+const BADGE_RADIUS = 10;
+const BADGE_BOX = 46;
+/** Route number size inside that badge, before icon-size scales the image. */
+const BADGE_TEXT = 11;
 
-/** Route dot radius, 7 px at the city scale growing to 14 px at the street. */
-const VEHICLE_RADIUS = [
+/**
+ * The heading is baked into the image rather than applied with icon-rotate, so
+ * it has to be quantized: 24 steps, 15 degrees each, at most 7.5 degrees from
+ * the reported bearing. That is finer than the feed's own bearings are stable,
+ * and on a shape this blunt it is not a difference anyone can see.
+ *
+ * It also bounds what this costs. A badge exists per route per step — twelve
+ * routes and a round badge for the bearingless, so at most a few hundred small
+ * images, reached only if every bus is seen at every heading.
+ */
+const BEARING_STEPS = 24;
+
+/**
+ * Where the number appears — the zoom the route numbers along the lines come
+ * in at, so the map starts naming routes in both places at once rather than
+ * having buses labelled while the lines they run on are still anonymous. It is
+ * transit-route-labels' minzoom in tiles/make_style.py; if that moves, this
+ * follows it.
+ *
+ * Below it the badge is drawn without a number: at a city-wide view that is
+ * three or four pixels of ink resolving into a smudge, and a smudge on every
+ * bus is worse than none. The arrow still says where the buses are and which
+ * way they are going, which is what that view is for.
+ *
+ * Baked-in text means this is a different image rather than a text layer being
+ * hidden, so both are drawn: at most twice the badges, still a few hundred.
+ */
+const LABEL_ZOOM = 13;
+
+/**
+ * Scales the badge by the size its number comes out at — 9.5 px where the
+ * number arrives, 11 at the street — and below that by how small a bare arrow
+ * can get and still read: a third of full size at the city scale, where the
+ * marker's whole job is "a bus is here, going that way".
+ *
+ * The badge grows most of the way to full size across the single zoom level
+ * below LABEL_ZOOM, and barely at all above it. That is what pulling the
+ * number earlier costs: a number is only worth drawing at a size someone can
+ * read, and the badge is built around the number, so the two arrive together.
+ * The alternative was labelling buses while the badge was still a dart.
+ *
+ * This is the dial for the marker's size, since everything in the badge is
+ * proportional to its number.
+ */
+const VEHICLE_ICON_SIZE = [
   "interpolate",
   ["linear"],
   ["zoom"],
   12,
-  7,
+  4 / BADGE_TEXT,
+  LABEL_ZOOM,
+  9.5 / BADGE_TEXT,
   16,
-  11,
+  11 / BADGE_TEXT,
   20,
-  14,
-];
-/** Scales the arrow with the dot: the image is drawn for a radius of 12. */
-const VEHICLE_ARROW_SIZE = [
-  "interpolate",
-  ["linear"],
-  ["zoom"],
-  12,
-  7 / ARROW_DOT,
-  16,
-  11 / ARROW_DOT,
-  20,
-  14 / ARROW_DOT,
+  12.5 / BADGE_TEXT,
 ];
 
 let vehicleData = { type: "FeatureCollection", features: [] };
 
-/** Two-letter route names do not fit in the dot, so the long ones abbreviate. */
+/** Two-letter route names do not fit in the badge, so the long ones abbreviate. */
 function vehicleLabel(routeShortName) {
   if (routeShortName === "HSK") return "H";
   if (routeShortName === "BRZ") return "B";
   return routeShortName;
 }
 
-function outlineColor() {
-  return resolvedMode() === "dark" ? "#ffffff" : "#000000";
+/**
+ * The ring around the badge, in the basemap's own background color.
+ *
+ * A bus sits on the line it is running, in that line's color, so a badge with
+ * no ring has nothing to separate it from what it stands on. The ring reads as
+ * a gap in the line rather than as a stroke around the badge, which is why it
+ * is the background color and not an ink.
+ */
+function casingColor() {
+  return resolvedMode() === "dark" ? "#0e0e0e" : "#ffffff";
+}
+
+/** Traces a polygon with every corner rounded by the same radius. */
+function roundedPoly(context, points, radius) {
+  const midpoint = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const start = midpoint(points[points.length - 1], points[0]);
+  context.beginPath();
+  context.moveTo(start[0], start[1]);
+  for (let i = 0; i < points.length; i += 1) {
+    const corner = points[i];
+    const next = midpoint(corner, points[(i + 1) % points.length]);
+    context.arcTo(corner[0], corner[1], next[0], next[1], radius);
+    context.lineTo(next[0], next[1]);
+  }
+  context.closePath();
 }
 
 /**
- * An arrow in the route's own color, added to the style on demand.
+ * The whole marker — badge, heading and route number — as one image, added to
+ * the style on demand.
  *
- * One image per color rather than a single recolorable SDF: an SDF would blur
- * a shape this small, and there are only ever as many colors as there are
- * routes. Style images do not survive setStyle(), so this is called again for
- * every visible color whenever the appearance changes.
+ * Nose forward, stern flat. The flat back is the point of the shape: anything
+ * that tapers behind reads as a comet tail, and a comet's tail points where it
+ * came *from* — riders reported buses looking like they ran backwards. A blunt
+ * stern has no such second reading.
+ *
+ * The number is drawn into the image rather than left to a text layer, and that
+ * is what fixes the interleaving. A symbol layer draws every icon and then
+ * every label, in two passes, so one bus's number lands on top of another bus's
+ * badge even when that badge is on top: overlapping markers came apart into
+ * their pieces. One image per bus means the stack is decided per bus.
+ *
+ * The badge hangs off the anchor rather than being centered on it: the number
+ * sits at 0,0 with the nose ahead of it and the stern behind, so a bus's
+ * position is where its number is, and the digits stay centered at every
+ * heading rather than swinging towards the nose.
+ *
+ * A drawn image rather than a recolorable SDF: an SDF would blur a shape this
+ * small. Style images do not survive setStyle(), so every visible badge is
+ * drawn again whenever the appearance changes — which is also what repaints the
+ * casing in the new theme's color.
  */
-function ensureArrowImage(map, color) {
-  const id = `vehicle-arrow-${color}`;
+function ensureBadgeImage(map, { label, color, textColor, bearing }, numbered) {
+  const step =
+    typeof bearing === "number"
+      ? ((Math.round(bearing / (360 / BEARING_STEPS)) % BEARING_STEPS) +
+          BEARING_STEPS) %
+        BEARING_STEPS
+      : null;
+  const id = `vehicle-${color}-${numbered ? label : "plain"}-${
+    step === null ? "flat" : step
+  }`;
   if (map.hasImage(id)) return id;
 
   const ratio = 2;
-  const size = ARROW_BOX * ratio;
+  const size = BADGE_BOX * ratio;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext("2d");
+  context.translate(size / 2, size / 2);
+  context.scale(ratio, ratio);
 
-  const center = size / 2;
-  const radius = ARROW_DOT * ratio;
-  context.beginPath();
-  context.moveTo(center, center - radius - 10 * ratio);
-  context.lineTo(center - 6 * ratio, center - radius);
-  context.lineTo(center + 6 * ratio, center - radius);
-  context.closePath();
+  const r = BADGE_RADIUS;
+  context.save();
+  if (step === null) {
+    // The feed leaves bearing out for some vehicles. Rather than point a nose
+    // in a direction nobody reported, those keep a round badge.
+    context.beginPath();
+    context.arc(0, 0, r * 1.1, 0, Math.PI * 2);
+  } else {
+    // GTFS bearing is degrees clockwise from true north, and the badge is drawn
+    // nose-up, so the step is the rotation. It bakes in, which means the badge
+    // no longer turns with the map — but neither does a bus's heading.
+    context.rotate((step * (360 / BEARING_STEPS) * Math.PI) / 180);
+    // A square holding the number, with the same triangle on both ends: one
+    // pointing out at the nose, one cut back in at the stern. Matching them
+    // makes the shape read as a single arrow rather than a badge with things
+    // added to it, and the notch is the second thing saying which end is which
+    // — a tail cut inwards is how every arrow ever drawn ends.
+    //
+    // The triangles are as deep as the square is wide, a 90 degree nose. The
+    // sharper the point, the more the shape narrows where the number needs to
+    // be, and this is a shape that has to hold "24A" at 8 px.
+    const w = 1.1 * r;
+    roundedPoly(
+      context,
+      [
+        [0, -2 * w],
+        [w, -w],
+        [w, 2 * w],
+        [0, w],
+        [-w, 2 * w],
+        [-w, -w],
+      ],
+      0.28 * r
+    );
+  }
   context.fillStyle = color;
   context.fill();
-  // Pale routes need the same outline the dot has, or the arrow disappears.
-  context.lineWidth = ratio;
-  context.strokeStyle = outlineColor();
+  context.lineJoin = "round";
+  context.lineWidth = 2;
+  context.strokeStyle = casingColor();
   context.stroke();
+  context.restore();
+
+  if (numbered) {
+    // Upright whatever the badge is doing, in the site's own face rather than
+    // the map's: this is drawn by the browser, not set in glyphs like the stop
+    // names are.
+    context.font = `700 ${BADGE_TEXT}px ${getComputedStyle(document.body).fontFamily}`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = textColor;
+    context.fillText(label, 0, 0.5);
+  }
 
   map.addImage(id, context.getImageData(0, 0, size, size), {
     pixelRatio: ratio,
@@ -251,14 +383,12 @@ function vehicleFeatures(map, positions) {
       label: vehicleLabel(route.routeShortName),
       color,
       textColor: route.routeTextColor || contrastText(color),
+      // Optional in the feed. A vehicle without one keeps the round badge, so
+      // the property is carried through as-is rather than defaulted.
+      bearing: typeof bearing === "number" ? bearing : null,
     };
-    // GTFS bearing is degrees clockwise from true north, which is exactly what
-    // icon-rotate wants under map-aligned rotation. It is optional in the feed;
-    // leaving the properties off entirely means no arrow is drawn.
-    if (typeof bearing === "number") {
-      properties.bearing = bearing;
-      properties.arrow = ensureArrowImage(map, color);
-    }
+    properties.badge = ensureBadgeImage(map, properties, true);
+    properties.badgePlain = ensureBadgeImage(map, properties, false);
     return {
       type: "Feature",
       geometry: {
@@ -276,12 +406,12 @@ function vehicleFeatures(map, positions) {
  */
 function addVehicleLayers(map) {
   for (const feature of vehicleData.features) {
-    if (feature.properties.arrow) {
-      feature.properties.arrow = ensureArrowImage(
-        map,
-        feature.properties.color
-      );
-    }
+    feature.properties.badge = ensureBadgeImage(map, feature.properties, true);
+    feature.properties.badgePlain = ensureBadgeImage(
+      map,
+      feature.properties,
+      false
+    );
   }
 
   map.addSource(VEHICLE_SOURCE, { type: "geojson", data: vehicleData });
@@ -291,52 +421,29 @@ function addVehicleLayers(map) {
     : undefined;
   map.addLayer(
     {
-      id: "vehicle-dot",
-      type: "circle",
-      source: VEHICLE_SOURCE,
-      paint: {
-        "circle-color": ["get", "color"],
-        "circle-radius": VEHICLE_RADIUS,
-        "circle-stroke-width": 1,
-        "circle-stroke-color": outlineColor(),
-      },
-    },
-    before
-  );
-  map.addLayer(
-    {
-      id: "vehicle-label",
+      id: "vehicle-badge",
       type: "symbol",
       source: VEHICLE_SOURCE,
       layout: {
-        "icon-image": ["get", "arrow"],
-        // Vehicles with no bearing have no arrow either, but the expression is
-        // still evaluated for them, and a null where a number belongs is an
-        // error rather than a skipped icon.
-        "icon-rotate": ["coalesce", ["get", "bearing"], 0],
-        // The bearing is geographic, so the arrow turns with the map.
-        "icon-rotation-alignment": "map",
-        "icon-size": VEHICLE_ARROW_SIZE,
+        // The number is part of the image, so dropping it at low zoom means
+        // swapping the image. Zoom outside, feature lookup inside: that is the
+        // one nesting order MapLibre allows for a layout property.
+        "icon-image": [
+          "step",
+          ["zoom"],
+          ["get", "badgePlain"],
+          LABEL_ZOOM,
+          ["get", "badge"],
+        ],
+        "icon-size": VEHICLE_ICON_SIZE,
+        // These are positions, not labels: dropping one would misinform.
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
-        "text-field": ["get", "label"],
-        "text-font": ["Open Sans Bold"],
-        "text-size": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          12,
-          9,
-          16,
-          12,
-          20,
-          14,
-        ],
-        // These are positions, not labels: dropping one would misinform.
-        "text-allow-overlap": true,
-        "text-ignore-placement": true,
+        // One icon per bus and no text of its own, so two overlapping buses
+        // stack whole. Under allow-overlap the default order is by viewport
+        // position, which is stable frame to frame — buses do not swap places
+        // in the stack while standing still.
       },
-      paint: { "text-color": ["get", "textColor"] },
     },
     before
   );
@@ -363,7 +470,7 @@ function startVehiclePolling(map) {
 
       // The source is attached on style load and gone again for the moment a
       // theme switch takes. Building features in that gap would mean adding
-      // arrow images to a style that is about to be replaced.
+      // badge images to a style that is about to be replaced.
       const source = map.getSource(VEHICLE_SOURCE);
       if (!source) return;
 
