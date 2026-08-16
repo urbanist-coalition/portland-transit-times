@@ -162,6 +162,37 @@ async function main() {
     );
   }
 
+  /*
+   * Every removal has to be one of two things, or the rewrite is wrong: a date
+   * outside the new window, or a trip ending that the block continues from.
+   */
+  const inWindow = new Set(after.keys());
+  // A trip's ending is per service date, not per trip: the same trip runs on
+  // several dates and ends on each of them.
+  const latestPerRun = new Map<string, StopTimeInstance>();
+  for (const instance of recorder.instances) {
+    const run = `${instance.serviceDate}:${instance.tripId}`;
+    const current = latestPerRun.get(run);
+    if (!current || instance.scheduledTime > current.scheduledTime) {
+      latestPerRun.set(run, instance);
+    }
+  }
+  const endings = new Set([...latestPerRun.values()].map(key));
+  const removedOutsideWindow = instanceDiff.removed.filter(
+    (k) => !inWindow.has(k.slice(0, 8))
+  );
+  const removedEndings = instanceDiff.removed.filter(
+    (k) => inWindow.has(k.slice(0, 8)) && endings.has(k)
+  );
+  const unexplained = instanceDiff.removed.filter(
+    (k) => inWindow.has(k.slice(0, 8)) && !endings.has(k)
+  );
+  console.log("\nremovals");
+  console.log(`  dates outside the new window  ${removedOutsideWindow.length}`);
+  console.log(`  trip endings, block continues ${removedEndings.length}`);
+  console.log(`  unexplained                   ${unexplained.length}`);
+  for (const k of unexplained.slice(0, 5)) console.log(`    ${k}`);
+
   // The added instances should be exactly the layovers the old filter dropped.
   const stopsById = new Map(feed.stops.map((s) => [s.stopId, s]));
   const addedByStop = new Map<string, number>();

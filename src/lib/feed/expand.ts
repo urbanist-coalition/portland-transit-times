@@ -29,15 +29,21 @@ export interface ExpansionWindow {
 }
 
 /**
- * Seven days forward covers 40 departures at 647 of 656 stops, and doubles as
- * the sensible bound on how far ahead a page will ever look: at the Pulse 40
- * departures is nine hours, and at a stop with three buses a day it is most of
- * a week, which is where a timetable stops being useful anyway. Fourteen days
- * would fill eight more stops for twice the memory and twice the expansion.
+ * A page is bounded twice: at most ARRIVALS_LIMIT rows, and never further than
+ * this window. Whichever binds first wins.
  *
- * One day back is for departures that have just gone and buses running late.
+ * At the Pulse the row count binds — 40 departures is about nine hours. At a
+ * quiet stop the window binds, and three days is where a timetable stops being
+ * something a rider is planning around. Measured against this feed, no stop is
+ * left with an empty page by the three-day bound, and every stop that can fill
+ * 40 rows in three days does.
+ *
+ * One day back covers departures that have just gone and buses running late.
  */
-export const DEFAULT_WINDOW: ExpansionWindow = { back: 1, forward: 7 };
+export const DEFAULT_WINDOW: ExpansionWindow = { back: 1, forward: 3 };
+
+/** Rows a stop page shows. Forty is about 15 KB, or 2 KB over the wire. */
+export const ARRIVALS_LIMIT = 40;
 
 function dateKey(epochMs: number): string {
   const date = new Date(epochMs);

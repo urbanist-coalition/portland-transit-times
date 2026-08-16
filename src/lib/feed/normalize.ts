@@ -74,6 +74,64 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
     });
   }
 
+  /*
+   * Trip endings.
+   *
+   * 942 of this feed's 1,345 trips end where the next trip in their block
+   * begins — the bus lays over and carries on, a median of zero minutes later.
+   * Listing the ending as well as the departure gives a rider two rows for one
+   * bus, and the first turns into "Departed" while they watch. So the ending
+   * goes, and the departure it duplicates stays.
+   *
+   * The other 403 are real: the vehicle finishes there. Those are kept and
+   * marked, because a bus arriving is worth knowing about and a bus you cannot
+   * board should not be offered as one you can.
+   */
+  const callsByTripForBlocks = groupBy(calls, "tripId");
+  const lastCall = new Map<string, ScheduledCall>();
+  const firstCall = new Map<string, ScheduledCall>();
+  for (const [tripId, tripCalls] of callsByTripForBlocks) {
+    const sorted = [...tripCalls].sort((a, b) => a.sequence - b.sequence);
+    if (sorted.length === 0) continue;
+    firstCall.set(tripId, sorted[0]!);
+    lastCall.set(tripId, sorted[sorted.length - 1]!);
+  }
+
+  const blockOrder = new Map<string, string[]>();
+  for (const trip of rawTrips) {
+    if (!trip.block_id) continue;
+    (
+      blockOrder.get(trip.block_id) ??
+      blockOrder.set(trip.block_id, []).get(trip.block_id)!
+    ).push(trip.trip_id);
+  }
+  const continuesFrom = new Set<ScheduledCall>();
+  const realEndings = new Set<ScheduledCall>();
+  for (const tripIds of blockOrder.values()) {
+    const ordered = tripIds
+      .filter((tripId) => firstCall.has(tripId))
+      .sort((a, b) =>
+        firstCall.get(a)!.time.localeCompare(firstCall.get(b)!.time)
+      );
+    for (const [index, tripId] of ordered.entries()) {
+      const ending = lastCall.get(tripId);
+      if (!ending) continue;
+      const next = ordered[index + 1];
+      const resumesHere = next && firstCall.get(next)!.stopId === ending.stopId;
+      (resumesHere ? continuesFrom : realEndings).add(ending);
+    }
+  }
+
+  const boardableCalls = calls.filter((call) => !continuesFrom.has(call));
+  for (const call of realEndings) call.terminates = true;
+
+  /*
+   * Everything derived from the *shape* of a trip — where it ends, which
+   * destinations a stop can reach — is computed from every call, including the
+   * endings dropped above. A trip that lays over still ends where it ends, and
+   * a headsign that falls back to "the last stop's name" must not fall back to
+   * the second to last.
+   */
   const callsByTrip = groupBy(calls, "tripId");
   const callsByStop = groupBy(calls, "stopId");
   const stopNamesById = new Map(
@@ -138,7 +196,7 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
   // Where several stops share a name, the destinations reachable from each are
   // what tells them apart.
   const headsignsByStopId: Record<string, string[]> = {};
-  for (const call of calls) {
+  for (const call of boardableCalls) {
     const trip = tripsById.get(call.tripId);
     // A blank headsign is not a destination; letting it through renames stops
     // to a dangling "Route 1 + Shaws Falmouth ⇨ ".
@@ -168,7 +226,7 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
         overrides[stop.stopId] ||
         fixCapitalization(normalizeInOutBound(stop.stopName)),
     })),
-    calls,
+    calls: boardableCalls,
     serviceDates,
   };
 }

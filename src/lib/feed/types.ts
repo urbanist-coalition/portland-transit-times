@@ -13,6 +13,17 @@ export interface ScheduledCall {
   sequence: number;
   /** "HH:MM:SS", and may exceed 24:00:00 for trips running past midnight. */
   time: string;
+  /**
+   * The bus finishes here and does not continue: nobody can board it.
+   *
+   * A trip's last call is usually not the end of anything — the same vehicle
+   * carries on as the next trip in its block, from the same stop, a median of
+   * zero minutes later. Those calls are dropped at normalisation, because the
+   * departure is the next trip's first call and listing both shows a rider two
+   * entries for one bus, the first of which turns into "Departed" in front of
+   * them. What is left here is the real ends: the bus is going to the garage.
+   */
+  terminates?: boolean;
 }
 
 /**
