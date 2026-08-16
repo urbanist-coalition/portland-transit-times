@@ -24,9 +24,13 @@
 #   out/web/basemap.pmtiles   OSM basemap, OpenMapTiles schema, ~5 min, ~120 MB
 #   out/loom-{overview,detail}.geojson   two line graphs, see make_graphs.sh
 #   out/web/transit.pmtiles   routes + stops
-#   out/web/{style.json,style-dark.json,sprite*,fonts/,index.html}  the rest
+#   out/web/{style.json,style-dark.json,sprite-*,fonts/,index.html}  the rest
 #                             of the site — one style per appearance, both
-#                             reading the same two archives
+#                             reading the same two archives. Sprite filenames
+#                             and the archive URLs in the styles carry a
+#                             fingerprint of their contents, so a rebuilt
+#                             bundle is a set of new URLs and can be cached
+#                             hard without a stale map surviving it.
 #
 # Environment knobs (defaults shown):
 #   GTFS_URL        GTFS feed URL                (Portland, ME GPTD)

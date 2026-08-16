@@ -37,6 +37,7 @@ every label, and do their line bundling with a data-driven `line-offset` —
 see make_transit_tiles.py for where those attributes come from.
 """
 
+import hashlib
 import json
 import shutil
 import zipfile
@@ -277,23 +278,59 @@ def _transit_layers(theme: dict) -> list[dict]:
     ]
 
 
+def fingerprint(path: Path) -> str:
+    """Eight hex characters of the file's contents.
+
+    Every build writes the same filenames, so without something in the URL that
+    changes with the bytes, a browser told to cache these for a month will do
+    exactly that and never see a rebuilt map. Content rather than mtime, so
+    copying the bundle to a server does not invalidate 117 MB for nothing.
+
+    For the archives this is not only about staleness: a PMTiles file is read
+    by byte range, and a client holding cached ranges from one build alongside
+    fresh ranges from another would be reading offsets from one file into the
+    data of another.
+    """
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()[:8]
+
+
+def _versioned(url: str, out_dir: Path) -> str:
+    """Appends a content fingerprint to a bundle-relative URL, if it is a file
+    we actually have. The pmtiles protocol and the glyph template both pass a
+    query string straight through to fetch, so this is safe for both."""
+    path = out_dir / url.lstrip("./")
+    if not path.is_file():
+        return url
+    return f"{url}?v={fingerprint(path)}"
+
+
 def build_style(src: Path, out: Path, basemap: str, transit: str,
-                theme: dict) -> set[str]:
+                theme: dict, sprite_base: str) -> set[str]:
     style = json.loads(src.read_text())
 
+    out_dir = out.parent
     style["sources"] = {
         "carto": {  # keep the name: all 93 stock layers reference it
             "type": "vector",
-            "url": f"pmtiles://{basemap}",
+            "url": f"pmtiles://{_versioned(basemap, out_dir)}",
             "attribution": ATTRIBUTION,
         },
         "transit": {
             "type": "vector",
-            "url": f"pmtiles://{transit}",
+            "url": f"pmtiles://{_versioned(transit, out_dir)}",
         },
     }
+    # Glyph ranges are identified by the fontstack they belong to and never
+    # change under it, so they need no version.
     style["glyphs"] = "./fonts/{fontstack}/{range}.pbf"
-    style["sprite"] = f"./{theme['sprite']}"
+    # The sprite carries its version in the filename instead: MapLibre builds
+    # the sheet URLs by appending "@2x" and ".json" to this, and a query would
+    # have to survive that joining.
+    style["sprite"] = f"./{sprite_base}"
 
     fonts_used: set[str] = set()
     for layer in style["layers"]:
@@ -450,7 +487,16 @@ def make_sprite(out_dir: Path, pies: dict | None, sheet: str,
 
         surface.write_to_png(str(out_dir / f"{sheet}{suffix}.png"))
         (out_dir / f"{sheet}{suffix}.json").write_text(json.dumps(index, indent=2))
-    print(f"Wrote {sheet}/{sheet}@2x: {len(pies or {})} stop pies into {out_dir}")
+
+    # Rename to include a fingerprint of the sheet, so the style can point at a
+    # URL that changes whenever the pies do.
+    versioned = f"{sheet}-{fingerprint(out_dir / f'{sheet}.png')}"
+    for suffix in ("", "@2x"):
+        for extension in ("png", "json"):
+            (out_dir / f"{sheet}{suffix}.{extension}").rename(
+                out_dir / f"{versioned}{suffix}.{extension}")
+    print(f"Wrote {versioned}: {len(pies or {})} stop pies into {out_dir}")
+    return versioned
 
 
 parser = ArgumentParser(
@@ -487,9 +533,10 @@ for name, theme in THEMES.items():
     if not src.is_file():
         raise SystemExit(f"No {name} source style at {src}")
     print(f"==> {name}: {src.name}")
+    sprite_base = make_sprite(args.out_dir, pies, theme["sprite"],
+                              theme["pie_outline"])
     used |= build_style(src, args.out_dir / theme["style"], args.basemap,
-                        args.transit, theme)
-    make_sprite(args.out_dir, pies, theme["sprite"], theme["pie_outline"])
+                        args.transit, theme, sprite_base)
 
 # Both styles resolve to the same fontstacks, so the glyph ranges are extracted
 # once for the union rather than per style.
