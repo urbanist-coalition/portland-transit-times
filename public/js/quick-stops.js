@@ -38,11 +38,21 @@ function render() {
     .filter((code) => stopNames.has(code) && !saved.includes(code))
     .slice(0, Math.max(0, MAX_QUICK_STOPS - saved.length));
 
-  if (saved.length === 0 && recent.length === 0) return;
+  list.replaceChildren();
+  section.hidden = saved.length === 0 && recent.length === 0;
+  if (section.hidden) return;
 
   for (const code of saved) list.append(chip(code, "saved"));
   for (const code of recent) list.append(chip(code, "recent"));
-  section.hidden = false;
 }
 
-if (section && list) render();
+if (section && list) {
+  render();
+
+  // Coming back from a stop page usually restores this one from the
+  // back/forward cache, which does not re-run the module — so the chips would
+  // still show what the cookies said before that stop was visited or saved.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) render();
+  });
+}
