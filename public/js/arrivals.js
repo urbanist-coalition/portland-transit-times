@@ -178,10 +178,29 @@ if (container && stopCode) {
     timer = null;
   }
 
+  function sync() {
+    // A prerendered page is not being read; whenActivated owns its first start.
+    if (document.prerendering) return;
+    document.hidden ? stop() : start();
+  }
+
   // A backgrounded tab shows nobody a countdown, so it should not ask for one.
-  document.addEventListener("visibilitychange", () =>
-    document.hidden ? stop() : start()
-  );
+  document.addEventListener("visibilitychange", sync);
+
+  /*
+   * Coming back is not always a visibility change, and polling that stays
+   * stopped leaves the countdowns from whenever the reader last looked — the
+   * one thing this page must never show. An installed app frozen in the
+   * background and reopened, or a page restored from the back/forward cache,
+   * can arrive with only some of these; whichever comes first starts the poll
+   * again, and the rest find it already running.
+   *
+   * Each one asks `document.hidden` rather than assuming, so none of them can
+   * start a poll for a page nobody is looking at.
+   */
+  document.addEventListener("resume", sync);
+  window.addEventListener("pageshow", sync);
+  window.addEventListener("focus", sync);
 
   // Nor does a prerendered page: the times it was born with are correct as of
   // when the worker wrote them, and polling can wait until someone arrives.
