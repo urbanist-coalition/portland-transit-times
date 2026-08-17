@@ -43,11 +43,17 @@ const leavingTimers = new Map();
 
 const scratch = document.createElement("div");
 
+/*
+ * Rows and day dividers both carry a data-key, and both are reconciled by it:
+ * a divider that is not part of the ordered list drifts away from the day it
+ * belongs to as soon as a row above it drops out. Only the cards animate, so
+ * the two part company below, where they need to.
+ */
 function reconcile(fresh) {
-  const freshRows = [...fresh.querySelectorAll(".arrival")];
+  const freshRows = [...fresh.querySelectorAll("[data-key]")];
 
   // No arrivals is not a list of zero rows, it is a different piece of markup.
-  if (freshRows.length === 0) {
+  if (fresh.querySelector(".arrival") === null) {
     if (container.innerHTML !== fresh.innerHTML)
       container.innerHTML = fresh.innerHTML;
     return;
@@ -56,7 +62,7 @@ function reconcile(fresh) {
   container.querySelector(".arrivals-none")?.remove();
 
   const existing = new Map(
-    [...container.querySelectorAll(".arrival")].map((row) => [
+    [...container.querySelectorAll("[data-key]")].map((row) => [
       row.dataset.key,
       row,
     ])
@@ -96,7 +102,15 @@ function reconcile(fresh) {
 
   const freshKeys = new Set(freshRows.map((row) => row.dataset.key));
   for (const [key, row] of existing) {
-    if (freshKeys.has(key) || row.classList.contains("is-leaving")) continue;
+    if (freshKeys.has(key)) continue;
+    // A divider outlives its day for one tick, at midnight or when the last of
+    // that day's rows departs. It has nothing to fade — it just goes, before
+    // the row it was introducing has finished leaving.
+    if (!row.classList.contains("arrival")) {
+      row.remove();
+      continue;
+    }
+    if (row.classList.contains("is-leaving")) continue;
     row.classList.add("is-leaving");
     leavingTimers.set(
       key,

@@ -142,10 +142,16 @@
   padding: 0;
 }
 
+/*
+ * `clip` rather than `hidden`: both stop a stray wide element from scrolling
+ * the page sideways, but `hidden` makes these a scroll container, and a scroll
+ * container that never scrolls silently kills `position: sticky` in everything
+ * inside it — the day dividers on a stop page, for one.
+ */
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {

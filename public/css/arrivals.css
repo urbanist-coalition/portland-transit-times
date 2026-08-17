@@ -32,6 +32,60 @@
   font-weight: 600;
 }
 
+/*
+ * Written before the first arrival on each new day, and sticky so that a rider
+ * scrolled deep into tomorrow can still see which day they are reading. That is
+ * the whole job, and it is why the day is not repeated on every card.
+ */
+.arrivals-day {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-block: 1.25rem 0.75rem;
+  padding-block: 0.375rem;
+  background-color: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  /*
+   * Out to the edge of the container's gutter and back in again. A card's
+   * shadow spills a couple of pixels past its sides, and where that spill met
+   * the ends of the rule — one card above, one below — it read as two serifs,
+   * making the divider look like a very wide letter H. Bleeding the divider's
+   * own background over the gutter hides the spill at this height, including
+   * while the divider is pinned and cards are sliding under it, and the extra
+   * inline padding keeps the rules clear of the cards' rounded corners.
+   *
+   * The 1rem is .container's horizontal padding, in app.css.
+   */
+  margin-inline: -1rem;
+  padding-inline: 2rem;
+}
+
+/*
+ * The staleness notice is always the first thing the renderer emits, so this is
+ * the divider that opens the list — late at night, when every row is tomorrow's.
+ * There is nothing above it to be separated from.
+ */
+.arrivals-stale + .arrivals-day {
+  margin-top: 0;
+}
+
+/* A rule on each side, so the day sits in the middle of the break. */
+.arrivals-day::before,
+.arrivals-day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--border);
+}
+
 .arrival {
   position: relative;
   margin-bottom: 0.75rem;
