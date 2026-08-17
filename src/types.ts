@@ -36,6 +36,16 @@ export interface Stop {
   routes: Route[];
 }
 
+/**
+ * The subset of a stop needed to search for it and link to it. Sending these
+ * instead of full stops keeps the home page payload small — there are ~500
+ * stops and their route and location data is nearly two thirds of the bytes.
+ */
+export interface StopSummary {
+  stopCode: string;
+  stopName: string;
+}
+
 // Real-time Data
 
 export interface Alert {
@@ -73,6 +83,12 @@ export interface StopTimeUpdate extends StopTimeInstanceBase {
 
 export interface StopTimeInstance extends StopTimeInstanceBase {
   scheduledTime: number; // Unix timestamp in seconds
+  /**
+   * The bus finishes its run here — it arrives and nobody boards. Rendered as
+   * an arrival rather than a departure, because offering it as one you can
+   * catch is how someone ends up waiting for a bus going to the garage.
+   */
+  terminates?: boolean;
 
   // Denormalized Route Info
   route: Route;

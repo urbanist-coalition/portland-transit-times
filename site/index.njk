@@ -1,0 +1,95 @@
+---
+layout: layout.njk
+permalink: /
+styles: ["/css/alerts.css", "/css/home.css"]
+scripts: ["/js/alerts.js", "/js/search.js", "/js/quick-stops.js"]
+---
+{% from "icon.njk" import icon with context %}
+<main class="container container-sm">
+  <header class="surface home-intro">
+    <h1 class="home-title">Portland Maine Transit</h1>
+    <p class="home-subtitle">
+      Find your stop to keep up to date with <strong>real time</strong>
+      arrivals!
+    </p>
+  </header>
+
+  {% include "alerts.njk" %}
+
+  <div class="home-cta">
+    <a class="btn btn-primary" href="/by-location/">Find Stops By Location</a>
+  </div>
+
+  <div class="home-divider"><span>OR</span></div>
+
+  <section class="search">
+    <h2 class="search-heading" id="search-label">Enter a Stop Number or Name</h2>
+
+    <div class="search-field" data-expanded="false">
+      {{ icon("search", 20) }}
+      <input
+        type="text"
+        class="search-input"
+        placeholder="e.g. 123 or Congress St"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        enterkeyhint="go"
+        role="combobox"
+        aria-labelledby="search-label"
+        aria-expanded="false"
+        aria-controls="search-results"
+        aria-autocomplete="list"
+      />
+      <button type="button" class="search-clear" aria-label="Clear search" hidden>
+        {{ icon("close", 18) }}
+      </button>
+    </div>
+
+    <ul id="search-results" class="search-list" role="listbox" aria-label="Matching stops" hidden></ul>
+    <p class="search-empty" hidden></p>
+  </section>
+
+  <section class="quick" hidden>
+    <h2 class="quick-heading">Quick Stops</h2>
+    <ul class="quick-list"></ul>
+  </section>
+
+  {# Cloned by /js/quick-stops.js, so the icons stay in _data/icons.json. #}
+  <template id="quick-chip-saved">
+    <li>
+      <a class="quick-chip">
+        {{ icon("star", 16) }}
+        <span class="quick-chip-code"></span>
+        <span class="quick-chip-name"></span>
+      </a>
+    </li>
+  </template>
+  <template id="quick-chip-recent">
+    <li>
+      <a class="quick-chip quick-chip-recent">
+        {{ icon("history", 16) }}
+        <span class="quick-chip-code"></span>
+        <span class="quick-chip-name"></span>
+      </a>
+    </li>
+  </template>
+
+  {# One row of the search results, cloned per match by /js/search.js. #}
+  <template id="search-option">
+    <li role="option" class="search-option">
+      <span class="search-option-code"></span>
+      <span class="search-option-name"></span>
+    </li>
+  </template>
+
+  {#
+    Every stop's code and name, as pairs, for the search box and the quick
+    stops chips. About 25 KB, a third of that once compressed, and it means
+    both work with no fetch at all — searching is the first thing most people
+    do here.
+  #}
+  <script type="application/json" id="stops-data">
+    {{- stops | stopIndex | dump | safe -}}
+  </script>
+</main>

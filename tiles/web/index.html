@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTFS route tiles</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/pmtiles@4.5.0/dist/pmtiles.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { position: absolute; inset: 0; }
+    #panel {
+      position: absolute; top: 10px; left: 10px; z-index: 1;
+      background: rgba(255,255,255,.92); padding: 8px 12px; border-radius: 6px;
+      font: 13px/1.5 system-ui, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    }
+    #panel label { display: block; cursor: pointer; }
+    #errors {
+      display: none; position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
+      margin: 0; padding: 8px 12px; max-height: 40%; overflow: auto;
+      background: #b00020; color: #fff; font: 12px/1.4 ui-monospace, monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="panel">
+    <label><input type="checkbox" id="routes" checked> Transit routes</label>
+    <label><input type="checkbox" id="labels" checked> Route labels</label>
+    <hr style="margin:6px 0;border:0;border-top:1px solid #ccc">
+    <label><input type="checkbox" id="pies" checked> Stops</label>
+    <label><input type="checkbox" id="stoplabels" checked> Stop names</label>
+    <hr style="margin:6px 0;border:0;border-top:1px solid #ccc">
+    <label><input type="checkbox" id="dark"> Dark</label>
+  </div>
+  <pre id="errors"></pre>
+  <script>
+    // A blank map is otherwise indistinguishable from a map of the ocean, so
+    // put failures on the page rather than only in the console.
+    const errBox = document.getElementById('errors');
+    const fail = (msg) => {
+      errBox.style.display = 'block';
+      errBox.textContent += msg + '\n';
+      console.error(msg);
+    };
+    window.addEventListener('error', (e) => fail('js: ' + e.message));
+
+    // Teach MapLibre to read pmtiles:// URLs via HTTP range requests.
+    maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+
+    // Which of the transit layers are switched on. Held here rather than read
+    // off the map because setStyle() replaces every layer with the new style's
+    // copy, discarding any visibility set on the old one.
+    const TOGGLES = {
+      routes: 'transit-routes',
+      labels: 'transit-route-labels',
+      pies: 'transit-stops-pie',
+      stoplabels: 'transit-stop-labels',
+    };
+    const shown = Object.fromEntries(Object.keys(TOGGLES).map((id) => [id, true]));
+
+    // MapLibre resolves relative URLs in a style against that style's own URL.
+    // We hand it a parsed object rather than a URL (so the pmtiles paths can be
+    // rewritten first), which leaves it no base to resolve against — so every
+    // relative URL in the style has to be absolute here. The glyphs template is
+    // the awkward one: new URL() percent-encodes the {fontstack}/{range}
+    // braces, and MapLibre substitutes on the literal tokens, so they have to
+    // survive the round trip intact.
+    const abs = (rel) => new URL(
+      rel.replace(/\{/g, '%7B').replace(/\}/g, '%7D'), location.href
+    ).href.replace(/%7B/g, '{').replace(/%7D/g, '}');
+
+    async function loadStyle(dark) {
+      const style = await (await fetch(dark ? './style-dark.json' : './style.json')).json();
+      style.sprite = abs(style.sprite);
+      style.glyphs = abs(style.glyphs);
+      for (const src of Object.values(style.sources)) {
+        if (src.url && src.url.startsWith('pmtiles://')) {
+          src.url = 'pmtiles://' + abs(src.url.slice('pmtiles://'.length));
+        }
+      }
+      return style;
+    }
+
+    (async () => {
+      const darkBox = document.getElementById('dark');
+      darkBox.checked = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      const map = new maplibregl.Map({
+        container: 'map',
+        style: await loadStyle(darkBox.checked),
+        center: [-70.2553, 43.6591],   // Portland, ME
+        zoom: 12,
+        hash: true
+      });
+      window.map = map;
+      map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      map.addControl(new maplibregl.ScaleControl());
+
+      // Runs on every style load, not just the first — swapping appearance
+      // brings in a fresh set of layers that know nothing of the checkboxes.
+      const applyToggles = () => {
+        for (const [id, layer] of Object.entries(TOGGLES)) {
+          if (map.getLayer(layer)) {
+            map.setLayoutProperty(layer, 'visibility', shown[id] ? 'visible' : 'none');
+          }
+        }
+      };
+      map.on('style.load', applyToggles);
+
+      for (const [id, layer] of Object.entries(TOGGLES)) {
+        document.getElementById(id).addEventListener('change', (e) => {
+          shown[id] = e.target.checked;
+          map.setLayoutProperty(layer, 'visibility', shown[id] ? 'visible' : 'none');
+        });
+      }
+      darkBox.addEventListener('change', async (e) => {
+        map.setStyle(await loadStyle(e.target.checked));
+      });
+
+      map.on('error', (e) => fail('maplibre: ' +
+        ((e && e.error && e.error.message) || JSON.stringify(e && e.error) || e)));
+      wire(map);
+    })().catch((e) => fail('startup: ' + (e && e.message || e)));
+
+    function wire(map) {
+      // Click a route to see which one it is.
+      const popup = new maplibregl.Popup({ closeButton: false });
+      map.on('click', 'transit-routes', (e) => {
+        const p = e.features[0].properties;
+        popup.setLngLat(e.lngLat)
+             .setHTML(`<b>${p.label || p.route_id}</b><br>` +
+                      `slot ${p.offset} of ${p.bundle} on this segment`)
+             .addTo(map);
+      });
+      map.on('mouseenter', 'transit-routes', () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', 'transit-routes', () => map.getCanvas().style.cursor = '');
+
+      // Stops: the route list is the thing a marker cannot show once a
+      // corridor is deep, so it lives here.
+      for (const layer of ['transit-stops-pie']) {
+        map.on('click', layer, (e) => {
+          const p = e.features[0].properties;
+          popup.setLngLat(e.lngLat)
+               .setHTML(`<b>${p.name || 'stop'}</b> (#${p.stop_code || '?'})` +
+                        `<br>${p.routes || ''}`)
+               .addTo(map);
+        });
+        map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
+      }
+    }
+  </script>
+</body>
+</html>

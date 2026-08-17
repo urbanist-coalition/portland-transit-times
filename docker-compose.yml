@@ -51,26 +51,35 @@ services:
     networks:
       - web
 
-  webservice:
-    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
-    container_name: transit-webservice
+  # The whole site: pages, the JSON they poll, and the vector tiles. Static
+  # files and nothing else — no application server is involved in a request.
+  site:
+    image: nginx:alpine
+    container_name: transit-site
     restart: unless-stopped
     expose:
-      - "3000"
+      - "80"
+    volumes:
+      # Siblings under /srv, because a release points at its data directory
+      # with a relative symlink. Pages, map and arrivals all come from
+      # whichever release `current` points at.
+      - releases:/srv/releases:ro
+      - live_data:/srv/_data:ro
+      - ./nginx-site.conf:/etc/nginx/conf.d/default.conf:ro
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 128M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
-      start_period: 40s
-    command: npm start
+      # On a new host there is no release until the builder has made one, and
+      # nginx correctly says 404 in the meantime. Give it room to appear.
+      start_period: 15m
     environment:
-      - REDIS_URL=redis://redis:6379
       - VIRTUAL_HOST=${VIRTUAL_HOST}
       - LETSENCRYPT_HOST=${VIRTUAL_HOST}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
@@ -81,10 +90,61 @@ services:
         max-file: "3"
     networks:
       - web
-      - backend
-    depends_on:
-      - redis
 
+  # Makes releases. One feed download becomes the pages, the map and the
+  # schedule, and a symlink flip makes all three live at once. Runs on a timer;
+  # a build that fails publishes nothing and leaves the previous release
+  # serving.
+  builder:
+    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
+    container_name: transit-builder
+    restart: unless-stopped
+    command: npm run build:loop
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          # Enough for loom, which the whole per-feed build was measured
+          # inside. An overrun kills this container and nothing else.
+          memory: 1G
+          cpus: '1.5'
+    volumes:
+      - releases:/srv/releases
+      - live_data:/srv/_data
+      - tiles_work:/app/tiles/out
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - backend
+
+  # The OpenStreetMap basemap: heavy, rare, and nothing to do with the transit
+  # feed. Never starts with the stack.
+  #
+  #   docker compose --profile basemap run --rm basemap
+  basemap:
+    image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
+    container_name: transit-basemap
+    profiles: ["basemap"]
+    command: ./tiles/build-basemap.sh
+    environment:
+      - OUT=/app/tiles/out
+      - JAVA_HEAP=768m
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.5'
+    volumes:
+      - tiles_work:/app/tiles/out
+    networks:
+      - backend
+
+  # Keeps the current release live: realtime feeds joined onto its schedule,
+  # written as the files every page polls.
   worker:
     image: ghcr.io/urbanist-coalition/portland-transit-times:${IMG_TAG}
     container_name: transit-worker
@@ -96,9 +156,10 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: '0.25'
-    environment:
-      - REDIS_URL=redis://redis:6379
+          cpus: '0.5'
+    volumes:
+      - releases:/srv/releases
+      - live_data:/srv/_data
     logging:
       driver: "json-file"
       options:
@@ -106,30 +167,25 @@ services:
         max-file: "3"
     networks:
       - backend
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:latest
-    container_name: transit-redis
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.25'
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    networks:
-      - backend
 
 volumes:
-  redis_data:
+  # Releases: pages, map and schedule. On disk, so a restart serves the last
+  # one immediately rather than nothing while a build runs.
+  releases:
+
+  # The JSON the pages poll, rewritten every few seconds and derived entirely
+  # from the release's schedule and the realtime feeds — so it lives in RAM,
+  # where rewriting it costs nothing and wears nothing out. Losing it on reboot
+  # costs one refresh.
+  live_data:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+
+  # planetiler's downloads and the tile pipeline's intermediates. Kept between
+  # runs so the basemap is not rebuilt for every release.
+  tiles_work:
+
   certs:
   vhost.d:
   html:
@@ -140,4 +196,3 @@ networks:
     external: false
   backend:
     external: false
-

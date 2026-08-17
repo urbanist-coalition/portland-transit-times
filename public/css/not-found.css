@@ -1,0 +1,22 @@
+/* 404 page. */
+
+.not-found {
+  text-align: center;
+}
+
+.not-found-title {
+  margin-bottom: 0.75rem;
+}
+
+.not-found-body {
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}

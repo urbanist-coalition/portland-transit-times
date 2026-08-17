@@ -1,0 +1,65 @@
+/* A stop page: the header identifying the stop, and what follows the arrivals. */
+
+.stop-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stop-header-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.stop-name {
+  font-size: 1.25rem;
+  padding-top: 0.25rem;
+}
+
+.stop-routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+}
+
+/*
+ * Both stars are in the markup and one is shown, so the state is correct on
+ * the first frame after /js/save-stop.js sets aria-pressed — no icon markup
+ * in JavaScript, and nothing to flash.
+ */
+.save-stop {
+  color: var(--text-muted);
+}
+
+.save-stop[aria-pressed="true"] {
+  color: var(--primary);
+}
+
+.save-stop .when-saved {
+  display: none;
+}
+
+.save-stop[aria-pressed="true"] .when-saved {
+  display: contents;
+}
+
+.save-stop[aria-pressed="true"] .when-unsaved {
+  display: none;
+}
+
+.stop-switch {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.stop-pitch {
+  margin-top: 2rem;
+}
+
+.stop-pitch-heading {
+  font-size: 1.125rem;
+  margin-bottom: 0.5rem;
+}

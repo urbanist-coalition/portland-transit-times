@@ -1,53 +1,110 @@
+/**
+ * @file The worker: realtime in, files out.
+ *
+ * It owns nothing static. The release builder decides what the site is — the
+ * pages, the map, the schedule — and this keeps that release current: it polls
+ * the agency's realtime feeds, joins them onto the release's schedule, and
+ * writes the arrivals every page reads.
+ *
+ * When a build makes a new release live, the symlink under it changes. That is
+ * the only signal needed: reload the schedule, re-read the pages, carry on.
+ */
+
+import { readlink } from "node:fs/promises";
+import { join } from "node:path";
+
 import { CronJob } from "cron";
 
-import { loadStatic } from "@/lib/loaders/static";
-import { GTFSRealtimeLoader } from "@/lib/loaders/realtime";
 import { GPMETRO } from "@/lib/constants";
-import { RedisModel } from "@/lib/model";
+import { TransitStore } from "@/lib/feed/store";
+import { GTFSRealtimeLoader } from "@/lib/loaders/realtime";
+import { Releases } from "@/lib/release";
+import { SnapshotWriter } from "@/lib/snapshots";
 
 async function main() {
-  const model = new RedisModel();
-  async function loadStaticGPMetro() {
-    await loadStatic(GPMETRO, model);
-    if (process.env.STATIC_BUILD_HEARTBEAT_URL) {
-      await fetch(process.env.STATIC_BUILD_HEARTBEAT_URL);
+  const releases = new Releases(
+    process.env.RELEASES_DIR ?? "releases",
+    process.env.DATA_DIR ?? "_data"
+  );
+  const current = releases.currentLink;
+
+  const store = new TransitStore(GPMETRO.timeZone);
+  const snapshots = new SnapshotWriter(
+    store,
+    join(current, "data"),
+    join(current, "site")
+  );
+
+  /** The release the worker is currently serving, so a flip can be noticed. */
+  let serving: string | null = null;
+
+  async function followCurrentRelease() {
+    let target: string;
+    try {
+      target = await readlink(current);
+    } catch {
+      console.warn(
+        `[worker] no release yet at ${current} — waiting for a build`
+      );
+      return;
     }
+    if (target === serving) return;
+
+    console.log(`[worker] release ${target}`);
+    await store.loadStatic(join(current, "static.json"));
+    await snapshots.loadShells();
+    serving = target;
   }
 
-  // Load the static data once at startup
-  await loadStaticGPMetro();
+  await followCurrentRelease();
 
-  const gtfsRealtimeLoader = new GTFSRealtimeLoader(GPMETRO, model);
+  const realtime = new GTFSRealtimeLoader(GPMETRO, store);
 
-  // This will run every 10 minutes, it is cached so it won't redownload if not changed
-  CronJob.from({
-    cronTime: "0 */10 * * * *",
-    onTick: loadStaticGPMetro,
-    start: true,
-    waitForCompletion: true,
-  });
-
-  // This will run every second
   CronJob.from({
     cronTime: "* * * * * *",
-    onTick: gtfsRealtimeLoader.loadVehiclePositions.bind(gtfsRealtimeLoader),
+    onTick: () => realtime.loadVehiclePositions(),
     start: true,
     waitForCompletion: true,
   });
 
   CronJob.from({
     cronTime: "* * * * * *",
-    onTick: gtfsRealtimeLoader.loadTripUpdates.bind(gtfsRealtimeLoader),
+    onTick: () => realtime.loadTripUpdates(),
     start: true,
     waitForCompletion: true,
   });
 
-  // This will run every hour
   CronJob.from({
     cronTime: "0 0 * * * *",
-    onTick: gtfsRealtimeLoader.loadServiceAlerts.bind(gtfsRealtimeLoader),
+    onTick: () => realtime.loadServiceAlerts(),
     start: true,
-    // Run when the job is started, useful for shipping changes to the loader
+    // Useful when shipping changes to the loader.
+    runOnInit: true,
+    waitForCompletion: true,
+  });
+
+  // A build can land at any moment; this is how the worker finds out.
+  CronJob.from({
+    cronTime: "*/5 * * * * *",
+    onTick: followCurrentRelease,
+    start: true,
+    waitForCompletion: true,
+  });
+
+  // Predictions for departures that have left the window are dead weight.
+  CronJob.from({
+    cronTime: "0 0 4 * * *",
+    onTick: () => store.prunePredictions(),
+    start: true,
+  });
+
+  // Everything above puts data in memory; this puts it on disk, where the site
+  // is served from. It decides for itself what has changed, so it is safe to
+  // run every second regardless of what the loaders did.
+  CronJob.from({
+    cronTime: "* * * * * *",
+    onTick: () => snapshots.tick(),
+    start: true,
     runOnInit: true,
     waitForCompletion: true,
   });

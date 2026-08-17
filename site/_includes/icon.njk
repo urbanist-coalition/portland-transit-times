@@ -1,0 +1,15 @@
+{#
+  One <svg> per named glyph in _data/icons.json.
+
+  Path data is Google's Material Symbols (Outlined), except the Instagram mark,
+  which is Meta's — see NOTICE at the repository root. Icons carry no fill of
+  their own: app.css paints every svg with currentColor, so they take the color
+  of whatever they sit in.
+
+  Import with context, or `icons` is not in scope inside the macro:
+    {% from "icon.njk" import icon with context %}
+#}
+{%- macro icon(name, size=24) -%}
+{%- set glyph = icons[name] -%}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="{{ glyph.viewBox | default("0 -960 960 960") }}" width="{{ size }}" height="{{ size }}" aria-hidden="true"><path d="{{ glyph.d }}"/></svg>
+{%- endmacro -%}

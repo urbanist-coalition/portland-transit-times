@@ -1,0 +1,9 @@
+# Copied verbatim out of node_modules by scripts/copy-map-vendor.mjs. Not ours
+# to format, and a megabyte of MapLibre is not worth checking on every commit.
+/public/map/vendor/
+
+# Build output
+/_site/
+/releases/
+/_data/
+/tiles/out/

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{% if title %}{{ title }} | {% endif %}{{ site.name }}</title>
+    <meta name="description" content="{{ description | default(site.description) }}" />
+
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="UCP Transit" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    {#
+      Applies the stored theme before the first paint, so there is no flash of
+      the wrong one. Kept terse because it is inline on every page and blocks
+      that paint. /js/theme.js owns every other read and write of this key.
+    #}
+    <script>
+      try {
+        var m = localStorage.getItem("color-mode");
+        if (m === "light" || m === "dark") document.documentElement.dataset.theme = m;
+      } catch (e) {}
+    </script>
+
+    <link rel="stylesheet" href="/css/app.css" />
+    {%- for href in styles %}
+    <link rel="stylesheet" href="{{ href }}" />
+    {%- endfor %}
+  </head>
+  <body>
+    {{ content | safe }}
+    {% if footer != false %}{% include "footer.njk" %}{% endif %}
+    {% include "nav.njk" %}
+
+    <script type="module" src="/js/nav.js"></script>
+    <script type="module" src="/js/pwa.js"></script>
+    {%- for src in scripts %}
+    <script type="module" src="{{ src }}"></script>
+    {%- endfor %}
+
+    {#
+      Fetch and render the next page before it is asked for. On a touch device
+      `moderate` starts the work as a finger goes down, and the pages are ~10 KB
+      of static HTML, so activation is instant and the browser never shows a
+      loading indicator — which is what a client-side router used to buy, at the
+      cost of shipping a router.
+
+      A prerendered page runs its scripts. Anything with an effect beyond
+      drawing therefore waits for activation; see public/js/activation.js.
+    #}
+    <script type="speculationrules">
+      {
+        "prerender": [
+          {
+            "where": {
+              "or": [
+                { "href_matches": "/stops/*" },
+                { "href_matches": "/" },
+                { "href_matches": "/help/" }
+              ]
+            },
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
+
+    {# The only third-party code on the site. #}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analyticsId }}"></script>
+    <script type="module">
+      import { whenActivated } from "/js/activation.js";
+
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() {
+        dataLayer.push(arguments);
+      };
+      // `config` is what sends the pageview, so it waits: a prerender is not a
+      // visit, and counting it as one would inflate every page on the site.
+      whenActivated(() => {
+        gtag("js", new Date());
+        gtag("config", "{{ site.analyticsId }}");
+      });
+    </script>
+  </body>
+</html>

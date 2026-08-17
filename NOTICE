@@ -1,0 +1,66 @@
+Third-party notices
+===================
+
+Material Symbols
+----------------
+
+The SVG path data in site/_data/icons.json, and the arrow in
+public/css/arrivals.css, is taken from Google's Material Symbols, which are
+licensed under the Apache License, Version 2.0:
+
+    https://github.com/google/material-design-icons
+
+Specifically the Outlined style at weight 400, from symbols/web/ in that
+repository. A copy of the Apache License 2.0 is included at
+LICENSE-APACHE-2.0.txt.
+
+The paths are reproduced verbatim; only the surrounding markup is our own.
+Google's project ships no NOTICE file of its own, and its README states that
+attribution is appreciated but not required. This notice is provided anyway.
+
+Instagram mark
+--------------
+
+The Instagram glyph in site/_data/icons.json is NOT part of Google's
+Material Icons set and is NOT covered by the Apache 2.0 grant above. It is a
+trademark of Meta Platforms, Inc., displayed here solely to link to the
+Urbanist Coalition of Portland's own Instagram presence.
+
+The artwork is the official static glyph from Meta's 2023 Instagram brand
+asset pack (IG_brand_asset_pack_2023.zip, "01 Static Glyph / 03 Black
+Glyph"), obtained from Meta's Brand Resource Center:
+
+    https://www.meta.com/brand/resources/instagram/instagram-brand/
+
+The path geometry and viewBox are reproduced exactly as Meta ships them. The
+only change is the fill, which inherits the surrounding text color so the mark
+stays legible in both light and dark themes; Meta's guidelines permit the
+glyph in black, white, or any single solid color.
+
+This project is not affiliated with, endorsed by, or sponsored by Meta.
+
+Map data and tiles
+------------------
+
+The map at /by-location renders vector tiles built by the pipeline in tiles/
+and served from /tiles. Those tiles carry their own attribution,
+which the map displays: map data is © OpenStreetMap contributors under the
+Open Database License, the tile schema is OpenMapTiles', and the basemap
+styles are CARTO's Voyager and Dark Matter (BSD-3-Clause for the style code,
+CC-BY 4.0 for the design). No CARTO service is used — the styles are rendered
+against our own tiles.
+
+    https://www.openstreetmap.org/copyright
+    https://openmaptiles.org/
+    https://carto.com/
+
+Map renderer
+------------
+
+The map page loads MapLibre GL JS and the PMTiles protocol shim from
+public/map/vendor/, copied out of node_modules at build time by
+scripts/copy-map-vendor.mjs. Both are licensed BSD-3-Clause; MapLibre's license
+travels with it as public/map/vendor/maplibre-gl-LICENSE.txt.
+
+    https://github.com/maplibre/maplibre-gl-js
+    https://github.com/protomaps/PMTiles

@@ -1,0 +1,24 @@
+{% from "icon.njk" import icon with context %}
+{#
+  Service alerts, on the home page and every stop page.
+
+  Both states are in the markup and /js/alerts.js decides which one shows, so
+  the script never has to build structure — it fills in a count and some text.
+  Alerts are rare and usually zero, so the empty state is the honest default
+  while the fetch is in flight.
+#}
+<div class="alerts" id="service-alerts">
+  <div class="surface alerts-box alerts-empty">
+    <span class="alerts-title">Service Alerts</span>
+    <span class="alerts-badge" data-tone="ok">0</span>
+  </div>
+
+  <details class="surface alerts-box alerts-full" hidden>
+    <summary class="alerts-summary">
+      <span class="alerts-title">Service Alerts</span>
+      <span class="alerts-badge" data-tone="warn"></span>
+      {{ icon("chevronDown", 20) }}
+    </summary>
+    <ul class="alerts-list"></ul>
+  </details>
+</div>

@@ -1,0 +1,29 @@
+---
+layout: layout.njk
+title: Map
+permalink: /by-location/
+description: Map of Greater Portland Metro routes and stops
+styles: ["/map/vendor/maplibre-gl.css", "/map/map.css"]
+scripts: ["/map/map.js"]
+footer: false
+---
+{#
+  The map fills the viewport, so it takes the layout's head, nav and analytics
+  but not its footer.
+
+  Everything drawn here — every route line, every stop — is in the vector tile
+  bundle at /tiles, so this page has no data of its own to fetch and nothing to
+  render. See public/map/map.js.
+#}
+<div id="map" class="map"></div>
+
+<!-- A map that fails to load is indistinguishable from a map of the sea. -->
+<p id="map-error" class="map-error" role="alert" hidden></p>
+
+{#
+  MapLibre and the PMTiles protocol shim are classic scripts publishing
+  globals, so they run during parsing and are ready before the deferred module
+  that uses them. They come from npm — see scripts/copy-map-vendor.mjs.
+#}
+<script src="/map/vendor/pmtiles.js"></script>
+<script src="/map/vendor/maplibre-gl.js"></script>

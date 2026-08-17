@@ -11,7 +11,26 @@ env:
   IMAGE_NAME: urbanist-coalition/portland-transit-times
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+      # The site has to build, or the worker has nothing to fill in.
+      - run: npm run site:build
+        env:
+          # No release to read a static.json from, so the stop pages are
+          # skipped; this proves the templates and the config are sound.
+          SKIP_STOPS: "1"
+
   build-and-push:
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: read
