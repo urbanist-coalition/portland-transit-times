@@ -14,6 +14,43 @@
   color: var(--text-muted);
 }
 
+/* The beta note, between the intro and the service alerts */
+
+.home-beta {
+  /* Tinted and edged in the brand colour so it reads as a notice rather than
+     another card the eye can skip. */
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  border-left: 4px solid var(--primary);
+  background-color: var(--primary-soft);
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.home-beta-tag {
+  display: inline-block;
+  padding: 0.0625rem 0.5rem;
+  margin-right: 0.25rem;
+  border-radius: var(--r-pill);
+  background-color: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Underlined, because a link inside a coloured panel is otherwise just
+   slightly different text — and these three are the point of the panel. */
+.home-beta .link {
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.15em;
+}
+
 .home-cta {
   margin-top: 2rem;
   text-align: center;
