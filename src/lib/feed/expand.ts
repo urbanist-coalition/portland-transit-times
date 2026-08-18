@@ -66,11 +66,35 @@ export function datesInWindow(
   return dates;
 }
 
+/** The identity of one running of one trip: which trip, on which service day. */
+export const tripKey = (serviceDate: string, tripId: string) =>
+  `${serviceDate}:${tripId}`;
+
+/** A call with its place in the trip kept, which the trip pages order by. */
+export type TripCallInstance = StopTimeInstance & { sequence: number };
+
+export interface Expansion {
+  /** Boardable departures, sorted by time, keyed by stop. */
+  byStop: Map<string, StopTimeInstance[]>;
+  /**
+   * Every call a trip makes, in the order it makes them, keyed by `tripKey`.
+   *
+   * Includes the calls no stop offers — where a trip ends and the bus carries
+   * on as the next one in its block. That is still where the trip ends, and a
+   * page showing a whole trip that stopped one short of its own destination
+   * would be wrong about the only thing it exists to say.
+   */
+  byTrip: Map<string, TripCallInstance[]>;
+}
+
 /**
- * Every departure in the window, sorted by time, keyed by stop.
+ * Every call in the window, indexed the two ways the site reads them: across a
+ * stop, and along a trip.
  *
+ * One pass and one set of objects, shared between both maps — a call is in
+ * both, and building it twice would be twice the memory to say the same thing.
  * Route and trip travel with each instance because that is what the arrivals
- * payload shows and what the renderer reads; they are references to the same
+ * payload shows and what the renderers read; they are references to the same
  * objects, not copies, so a departure costs a handful of pointers rather than
  * its own flattened row.
  */
@@ -79,13 +103,21 @@ export function expandInstances(
   now: number,
   timeZone: string,
   window: ExpansionWindow = DEFAULT_WINDOW
-): Map<string, StopTimeInstance[]> {
+): Expansion {
   const wanted = datesInWindow(now, window);
   const routesById = indexBy(feed.routes, "routeId");
   const callsByTrip = groupBy(feed.calls, "tripId");
   const tripsByService = groupBy(feed.trips, "serviceId");
 
+  // Sorted once here rather than per service date: the feed lists stop times in
+  // whatever order it pleases, and a trip page in that order is a bus visiting
+  // its stops at random.
+  for (const calls of callsByTrip.values()) {
+    calls.sort((a, b) => a.sequence - b.sequence);
+  }
+
   const byStop = new Map<string, StopTimeInstance[]>();
+  const byTrip = new Map<string, TripCallInstance[]>();
 
   for (const [serviceId, dates] of Object.entries(feed.serviceDates)) {
     for (const date of dates) {
@@ -95,24 +127,41 @@ export function expandInstances(
         const route = routesById.get(trip.routeId);
         if (!route) continue;
 
+        const calls: TripCallInstance[] = [];
         for (const call of callsByTrip.get(trip.tripId) || []) {
           const scheduledTime = gtfsTimestamp(
             date,
             call.time,
             timeZone
           ).getTime();
-          const instances = byStop.get(call.stopId) || [];
-          instances.push({
+          const instance: TripCallInstance = {
             serviceDate: date,
             tripId: trip.tripId,
             stopId: call.stopId,
+            sequence: call.sequence,
             scheduledTime,
             route,
             trip,
             ...(call.terminates ? { terminates: true } : {}),
-          });
-          byStop.set(call.stopId, instances);
+          };
+          calls.push(instance);
+
+          /*
+           * The bus ends this trip here and leaves again as the next one in its
+           * block, from this same stop. Both calls in a stop's list would be
+           * one bus shown twice, and the first of the two turns into "Departed"
+           * while the rider watches it sit there. The boardable half is the
+           * next trip's first call, which is in this list already.
+           *
+           * The call itself is kept above, because it is where the trip ends.
+           */
+          if (call.continues) continue;
+
+          const atStop = byStop.get(call.stopId) || [];
+          atStop.push(instance);
+          byStop.set(call.stopId, atStop);
         }
+        if (calls.length) byTrip.set(tripKey(date, trip.tripId), calls);
       }
     }
   }
@@ -120,7 +169,7 @@ export function expandInstances(
   for (const instances of byStop.values()) {
     instances.sort((a, b) => a.scheduledTime - b.scheduledTime);
   }
-  return byStop;
+  return { byStop, byTrip };
 }
 
 /**

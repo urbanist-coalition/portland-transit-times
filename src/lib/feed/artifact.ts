@@ -20,8 +20,10 @@ export async function writeStaticFeed(
   await rename(temporary, path);
 
   const calls = feed.calls.length.toLocaleString();
+  const handoffs = feed.calls.filter((call) => call.continues).length;
   console.log(
     `[feed] ${feed.stops.length} stops, ${feed.trips.length} trips, ` +
-      `${calls} scheduled calls -> ${path}`
+      `${calls} scheduled calls (${handoffs} of them block handoffs, which no ` +
+      `stop offers) -> ${path}`
   );
 }

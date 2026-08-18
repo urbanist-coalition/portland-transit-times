@@ -68,7 +68,7 @@ describe("datesInWindow()", () => {
 
 describe("expandInstances()", () => {
   it("crosses the schedule with the dates its service runs", () => {
-    const byStop = expandInstances(feed(), noon, TIME_ZONE, {
+    const { byStop } = expandInstances(feed(), noon, TIME_ZONE, {
       back: 0,
       forward: 2,
     });
@@ -86,7 +86,7 @@ describe("expandInstances()", () => {
     const [first] = expandInstances(feed(), noon, TIME_ZONE, {
       back: 0,
       forward: 0,
-    }).get("0:1")!;
+    }).byStop.get("0:1")!;
 
     // 10:00 in Portland on that date is 14:00 UTC.
     expect(new Date(first!.scheduledTime).toISOString()).toBe(
@@ -102,7 +102,7 @@ describe("expandInstances()", () => {
     const [instance] = expandInstances(late, noon, TIME_ZONE, {
       back: 0,
       forward: 0,
-    }).get("0:1")!;
+    }).byStop.get("0:1")!;
 
     // 25:30 on the 17th is 01:30 on the 18th, still the 17th's service.
     expect(instance!.serviceDate).toBe("20260817");
@@ -112,13 +112,66 @@ describe("expandInstances()", () => {
   });
 
   it("sorts a stop's departures by time", () => {
-    const byStop = expandInstances(feed(), noon, TIME_ZONE, {
+    const { byStop } = expandInstances(feed(), noon, TIME_ZONE, {
       back: 0,
       forward: 2,
     });
     const times = byStop.get("0:2")!.map((instance) => instance.scheduledTime);
 
     expect(times).toEqual([...times].sort((a, b) => a - b));
+  });
+
+  it("leaves out the call a bus only ends its trip at", () => {
+    // The bus lays over here and leaves again as the next trip in its block.
+    // That departure is a call of its own; this one would be the same bus a
+    // second time, which is why the feed marks it rather than offering it.
+    const handoff = feed({
+      calls: [
+        { tripId: "t1", stopId: "0:1", sequence: 1, time: "10:00:00" },
+        {
+          tripId: "t1",
+          stopId: "0:2",
+          sequence: 2,
+          time: "10:30:00",
+          continues: true,
+        },
+      ],
+    });
+
+    const { byStop, byTrip } = expandInstances(handoff, noon, TIME_ZONE, {
+      back: 0,
+      forward: 0,
+    });
+
+    expect(byStop.get("0:1")).toHaveLength(1);
+    expect(byStop.get("0:2")).toBeUndefined();
+
+    // The trip still ends where it ends, which is what its own page shows.
+    expect(byTrip.get("20260817:t1")!.map((call) => call.stopId)).toEqual([
+      "0:1",
+      "0:2",
+    ]);
+  });
+
+  it("puts a trip's calls in the order the bus makes them", () => {
+    // The feed lists stop times in whatever order it pleases, and a trip page
+    // in that order is a bus visiting its stops at random.
+    const shuffled = feed({
+      calls: [
+        { tripId: "t1", stopId: "0:3", sequence: 3, time: "10:45:00" },
+        { tripId: "t1", stopId: "0:1", sequence: 1, time: "10:00:00" },
+        { tripId: "t1", stopId: "0:2", sequence: 2, time: "10:30:00" },
+      ],
+    });
+
+    const { byTrip } = expandInstances(shuffled, noon, TIME_ZONE, {
+      back: 0,
+      forward: 0,
+    });
+
+    expect(byTrip.get("20260817:t1")!.map((call) => call.sequence)).toEqual([
+      1, 2, 3,
+    ]);
   });
 
   it("carries the terminating flag through to the departure", () => {
@@ -137,7 +190,7 @@ describe("expandInstances()", () => {
     const [instance] = expandInstances(ending, noon, TIME_ZONE, {
       back: 0,
       forward: 0,
-    }).get("0:2")!;
+    }).byStop.get("0:2")!;
 
     expect(instance!.terminates).toBe(true);
   });

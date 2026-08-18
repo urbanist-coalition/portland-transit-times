@@ -63,29 +63,43 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
    * boarding, not alighting.
    */
   const calls: ScheduledCall[] = [];
+  /**
+   * When the bus *reaches* each call, kept aside for the ones that turn out to
+   * end a trip. Nobody boards there, so the departure time — which at a stop
+   * where the bus waits can be minutes later, and on a layover is really the
+   * next trip's business — is the wrong number to show.
+   */
+  const arrivalTimes = new Map<ScheduledCall, string>();
   for (const stopTime of rawStopTimes) {
     const time = stopTime.departure_time || stopTime.arrival_time;
     if (!time) continue;
-    calls.push({
+    const call: ScheduledCall = {
       tripId: stopTime.trip_id,
       stopId: stopTime.stop_id,
       sequence: parseInt(stopTime.stop_sequence, 10),
       time,
-    });
+    };
+    calls.push(call);
+    if (stopTime.arrival_time) arrivalTimes.set(call, stopTime.arrival_time);
   }
 
   /*
    * Trip endings.
    *
-   * 942 of this feed's 1,345 trips end where the next trip in their block
+   * 1,275 of this feed's 1,345 trips end where the next trip in their block
    * begins — the bus lays over and carries on, a median of zero minutes later.
    * Listing the ending as well as the departure gives a rider two rows for one
-   * bus, and the first turns into "Departed" while they watch. So the ending
-   * goes, and the departure it duplicates stays.
+   * bus, and the first turns into "Departed" while they watch. So the ending is
+   * marked `continues` and a stop's arrivals leave it out, keeping the
+   * departure it duplicates.
    *
-   * The other 403 are real: the vehicle finishes there. Those are kept and
-   * marked, because a bus arriving is worth knowing about and a bus you cannot
-   * board should not be offered as one you can.
+   * The other 70 are real: the vehicle finishes there. Those are marked
+   * `terminates`, because a bus arriving is worth knowing about and a bus you
+   * cannot board should not be offered as one you can.
+   *
+   * Both kinds stay in the feed. Which calls a *stop* can offer is a question
+   * about one list of departures sitting side by side; where a *trip* ends is a
+   * fact about the trip, and the pages under /trips need it.
    */
   const callsByTripForBlocks = groupBy(calls, "tripId");
   const lastCall = new Map<string, ScheduledCall>();
@@ -112,8 +126,6 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
       trip.trip_id
     );
   }
-  const continuesFrom = new Set<ScheduledCall>();
-  const realEndings = new Set<ScheduledCall>();
   for (const tripIds of blockOrder.values()) {
     const ordered = tripIds
       .filter((tripId) => firstCall.has(tripId))
@@ -125,17 +137,20 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
       if (!ending) continue;
       const next = ordered[index + 1];
       const resumesHere = next && firstCall.get(next)!.stopId === ending.stopId;
-      (resumesHere ? continuesFrom : realEndings).add(ending);
+      if (resumesHere) ending.continues = true;
+      else ending.terminates = true;
+      // Nobody boards an ending, so it is timed by when the bus gets there.
+      const arrival = arrivalTimes.get(ending);
+      if (arrival) ending.time = arrival;
     }
   }
 
-  const boardableCalls = calls.filter((call) => !continuesFrom.has(call));
-  for (const call of realEndings) call.terminates = true;
+  const boardableCalls = calls.filter((call) => !call.continues);
 
   /*
    * Everything derived from the *shape* of a trip — where it ends, which
    * destinations a stop can reach — is computed from every call, including the
-   * endings dropped above. A trip that lays over still ends where it ends, and
+   * endings excluded above. A trip that lays over still ends where it ends, and
    * a headsign that falls back to "the last stop's name" must not fall back to
    * the second to last.
    */
@@ -233,7 +248,7 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
         overrides[stop.stopId] ||
         fixCapitalization(normalizeInOutBound(stop.stopName)),
     })),
-    calls: boardableCalls,
+    calls,
     serviceDates,
   };
 }

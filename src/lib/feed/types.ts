@@ -18,12 +18,25 @@ export interface ScheduledCall {
    *
    * A trip's last call is usually not the end of anything — the same vehicle
    * carries on as the next trip in its block, from the same stop, a median of
-   * zero minutes later. Those calls are dropped at normalisation, because the
-   * departure is the next trip's first call and listing both shows a rider two
-   * entries for one bus, the first of which turns into "Departed" in front of
-   * them. What is left here is the real ends: the bus is going to the garage.
+   * zero minutes later. Those calls are marked `continues` instead. What is
+   * flagged here is the real ends: the bus is going to the garage.
    */
   terminates?: boolean;
+  /**
+   * The trip ends here but the bus does not: it lays over and leaves again as
+   * the next trip in its block, from this same stop.
+   *
+   * Not a departure anyone can board, so `expandInstances` leaves it out of a
+   * stop's arrivals — the boardable one is the next trip's first call, and
+   * listing both shows a rider two entries for one bus, the first of which
+   * turns into "Departed" in front of them.
+   *
+   * It is kept in the feed rather than dropped because it is still where the
+   * trip ends, and a page showing a whole trip has to be able to say so. 1,275
+   * of this feed's 1,345 trips end this way; dropping them left 95% of trips
+   * one stop short of their own destination.
+   */
+  continues?: boolean;
 }
 
 /**

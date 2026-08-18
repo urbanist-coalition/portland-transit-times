@@ -98,10 +98,11 @@ describe("normalizeFeed()", () => {
     expect(call!.time).toBe("10:05:00");
   });
 
-  it("drops a trip's last call when its block carries on from that stop", async () => {
-    // A bus reaches City Hall, waits, and leaves as the next trip. Listing the
+  it("marks a trip's last call when its block carries on from that stop", async () => {
+    // A bus reaches City Hall, waits, and leaves as the next trip. Offering the
     // arrival as well as the departure shows a rider two buses where there is
-    // one, and the first turns into "Departed" in front of them.
+    // one, and the first turns into "Departed" in front of them — so the stop
+    // does not offer it. The call is still where t1 ends, so it is still here.
     const feed = await normalize({
       trips: [
         ["r1", "weekday", "t1", "CITY HALL", "0", "b1", "s1"],
@@ -115,8 +116,8 @@ describe("normalizeFeed()", () => {
       ],
     });
 
-    expect(callAt(feed, "t1", "0:2")).toBeUndefined();
-    expect(callAt(feed, "t2", "0:2")).toBeDefined();
+    expect(callAt(feed, "t1", "0:2")?.continues).toBe(true);
+    expect(callAt(feed, "t2", "0:2")?.continues).toBeUndefined();
   });
 
   it("keeps a trip's last call, marked, when the bus finishes there", async () => {
@@ -124,6 +125,21 @@ describe("normalizeFeed()", () => {
 
     const ending = callAt(feed, "t1", "0:2");
     expect(ending?.terminates).toBe(true);
+    expect(ending?.continues).toBeUndefined();
+  });
+
+  it("times a trip's ending by when the bus gets there", async () => {
+    // Nobody boards an ending, so the departure time — here the moment the bus
+    // pulls out again, five minutes into its layover — is not what a rider
+    // waiting at City Hall is watching for.
+    const feed = await normalize({
+      stopTimes: [
+        ["t1", "10:00:00", "10:00:00", "0:1", "1", "", "", "1"],
+        ["t1", "10:10:00", "10:15:00", "0:2", "2", "", "", "1"],
+      ],
+    });
+
+    expect(callAt(feed, "t1", "0:2")?.time).toBe("10:10:00");
   });
 
   it("does not treat another service day's duty as the same bus", async () => {

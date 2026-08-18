@@ -97,4 +97,54 @@ export interface StopTimeInstance extends StopTimeInstanceBase {
   trip: Trip;
 }
 
-export type LiveStopTimeInstance = StopTimeInstance & StopTimeUpdate;
+/**
+ * A departure with whatever the agency has since said about it — which, for
+ * most departures most of the time, is nothing.
+ *
+ * The prediction fields are optional because their absence is the fact: 92% of
+ * the rows on a stop page are calls no vehicle has reported, and a page that
+ * fills them in with the scheduled time and calls the result "On Time" is
+ * making a claim on the agency's behalf that the agency never made.
+ */
+export type LiveStopTimeInstance = StopTimeInstance & {
+  predictedTime?: number;
+  status?: StopTimeStatus;
+  /** The agency said something about this exact call. */
+  reported?: true;
+};
+
+/**
+ * One call on a trip, as a trip page shows it: which stop, and when the bus is
+ * now expected there.
+ *
+ * Flatter than a LiveStopTimeInstance because the whole page is one trip on one
+ * route — naming them on every row would be thirty copies of the heading — and
+ * because the row has a stop to identify rather than a bus.
+ */
+export interface TripCall {
+  stopId: string;
+  stopCode: string;
+  stopName: string;
+  /** Where in the trip this call falls; what the rows are ordered by. */
+  sequence: number;
+  /**
+   * The timetable's own time of day, "HH:MM:SS". True of every day the trip
+   * runs, which is why a trip page can be built once rather than once a day.
+   */
+  time: string;
+  /**
+   * What this call comes to on the day the bus is actually running it, and what
+   * the agency now expects. Absent from the timetable a page is built with;
+   * present once the trip is out on the road.
+   */
+  scheduledTime?: number;
+  predictedTime?: number;
+  status?: StopTimeStatus;
+  /**
+   * The agency said something about this exact call, rather than this being
+   * what its delay at a neighbouring stop implies. Only a reported call earns
+   * a status badge; an inferred one still moves the time, because a column of
+   * times that runs backwards is wrong on its face.
+   */
+  reported?: true;
+}
