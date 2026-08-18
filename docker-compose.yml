@@ -102,6 +102,19 @@ services:
     command: npm run build:loop
     env_file:
       - .env
+    environment:
+      # What the release is stamped with, and half of how the builder decides
+      # whether there is anything to do: an unchanged feed and an unchanged
+      # version means the current release is already right, and it stops.
+      #
+      # The image has no git history — .dockerignore drops it — so the builder
+      # cannot read the commit it was built from, and every deploy would look
+      # like "unknown" again. IMG_TAG already is that commit, and is already
+      # required to pull the image at all; see the Makefile. Without this a
+      # deploy that changes only templates or styles never reaches a release,
+      # and the site keeps serving the old pages until the feed happens to
+      # change.
+      APP_VERSION: ${IMG_TAG}
     deploy:
       resources:
         limits:
