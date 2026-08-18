@@ -86,7 +86,14 @@
   background-color: var(--border);
 }
 
+/*
+ * The card is a link — to the trip it is a row of, so a rider can see where
+ * this bus goes after here. `display: block` is what makes it still a card: an
+ * anchor is inline by default, and an inline box ignores the vertical padding
+ * and lets the accent stripe run the height of the whole list.
+ */
 .arrival {
+  display: block;
   position: relative;
   margin-bottom: 0.75rem;
   padding: 0.875rem 1rem 0.875rem 1.25rem;
@@ -95,6 +102,15 @@
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Enough to say it can be pressed, without turning a list into a row of buttons. */
+.arrival:hover,
+.arrival:focus-visible {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-2);
 }
 
 /* The route's color as a stripe down the leading edge of the card */
