@@ -51,7 +51,23 @@ async function main() {
     if (target === serving) return;
 
     console.log(`[worker] release ${target}`);
-    await store.loadStatic(join(current, "static.json"));
+
+    /*
+     * Everything from here on is addressed by the release's own path rather
+     * than through the `current` symlink.
+     *
+     * The writer reads each page once and writes it back many times, so a path
+     * that resolves at write time is a page from one release landing in
+     * another: a build flips the link, and for the few seconds before this cron
+     * notices, every write puts the *previous* release's HTML into the new
+     * release's directory. Stop pages hid it — they are rewritten every second,
+     * so they corrected themselves as soon as the shells reloaded — but a trip
+     * page is only rewritten while its bus is running, so one that had finished
+     * kept the old markup until the next build.
+     */
+    const dir = releases.path(target);
+    snapshots.retarget(join(dir, "data"), join(dir, "site"));
+    await store.loadStatic(join(dir, "static.json"));
     await snapshots.loadShells();
     serving = target;
   }

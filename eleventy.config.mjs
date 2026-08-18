@@ -11,8 +11,10 @@
  * a plain ES module under public/js/ that the browser loads directly.
  */
 
-import { contrastText, isTooLight } from "./public/js/colors.js";
+import { contrastText, isTooDark, isTooLight } from "./public/js/colors.js";
+import { formatClock, renderTripCalls } from "./public/js/render-trip.js";
 import { compareRouteNames } from "./public/js/routes.js";
+import { tripSlug } from "./public/js/trips.js";
 
 export default function (eleventyConfig) {
   // `public/` is served verbatim at the site root: stylesheets, the ES modules,
@@ -35,6 +37,7 @@ export default function (eleventyConfig) {
   // filters are the shared module, not a second implementation.
   eleventyConfig.addFilter("contrastText", contrastText);
   eleventyConfig.addFilter("tooLight", (color) => isTooLight(color));
+  eleventyConfig.addFilter("tooDark", (color) => isTooDark(color));
 
   // The feed lists a stop's routes in whatever order it pleases. Riders read
   // them in service order, and the map popups use the same comparator.
@@ -43,6 +46,18 @@ export default function (eleventyConfig) {
       compareRouteNames(a.routeShortName, b.routeShortName)
     )
   );
+
+  // Where a trip's page lives. One definition, shared with the browser, so a
+  // link written into an arrivals card lands on the page this built.
+  eleventyConfig.addFilter("tripSlug", tripSlug);
+
+  // A trip's stops, from the module that will later redraw them with live
+  // times in it. Unlike the arrivals, a timetable does not depend on when it
+  // is rendered, so the build can write this one out and be done.
+  eleventyConfig.addFilter("tripCalls", (calls) => renderTripCalls(calls));
+
+  // "11:35:00" as a rider reads it. Same function the rows use.
+  eleventyConfig.addFilter("clock", formatClock);
 
   return {
     dir: {

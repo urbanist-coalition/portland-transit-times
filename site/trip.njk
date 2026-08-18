@@ -1,0 +1,82 @@
+---
+pagination:
+  data: trips
+  size: 1
+  alias: trip
+permalink: "/trips/{{ trip.tripId | tripSlug }}/"
+layout: layout.njk
+styles: ["/css/arrivals.css", "/css/trip.css"]
+scripts: ["/js/back.js", "/js/trip.js"]
+eleventyComputed:
+  title: "{{ trip.route.routeShortName }} to {{ trip.headsign }}"
+  description: "Every stop on the {{ trip.route.routeShortName }} to {{ trip.headsign }}, leaving at {{ trip.startTime | clock }}"
+---
+{% from "icon.njk" import icon with context %}
+{#
+  One page per trip: where a bus goes after it leaves you, and when it gets
+  there. Reached by tapping an arrival on a stop page, which passes the stop it
+  came from in `?from=` so /js/trip.js can point out the rider's own row.
+
+  The list is rendered by /js/render-trip.js through the `tripCalls` filter,
+  not by a loop here — the same module will redraw it in the browser with live
+  times in it, and two implementations of one list is how they drift apart.
+
+  Unlike a stop page this needs no filling in after the build: a timetable is
+  the same on every day the trip runs, which is why there is one page rather
+  than one per day.
+#}
+<main class="container container-md">
+  <header class="surface trip-header">
+    <button type="button" class="icon-btn" data-back aria-label="Go back" title="Go back">
+      {{ icon("arrowBack") }}
+    </button>
+
+    <div class="trip-header-body">
+      <h1 class="trip-name">
+        <span
+          class="pill"
+          style="background-color: {{ trip.route.routeColor }}; color: {{ trip.route.routeTextColor | default(trip.route.routeColor | contrastText, true) }}; border-color: {{ 'currentColor' if trip.route.routeColor | tooLight else 'transparent' }}"
+          >{{ trip.route.routeShortName }}</span
+        >
+        <span class="trip-headsign">to {{ trip.headsign }}</span>
+      </h1>
+      <p class="trip-meta">
+        {{ trip.calls.length }} stops · {{ trip.startTime | clock }} – {{ trip.endTime | clock }}{% if trip.runs %} · {{ trip.runs }}{% endif %}
+      </p>
+    </div>
+  </header>
+
+  {#
+    The route's colour reaches every dot on the rail from here. The two flags
+    are the ends it can fail at — a colour too pale to see on the light theme,
+    or too dark to see on the dark one — and the stylesheet falls back to the
+    border grey for either.
+  #}
+  <div
+    class="trip-calls-block"
+    id="trip-calls"
+    data-trip-id="{{ trip.tripId }}"
+    data-too-light="{{ trip.route.routeColor | tooLight }}"
+    data-too-dark="{{ trip.route.routeColor | tooDark }}"
+    style="--route-color: {{ trip.route.routeColor }}"
+  >
+{#-
+  On one line, with no whitespace inside the markers: the worker rewrites
+  exactly what is between them, so a page it writes and a page the build wrote
+  have to be able to come out byte for byte the same. Otherwise every trip page
+  looks out of date to the worker the moment it starts.
+-#}
+<!--calls:start-->{{ trip.calls | tripCalls | safe }}<!--calls:end-->
+  </div>
+
+  {#
+    The way back to the arrivals the reader came from, at the end of a list
+    thirty-odd stops long. /js/trip.js fills in the link and reveals it when the
+    page was opened from a stop; there is nowhere to go back to otherwise, so it
+    ships hidden.
+  #}
+  <div class="trip-switch">
+    <a class="btn btn-primary" data-back-to-stop hidden></a>
+    <a class="btn btn-outline" href="/">Find a Stop</a>
+  </div>
+</main>

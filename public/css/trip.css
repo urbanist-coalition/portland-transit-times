@@ -1,0 +1,280 @@
+/*
+ * A trip page: one bus, every stop it calls at, and when it is due.
+ *
+ * The markup is produced by /js/render-trip.js — by the build for the
+ * timetable, and later in the browser as live times come in — so every class
+ * here is written by that module. The status badge is the arrivals card's, on
+ * purpose: "4 min late" should not look like two different things on two
+ * pages, so this page loads arrivals.css too.
+ */
+
+.trip-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.trip-header-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.trip-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.trip-headsign {
+  font-weight: 600;
+}
+
+.trip-meta {
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * `--rail-color` is what the dots are actually drawn in, and it is a separate
+ * property from the route's own colour on purpose: the page carries that one
+ * in an inline style, an inline style beats any selector, and a rule trying to
+ * override it on the element that declares it would lose. The fallbacks below
+ * can have this one.
+ */
+.trip-calls-block {
+  --rail-color: var(--route-color, var(--text-muted));
+  padding-block: 0.5rem 1rem;
+}
+
+/*
+ * A route colour that cannot be seen against the page it is drawn on falls
+ * back to the border grey: near-white on the light theme, near-black on the
+ * dark one. Each theme is written twice because it can arrive either as a
+ * stored choice or as the system's — the same pair of selectors the arrivals
+ * card's accent stripe uses.
+ */
+:root[data-theme="light"] .trip-calls-block[data-too-light="true"],
+:root[data-theme="dark"] .trip-calls-block[data-too-dark="true"] {
+  --rail-color: var(--border-strong);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .trip-calls-block[data-too-light="true"] {
+    --rail-color: var(--border-strong);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .trip-calls-block[data-too-dark="true"] {
+    --rail-color: var(--border-strong);
+  }
+}
+
+/*
+ * Shown only once the live times on screen are old enough to mislead — offline,
+ * or a worker that has stopped writing. /js/trip.js decides, and a page that is
+ * only showing a timetable never shows this at all.
+ */
+.trip-stale {
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--status-warn) 40%, transparent);
+  border-radius: var(--r-md);
+  background-color: color-mix(in srgb, var(--status-warn) 14%, transparent);
+  color: var(--status-warn);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.trip-calls {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Time on the left, stop on the right, and a rail down the boundary standing
+ * for the road between them.
+ *
+ * The rail is drawn by the row rather than by a spacer element: the renderer
+ * has to run in Node, and a decoration nobody reads aloud belongs in the
+ * stylesheet. `padding-block` on the row is what gives the line its length,
+ * so a row that wraps onto two lines stretches the rail with it.
+ */
+.trip-call {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4.75rem 1fr;
+  column-gap: 1.375rem;
+  padding-block: 0.6875rem;
+}
+
+/* The line, between this row's dot and the next one's. */
+.trip-call::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  /* Centred on the gap between the columns, whatever the line's width. */
+  inset-inline-start: calc(4.75rem + 0.6875rem);
+  width: 2px;
+  transform: translateX(-50%);
+  background-color: var(--border-strong);
+}
+
+/*
+ * The road already travelled, in the route's colour.
+ *
+ * This is the rail filling in behind the bus: grey ahead of it, coloured
+ * behind, and the fill grows a stop at a time as the trip goes on. It needs
+ * live times to mean anything — a timetable has no idea where the bus is — so
+ * a page showing one is grey all the way down, which is the truth.
+ */
+.trip-call[data-state="passed"]::before {
+  width: 3px;
+  background-color: var(--rail-color);
+}
+
+/* Nothing precedes the first stop, and nothing follows the last. */
+.trip-call:first-child::before {
+  inset-block-start: 50%;
+}
+
+.trip-call:last-child::before {
+  inset-block-end: 50%;
+}
+
+/* The dot: the stop itself, in the route's colour. */
+.trip-call::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 0.6875rem;
+  inset-inline-start: calc(4.75rem + 0.6875rem);
+  width: 11px;
+  height: 11px;
+  margin-top: 0.3125rem;
+  transform: translateX(-50%);
+  /* The page's own colour, so the line is cut rather than drawn over. */
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background-color: var(--rail-color);
+}
+
+/* The ends of the line are the ends of the trip, and are worth marking. */
+.trip-call:first-child::after,
+.trip-call[data-last="true"]::after {
+  width: 15px;
+  height: 15px;
+  margin-top: 0.1875rem;
+  border-color: var(--rail-color);
+  background-color: var(--bg);
+}
+
+.trip-call-times {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.trip-call-clock {
+  display: block;
+  font-weight: 600;
+}
+
+/* What the timetable said, once something has superseded it. */
+.trip-call-was {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  font-style: italic;
+}
+
+.trip-call-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/*
+ * A stop name is a link, and deliberately does not look like one. Every row on
+ * the page carries one, so colouring and underlining them turns the list into
+ * a wall of links and buries what the page is for — the times. The keyboard
+ * focus ring is left alone, which is the part that has to be visible.
+ */
+.trip-call-stop {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.trip-call-end {
+  width: 100%;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+/*
+ * Stops the bus is already through. Dimmed rather than removed — a rider who
+ * has just boarded wants to know the thing is running to time, and the row
+ * they got on at is the evidence.
+ *
+ * The dots are not dimmed with them: they are on the filled part of the rail,
+ * and greying them out would put holes in it.
+ */
+.trip-call[data-state="passed"] .trip-call-times,
+.trip-call[data-state="passed"] .trip-call-body {
+  opacity: 0.55;
+}
+
+/*
+ * Where the colour stops is where the bus is. That was worth a marker of its
+ * own for about ten minutes: a disc at the head of the fill only repeated what
+ * the boundary between the two colours already says, in a list where every row
+ * is a dot on a line and one more dot reads as one more stop.
+ */
+
+/*
+ * The stop the rider came from, carried in `?from=` by the arrivals card they
+ * tapped and marked by /js/trip.js. In a list of thirty names that all look
+ * alike, this is the one they need to find.
+ */
+.trip-call[data-from="true"] {
+  background-color: var(--primary-soft);
+  border-radius: var(--r-md);
+  /* Back out to the row's own edges, and in again so the text does not move. */
+  margin-inline: -0.75rem;
+  padding-inline: 0.75rem;
+}
+
+.trip-call[data-from="true"]::before,
+.trip-call[data-from="true"]::after {
+  inset-inline-start: calc(4.75rem + 0.6875rem + 0.75rem);
+}
+
+.trip-call[data-from="true"] .trip-call-stop {
+  font-weight: 700;
+}
+
+.trip-calls-none {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.trip-switch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}

@@ -40,3 +40,19 @@ export function contrastText(hexColor) {
 export function isTooLight(hexColor, threshold = 0.8) {
   return relativeLuminance(hexColor) > threshold;
 }
+
+/**
+ * The same problem from the other end: a colour too dark to be seen against a
+ * dark page. The trip pages draw a dot per stop in the route's colour, and the
+ * 9B's navy on the dark theme's background is a contrast ratio of 1.6 — a row
+ * of holes in the rail rather than a row of stops.
+ *
+ * The threshold is read off this feed rather than picked: it separates the
+ * three routes that disappear (9B, 21 and the 1, all under 0.07) from the
+ * husky line at 0.11, which reads. Anything caught here falls back to the
+ * border grey, on the same principle as isTooLight — a colour that cannot be
+ * seen should not be relied on to say anything.
+ */
+export function isTooDark(hexColor, threshold = 0.08) {
+  return relativeLuminance(hexColor) < threshold;
+}

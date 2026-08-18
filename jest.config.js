@@ -12,4 +12,11 @@ module.exports = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  // The renderers in public/js are ES modules that the build, the worker and
+  // the browser all import; a test of one has to be able to import it too, so
+  // ts-jest transforms them along with the TypeScript. tsconfig's allowJs is
+  // what lets it.
+  transform: {
+    "^.+\\.[jt]s$": ["ts-jest", { tsconfig: { module: "commonjs" } }],
+  },
 };

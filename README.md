@@ -30,13 +30,19 @@ need:
 | `data/alerts.json` | when alerts change | fetched once per page load |
 | `data/vehicle-positions.json` | every second | the map's live buses |
 | `site/stops/<code>/index.html` | on each feed refresh, and each minute | so a stop page arrives with real times in it, not a skeleton |
+| `site/trips/<slug>/index.html` | while that bus is running | the same, for the ~150 trips out on the road at once |
 
 Identical writes are skipped, so nginx can keep answering conditional requests
 with a 304 instead of resending an unchanged payload.
 
-Stop pages are rebuilt — all 656 of them, in about a second — whenever the feed
-or the code changes, because a stop's name, number and route pills live in its
-HTML rather than in a payload every visitor downloads.
+Stop and trip pages are rebuilt — 656 and 1,345 of them, in about two seconds —
+whenever the feed or the code changes, because a stop's name, number and route
+pills, and a trip's whole timetable, live in their HTML rather than in a payload
+every visitor downloads.
+
+Tapping an arrival opens its trip: every stop that bus makes and when it is due
+at each, with live times written in while it is running and its timetable put
+back when it finishes.
 
 ### No framework, on purpose
 
@@ -45,12 +51,14 @@ Everything interactive is a plain ES module in `public/js/`, loaded with
 `<script type="module">` — no bundler, no build step for JavaScript, and no
 dependencies in the browser except Google Analytics, and MapLibre on the map.
 
-The one shared piece is `public/js/render-arrivals.js`, which renders the
-arrivals list to HTML. The worker imports it in Node to fill in each page; the
-browser imports the same file to keep the times moving. One renderer means the
-first paint and the first refresh cannot disagree. `public/js/package.json`
-marks that directory as ESM so Node can import the very files the browser
-loads.
+The shared pieces are `public/js/render-arrivals.js` and
+`public/js/render-trip.js`, which render the arrivals list and a trip's stops to
+HTML. The build and the worker import them in Node to fill in each page; the
+browser imports the same files to keep the times moving. One renderer means the
+first paint and the first refresh cannot disagree — and because both pages get
+the word for a late bus from the same function, one cannot call it late while
+the other calls it on time. `public/js/package.json` marks that directory as ESM
+so Node can import the very files the browser loads.
 
 ### Installable, and useful with no signal
 

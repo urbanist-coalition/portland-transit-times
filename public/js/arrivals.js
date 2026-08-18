@@ -13,18 +13,12 @@
  * second and undo the browser's text selection along with it.
  */
 
-import { whenActivated } from "/js/activation.js";
+import { poll, staleNotice } from "/js/poll.js";
 import { renderArrivals } from "/js/render-arrivals.js";
 
 const POLL_MS = 1000;
 /** Must match the .is-leaving animation in arrivals.css. */
 const LEAVING_MS = 400;
-/**
- * How old the times may get before the page says so. The feed moves every five
- * seconds, so a minute and a half of silence means something is wrong — no
- * signal, or a worker that has stopped writing.
- */
-const STALE_AFTER_MS = 90_000;
 
 const container = document.getElementById("arrivals");
 const stopCode = container?.dataset.stopCode;
@@ -154,14 +148,9 @@ function markStale() {
   const notice = container.querySelector(".arrivals-stale");
   if (!notice) return;
 
-  const age = Date.now() - dataAt;
-  if (!dataAt || age < STALE_AFTER_MS) {
-    notice.hidden = true;
-    return;
-  }
-  const minutes = Math.max(1, Math.round(age / 60_000));
-  notice.textContent = `Not updating — these times are about ${minutes} min old`;
-  notice.hidden = false;
+  const message = staleNotice(dataAt, Date.now());
+  if (message) notice.textContent = message;
+  notice.hidden = message === null;
 }
 
 async function tick() {
@@ -178,45 +167,4 @@ async function tick() {
   markStale();
 }
 
-if (container && stopCode) {
-  let timer = null;
-
-  function start() {
-    if (timer !== null) return;
-    tick();
-    timer = window.setInterval(tick, POLL_MS);
-  }
-
-  function stop() {
-    window.clearInterval(timer);
-    timer = null;
-  }
-
-  function sync() {
-    // A prerendered page is not being read; whenActivated owns its first start.
-    if (document.prerendering) return;
-    document.hidden ? stop() : start();
-  }
-
-  // A backgrounded tab shows nobody a countdown, so it should not ask for one.
-  document.addEventListener("visibilitychange", sync);
-
-  /*
-   * Coming back is not always a visibility change, and polling that stays
-   * stopped leaves the countdowns from whenever the reader last looked — the
-   * one thing this page must never show. An installed app frozen in the
-   * background and reopened, or a page restored from the back/forward cache,
-   * can arrive with only some of these; whichever comes first starts the poll
-   * again, and the rest find it already running.
-   *
-   * Each one asks `document.hidden` rather than assuming, so none of them can
-   * start a poll for a page nobody is looking at.
-   */
-  document.addEventListener("resume", sync);
-  window.addEventListener("pageshow", sync);
-  window.addEventListener("focus", sync);
-
-  // Nor does a prerendered page: the times it was born with are correct as of
-  // when the worker wrote them, and polling can wait until someone arrives.
-  whenActivated(start);
-}
+if (container && stopCode) poll(tick, POLL_MS);
