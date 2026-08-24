@@ -411,6 +411,34 @@ export class TransitStore {
   }
 
   /**
+   * Whether a trip is still out on the road, rather than finished and not yet
+   * forgotten by the feed.
+   *
+   * The clock alone cannot tell those apart, for the same reason a stop's
+   * window cannot: a bus running half an hour late is past its last scheduled
+   * call and still driving. So the bus is asked first — a vehicle reporting
+   * this running is it saying so itself, and a prediction that still expects it
+   * to reach the end of the line is the weaker form of the same thing. The
+   * clock is what is left for a trip nobody is reporting, and it is what puts a
+   * finished trip's page back: once the bus lays over and the feed moves it on
+   * to the next trip in its block, this one stops being reported and reverts,
+   * as it always did.
+   *
+   * There is no ninety minute bound here because the vehicle carries one
+   * already — setVehicleProgress will not place a bus that far behind its
+   * timetable.
+   */
+  private stillRunning(instances: TripCallInstance[], now: number): boolean {
+    const last = instances[instances.length - 1]!;
+    if (this.progress.has(tripKey(last.serviceDate, last.tripId))) return true;
+
+    const update = this.updates.get(updateKey(last));
+    if (update && update.predictedTime >= now) return true;
+
+    return last.scheduledTime >= now - TRIP_LIVE_WINDOW_MS;
+  }
+
+  /**
    * The trips the agency is currently saying something about, as the rows a
    * trip page shows.
    *
@@ -439,8 +467,7 @@ export class TransitStore {
       if (!instances?.length) continue;
 
       // Long finished; the feed simply has not forgotten it yet.
-      const last = instances[instances.length - 1]!;
-      if (last.scheduledTime < now - TRIP_LIVE_WINDOW_MS) continue;
+      if (!this.stillRunning(instances, now)) continue;
 
       const tripId = instances[0]!.tripId;
       const startsAt = instances[0]!.scheduledTime;

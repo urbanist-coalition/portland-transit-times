@@ -190,6 +190,71 @@ describe("TransitStore vehicle progress", () => {
 });
 
 /**
+ * A trip page shows live times while its bus is out and the timetable once it
+ * has finished. Telling those apart is the same problem the stop pages have,
+ * and it gets the same answer.
+ */
+describe("TransitStore.liveTrips() and a late bus", () => {
+  /** Twenty minutes past the trip's last scheduled call, at 10:10. */
+  const afterTheEnd = new Date("2026-08-17T14:30:00Z").getTime();
+
+  /** The agency mentioning the trip at all, which is what puts it in scope. */
+  function report(store: TransitStore, predictedTime: number): void {
+    store.setStopTimeUpdates(
+      [
+        {
+          serviceDate: "20260817",
+          tripId: "t1",
+          stopId: "0:111",
+          predictedTime,
+          status: StopTimeStatus.scheduled,
+        },
+      ],
+      new Date(afterTheEnd)
+    );
+  }
+
+  it("keeps a page live while the bus is still being tracked", async () => {
+    // Half an hour behind its timetable and still driving. The stop pages hold
+    // its row; the trip page has to hold its times, or the two disagree about
+    // the same bus.
+    const store = await load();
+    report(store, scheduled);
+    store.setVehicleProgress(atStop("0:111", false), afterTheEnd);
+
+    expect(store.liveTrips(afterTheEnd).has("t1")).toBe(true);
+  });
+
+  it("keeps a page live while the agency still expects the bus at the end", async () => {
+    const store = await load();
+    report(store, scheduled);
+    store.setStopTimeUpdates(
+      [
+        {
+          serviceDate: "20260817",
+          tripId: "t1",
+          stopId: "0:101",
+          predictedTime: afterTheEnd + 5 * 60_000,
+          status: StopTimeStatus.scheduled,
+        },
+      ],
+      new Date(afterTheEnd)
+    );
+
+    expect(store.liveTrips(afterTheEnd).has("t1")).toBe(true);
+  });
+
+  it("puts the timetable back once the bus has moved on", async () => {
+    // No vehicle on this trip any more — it laid over and the feed moved it to
+    // the next trip in its block — and nothing expects it anywhere.
+    const store = await load();
+    report(store, scheduled);
+
+    expect(store.liveTrips(afterTheEnd).has("t1")).toBe(false);
+  });
+});
+
+/**
  * A stop's window is scheduled, and a late bus falls out of it while it is
  * still on its way — which is the moment a rider most wants the row. These say
  * when it is held past the window and when it is let go.
