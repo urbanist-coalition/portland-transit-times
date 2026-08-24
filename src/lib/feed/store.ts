@@ -39,8 +39,8 @@ import {
   DEFAULT_WINDOW,
   ExpansionWindow,
   TripCallInstance,
-  departuresAfter,
   expandInstances,
+  indexAfter,
   tripKey,
 } from "./expand";
 import { ScheduledCall, StaticFeed } from "./types";
@@ -57,6 +57,22 @@ const updateKey = ({ serviceDate, tripId, stopId }: StopTimeInstanceBase) =>
  * page a set of times, hours after the bus reached the end of the line.
  */
 const TRIP_LIVE_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * How far behind its timetable a departure can be and still be listed.
+ *
+ * A stop's window is a scheduled one — the last ten minutes, so someone who
+ * just missed a bus sees why — and a bus running late falls out of it while
+ * still on its way, which is exactly when a rider needs the row. So a call the
+ * agency says has not gone is kept past that, at its scheduled place in the
+ * list, up to this far back.
+ *
+ * Ninety minutes rather than open-ended because past that, "not gone" stops
+ * describing a late bus and starts describing a bug — a vehicle the agency lost
+ * track of, a trip left running by a producer that never closed it out. A row
+ * pinned to the top of a stop page forever is the worse failure of the two.
+ */
+const RETAIN_LATE_MS = 90 * 60 * 1000;
 
 /** Where a bus has got to, once its stop has been placed in its trip. */
 interface VehicleReport {
@@ -239,10 +255,17 @@ export class TransitStore {
       }
       if (!running) continue;
 
-      // Long finished, and the feed has not forgotten the bus yet. Same bound
-      // as liveTrips, for the same reason.
+      /*
+       * Long finished, and the feed has not forgotten the bus yet.
+       *
+       * Bounded by how late a bus can plausibly be rather than by liveTrips'
+       * ten minutes, because a bus *is* the thing running late: its last
+       * scheduled call passing is what being late looks like, and the ten
+       * minute bound threw the vehicle away at exactly the moment it was the
+       * only thing that could say the bus had not gone.
+       */
       const last = running[running.length - 1]!;
-      if (last.scheduledTime < now - TRIP_LIVE_WINDOW_MS) continue;
+      if (last.scheduledTime < now - RETAIN_LATE_MS) continue;
 
       /*
        * A loop route calls at the same stop twice, and a stop id alone cannot
@@ -303,6 +326,33 @@ export class TransitStore {
   }
 
   /**
+   * Whether the agency is still saying this departure is coming.
+   *
+   * Only ever true on evidence. A bus being tracked somewhere short of the call
+   * is the strongest form of it — that is a vehicle on its way — and a
+   * prediction still naming a time in the future is the weaker one. Silence is
+   * not evidence: a call nobody has mentioned since the timetable was written
+   * is left to fall out of the window on schedule, which is what a rider
+   * reading an unreported row is already being told.
+   */
+  private stillToCome(instance: TripCallInstance, now: number): boolean {
+    const vehicle = this.vehicleStatus(instance);
+    if (vehicle === StopTimeStatus.departed) return false;
+    if (vehicle === StopTimeStatus.atStop) return true;
+
+    const update = this.updates.get(updateKey(instance));
+    // Cancelled is not late. Nothing is coming, so nothing is held.
+    if (update?.status === StopTimeStatus.skipped) return false;
+
+    // Tracked, and not yet up to this call.
+    if (this.progress.has(tripKey(instance.serviceDate, instance.tripId))) {
+      return true;
+    }
+
+    return update !== undefined && update.predictedTime >= now;
+  }
+
+  /**
    * The join: scheduled departures at a stop, with whatever the agency has
    * said about them since.
    *
@@ -311,17 +361,37 @@ export class TransitStore {
    * sent without prediction fields at all. Filling them in from the schedule
    * was how a stop page came to say "On Time" about 92% of its rows, including
    * tomorrow morning's, hours before any vehicle could have reported one.
+   *
+   * `after` bounds the list by the *timetable*, which is the right bound for a
+   * bus nobody has reported and the wrong one for a bus running late: it is
+   * still coming, and dropping it at the moment it is most wanted is how a
+   * rider ends up watching a stop with nothing on the page. So the walk back
+   * before `after` picks those up again — see stillToCome — and they keep their
+   * scheduled place, so the list still reads in timetable order.
    */
   departures(
     stopId: string,
     after: number,
-    limit: number = ARRIVALS_LIMIT
+    limit: number = ARRIVALS_LIMIT,
+    now: number = Date.now()
   ): LiveStopTimeInstance[] {
-    const scheduled = departuresAfter(
-      this.byStop.get(stopId) ?? [],
-      after,
-      limit
-    );
+    const instances = this.byStop.get(stopId) ?? [];
+    const start = indexAfter(instances, after);
+
+    const late: TripCallInstance[] = [];
+    for (let index = start - 1; index >= 0; index--) {
+      const instance = instances[index]!;
+      // Measured from now rather than from `after`, so the bound is the ninety
+      // minutes it says it is rather than ninety plus the window.
+      if (instance.scheduledTime < now - RETAIN_LATE_MS) break;
+      if (this.stillToCome(instance, now)) late.unshift(instance);
+    }
+
+    const scheduled = [
+      ...late,
+      ...instances.slice(start, start + Math.max(limit - late.length, 0)),
+    ].slice(0, limit);
+
     return scheduled.map((instance) => {
       const update = this.updates.get(updateKey(instance));
       const vehicle = this.vehicleStatus(instance);

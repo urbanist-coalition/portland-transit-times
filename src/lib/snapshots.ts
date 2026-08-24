@@ -50,6 +50,9 @@ const CALLS_END = "<!--calls:end-->";
 /**
  * How far back a departure stays on the page after it has gone — long enough
  * that someone who just missed one sees why.
+ *
+ * A bound on the *timetable*, not on the bus: one running late has not gone,
+ * and TransitStore.departures keeps it past this until it does.
  */
 const ARRIVAL_WINDOW_MINUTES = 10;
 
@@ -298,7 +301,8 @@ export class SnapshotWriter {
           const arrivals = this.store.departures(
             stop.stopId,
             after,
-            ARRIVALS_LIMIT
+            ARRIVALS_LIMIT,
+            now
           );
 
           await this.writeIfChanged(

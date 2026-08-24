@@ -180,16 +180,18 @@ export function expandInstances(
 }
 
 /**
- * The next `limit` departures at a stop after `after`.
+ * Where `after` falls in a stop's sorted departures: the index of the first one
+ * scheduled at or past it.
  *
  * A binary search over the array `expandInstances` already sorted, so a stop
- * page costs a lookup rather than a scan of the day.
+ * page costs a lookup rather than a scan of the day. Separate from
+ * `departuresAfter` because a caller that wants the late buses sitting *behind*
+ * this point needs somewhere to walk back from.
  */
-export function departuresAfter<T extends StopTimeInstance>(
-  instances: T[],
-  after: number,
-  limit: number
-): T[] {
+export function indexAfter(
+  instances: StopTimeInstance[],
+  after: number
+): number {
   let low = 0;
   let high = instances.length;
   while (low < high) {
@@ -197,5 +199,15 @@ export function departuresAfter<T extends StopTimeInstance>(
     if (instances[middle]!.scheduledTime < after) low = middle + 1;
     else high = middle;
   }
+  return low;
+}
+
+/** The next `limit` departures at a stop after `after`. */
+export function departuresAfter<T extends StopTimeInstance>(
+  instances: T[],
+  after: number,
+  limit: number
+): T[] {
+  const low = indexAfter(instances, after);
   return instances.slice(low, low + limit);
 }

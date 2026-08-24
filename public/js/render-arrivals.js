@@ -38,12 +38,24 @@ const DEPART_THRESHOLD = 1;
 /** The countdown only appears once an arrival is within this many minutes. */
 const COUNTDOWN_WINDOW = 30;
 /**
- * Never render a prediction whose time is further in the past than this. The
- * snapshot only contains instances after `now - 10 min`, so anything older
+ * Never render a departure that has gone and is further in the past than this.
+ * The snapshot only holds instances after `now - 10 min`, so anything older
  * reached us from a stale source — a cached response, or a worker that has
  * stopped writing — and should disappear rather than sit there looking real.
  */
 const STALE_THRESHOLD_MS = 10 * MINUTE_MS;
+
+/**
+ * How far back a departure that has *not* gone is still shown. A bus running
+ * late is still coming, and its scheduled time being an hour ago is the reason
+ * to keep the row rather than a reason to drop it — see the same bound in
+ * TransitStore.departures, which is what decides a row is still owed.
+ *
+ * The same ninety minutes, and bounded for the same reason: past that it is
+ * likelier to be a bus the agency lost track of than one still on its way. It
+ * also stops a page restored from a cache overnight promising last night's bus.
+ */
+const RETAIN_LATE_MS = 90 * MINUTE_MS;
 
 const timeFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: TIME_ZONE,
@@ -326,11 +338,17 @@ function renderArrival(arrival, now) {
  * showing at `now`, or the empty state.
  */
 export function renderArrivals(arrivals, now = Date.now()) {
-  const live = (arrivals || []).filter(
-    (arrival) =>
-      (arrival.predictedTime ?? arrival.scheduledTime) >=
-      now - STALE_THRESHOLD_MS
-  );
+  /*
+   * What is still worth showing. A departure that has gone is kept for a few
+   * minutes so a rider who just missed it sees why; one that has *not* gone is
+   * kept far longer, because a bus running forty minutes late is the row the
+   * person standing at the stop is there for.
+   */
+  const live = (arrivals || []).filter((arrival) => {
+    const { departed, predicted, scheduled } = predictionStatus(arrival, now);
+    const age = now - Math.max(predicted, scheduled);
+    return age <= (departed ? STALE_THRESHOLD_MS : RETAIN_LATE_MS);
+  });
 
   // When these times were worked out. The page can be served from a service
   // worker cache long after that — on a platform with no signal, which is

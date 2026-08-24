@@ -261,6 +261,41 @@ describe("renderArrivals()", () => {
     expect(html).not.toContain("arrival-countdown");
   });
 
+  it("keeps a late bus on the page long after its scheduled time", () => {
+    // The row a rider standing at the stop is there for. Its scheduled time
+    // being half an hour ago is the reason to keep it, not to drop it.
+    const html = renderArrivals(
+      [
+        arrival({
+          scheduledTime: minutes(-30),
+          predictedTime: minutes(3),
+          status: "SCHEDULED",
+          reported: true,
+        }),
+      ],
+      now
+    );
+
+    expect(html).not.toContain("No upcoming arrivals");
+    expect(html).toContain("33 min late");
+  });
+
+  it("drops a bus that has gone and stayed gone", () => {
+    const html = renderArrivals(
+      [
+        arrival({
+          scheduledTime: minutes(-30),
+          predictedTime: minutes(-30),
+          status: "DEPARTED",
+          reported: true,
+        }),
+      ],
+      now
+    );
+
+    expect(html).toContain("No upcoming arrivals");
+  });
+
   it("says where the bus is when it is standing at the stop", () => {
     const html = renderArrivals(
       [

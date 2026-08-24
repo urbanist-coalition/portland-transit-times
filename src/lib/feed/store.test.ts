@@ -14,6 +14,7 @@ import { join } from "node:path";
 
 import { Route, StopTimeStatus, Trip, VehicleProgress } from "@/types";
 
+import { ARRIVALS_LIMIT } from "./expand";
 import { TransitStore } from "./store";
 import { StaticFeed } from "./types";
 
@@ -185,5 +186,107 @@ describe("TransitStore vehicle progress", () => {
     store.setVehicleProgress([], now);
 
     expect(first(store).status).toBeUndefined();
+  });
+});
+
+/**
+ * A stop's window is scheduled, and a late bus falls out of it while it is
+ * still on its way — which is the moment a rider most wants the row. These say
+ * when it is held past the window and when it is let go.
+ */
+describe("TransitStore.departures() and a late bus", () => {
+  /** Half an hour after the 10:00 departure, well past the ten-minute window. */
+  const late = new Date("2026-08-17T14:30:00Z").getTime();
+  const window = 10 * 60_000;
+  const listed = (store: TransitStore, at: number) =>
+    store
+      .departures("0:111", at - window, ARRIVALS_LIMIT, at)
+      .filter((departure) => departure.scheduledTime === scheduled);
+
+  it("keeps a bus the vehicle feed has not yet brought to the stop", async () => {
+    const store = await load();
+    // Tracked, and still short of 0:111 — so it has not gone, whatever the
+    // timetable says about half an hour ago.
+    store.setVehicleProgress(atStop("0:111", false), late);
+
+    expect(listed(store, late)).toHaveLength(1);
+  });
+
+  it("keeps a bus standing at the stop", async () => {
+    const store = await load();
+    store.setVehicleProgress(atStop("0:111", true), late);
+
+    expect(listed(store, late)[0]!.status).toBe(StopTimeStatus.atStop);
+  });
+
+  it("keeps a bus the agency still predicts is coming", async () => {
+    // No vehicle, but a prediction naming a time that has not arrived yet.
+    const store = await load();
+    store.setStopTimeUpdates(
+      [
+        {
+          serviceDate: "20260817",
+          tripId: "t1",
+          stopId: "0:111",
+          predictedTime: late + 5 * 60_000,
+          status: StopTimeStatus.scheduled,
+        },
+      ],
+      new Date(late)
+    );
+
+    expect(listed(store, late)).toHaveLength(1);
+  });
+
+  it("lets an unreported departure slide off on schedule", async () => {
+    // Silence is not evidence that a bus is late. Nothing has been said about
+    // this one since the timetable was written, so it goes when its time does.
+    const store = await load();
+
+    expect(listed(store, late)).toHaveLength(0);
+  });
+
+  it("lets a departed bus go", async () => {
+    const store = await load();
+    store.setVehicleProgress(atStop("0:101", false), late);
+
+    expect(listed(store, late)).toHaveLength(0);
+  });
+
+  it("does not hold a cancellation open", async () => {
+    // Cancelled is not late: nothing is coming, so nothing is kept.
+    const store = await load();
+    store.setStopTimeUpdates(
+      [
+        {
+          serviceDate: "20260817",
+          tripId: "t1",
+          stopId: "0:111",
+          predictedTime: late + 5 * 60_000,
+          status: StopTimeStatus.skipped,
+        },
+      ],
+      new Date(late)
+    );
+
+    expect(listed(store, late)).toHaveLength(0);
+  });
+
+  it("still holds a bus an hour and a quarter late", async () => {
+    const store = await load();
+    const wayLate = scheduled + 75 * 60_000;
+    store.setVehicleProgress(atStop("0:111", true), wayLate);
+
+    expect(listed(store, wayLate)).toHaveLength(1);
+  });
+
+  it("gives up ninety minutes behind the timetable", async () => {
+    // Past that, a bus that has never departed is likelier to be a vehicle the
+    // agency lost track of than one still on its way.
+    const store = await load();
+    const muchLater = scheduled + 100 * 60_000;
+    store.setVehicleProgress(atStop("0:111", true), muchLater);
+
+    expect(listed(store, muchLater)).toHaveLength(0);
   });
 });
