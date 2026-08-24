@@ -152,17 +152,42 @@ export function arrivalKey(arrival) {
  * time has been and gone. It has to stand whether or not anyone reported the
  * bus, because the alternative is a row sitting at the top of the list looking
  * like something a rider can still catch.
+ *
+ * What it must not do is say that about a bus standing at the stop. The agency
+ * reports a waiting bus with the arrival it has already made and a departure
+ * of "now", so the times alone read as gone for the whole layover — which at
+ * Hancock St + Thames St is the five minutes between the 4:43 arrival and the
+ * 4:48 departure the rider is there for. Two things keep the row: AT_STOP,
+ * where a vehicle has been seen at the stop, and the scheduled time, which
+ * nothing has gone past yet.
  */
 export function predictionStatus(call, now) {
   const scheduled = call.scheduledTime;
-  const predicted = call.predictedTime ?? scheduled;
+  const reported = call.reported === true;
+  const skipped = call.status === "SKIPPED";
+  const atStop = call.status === "AT_STOP";
+  const timepoint = call.timepoint === true;
+
+  /*
+   * A bus that is standing at the stop has not left early, whatever the feed's
+   * departure time says — while it waits, that number is just the moment the
+   * feed was built. Late is different, and kept: a bus still at the stop after
+   * its time is late by exactly as much as the clock says.
+   */
+  const raw = call.predictedTime ?? scheduled;
+  const predicted = atStop ? Math.max(raw, scheduled) : raw;
 
   const delta = minutesBetween(predicted, scheduled);
   const minutesAway = minutesBetween(predicted, now);
-  const reported = call.reported === true;
-  const skipped = call.status === "SKIPPED";
-  const departed =
-    minutesAway < -DEPART_THRESHOLD || call.status === "DEPARTED";
+
+  /*
+   * Both times have to have gone past, not just the earlier of the two. A
+   * first call is reported early and often — the bus pulls in, and the agency
+   * says so — and the timetable is what a rider standing there is waiting for.
+   */
+  const gone =
+    minutesBetween(Math.max(predicted, scheduled), now) < -DEPART_THRESHOLD;
+  const departed = call.status === "DEPARTED" || (!atStop && gone);
 
   let message = null;
   let tone = null;
@@ -172,6 +197,11 @@ export function predictionStatus(call, now) {
   } else if (departed) {
     message = "Departed";
     tone = "idle";
+  } else if (atStop) {
+    // Seen, at this stop, now. The strongest thing the app can say, and the
+    // one that settles what a rider looking down the street wants to know.
+    message = "At the stop";
+    tone = "ok";
   } else if (!reported) {
     // Nothing has been said about this bus. The time below it is the
     // timetable's, which the row shows without dressing it as news.
@@ -193,6 +223,8 @@ export function predictionStatus(call, now) {
     minutesAway,
     reported,
     skipped,
+    atStop,
+    timepoint,
     departed,
     message,
     tone,
@@ -221,15 +253,44 @@ function renderTimes(prediction) {
   ].join("");
 }
 
+/**
+ * The line under the times: how long the rider has, and what happens when it
+ * runs out.
+ *
+ * The verb is the useful part. At a timepoint the time is one the bus is held
+ * to — 6,938 of this feed's calls, including the first call of every trip — so
+ * it will be standing there waiting for it, and "Departs in 4 min" says the
+ * thing a rider three minutes down the street needs to know. Everywhere else
+ * the bus is only passing through and the time is when it turns up, so the
+ * countdown stays "Arriving". An ending is an arrival whatever the feed says
+ * about it: nobody boards a bus going to the garage.
+ */
+function renderCountdown(arrival, prediction) {
+  // Nothing to count down to: the bus is not coming.
+  if (prediction.skipped) return "";
+  if (prediction.atStop) {
+    return `<p class="arrival-countdown">At the stop now</p>`;
+  }
+  if (prediction.departed || prediction.minutesAway > COUNTDOWN_WINDOW) {
+    return "";
+  }
+
+  const holds = prediction.timepoint && !arrival.terminates;
+  const due =
+    prediction.minutesAway <= 0
+      ? holds
+        ? "Departing now"
+        : "Arriving now"
+      : `${holds ? "Departs" : "Arriving"} in ${prediction.minutesAway} min`;
+  return `<p class="arrival-countdown">${due}</p>`;
+}
+
 function renderArrival(arrival, now) {
   const { route, trip } = arrival;
   const prediction = predictionStatus(arrival, now);
   const times = renderTimes(prediction);
 
-  const countdown =
-    !prediction.departed && prediction.minutesAway <= COUNTDOWN_WINDOW
-      ? `<p class="arrival-countdown">Arriving${prediction.minutesAway <= 0 ? " now" : ` in ${prediction.minutesAway} min`}</p>`
-      : "";
+  const countdown = renderCountdown(arrival, prediction);
 
   return [
     // The whole card is the link, because the whole card is what a rider is

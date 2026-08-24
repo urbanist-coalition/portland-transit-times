@@ -26,12 +26,12 @@ import {
   LiveStopTimeInstance,
   Route,
   Stop,
-  StopTimeInstance,
   StopTimeInstanceBase,
   StopTimeStatus,
   StopTimeUpdate,
   Trip,
   TripCall,
+  VehicleProgress,
 } from "@/types";
 
 import {
@@ -58,10 +58,20 @@ const updateKey = ({ serviceDate, tripId, stopId }: StopTimeInstanceBase) =>
  */
 const TRIP_LIVE_WINDOW_MS = 10 * 60 * 1000;
 
+/** Where a bus has got to, once its stop has been placed in its trip. */
+interface VehicleReport {
+  /** The call it is standing at, or driving towards. */
+  sequence: number;
+  /** Standing at that call rather than approaching it. */
+  stopped: boolean;
+}
+
 export class TransitStore {
   private feed: StaticFeed | null = null;
-  private byStop = new Map<string, StopTimeInstance[]>();
+  private byStop = new Map<string, TripCallInstance[]>();
   private byTrip = new Map<string, TripCallInstance[]>();
+  /** The service dates each trip runs on within the expansion. */
+  private tripRunnings = new Map<string, string[]>();
   private routesById = new Map<string, Route>();
   private tripsById = new Map<string, Trip>();
   private stopsById = new Map<string, Stop>();
@@ -71,6 +81,8 @@ export class TransitStore {
   private expandedFor = "";
 
   private updates = new Map<string, StopTimeUpdate>();
+  /** Where each running bus has got to, by `tripKey`. */
+  private progress = new Map<string, VehicleReport>();
   private vehiclePositionsRaw: string | null = null;
   private vehiclePositionsUpdatedAt: Date | null = null;
   private alerts: Alert[] = [];
@@ -118,6 +130,17 @@ export class TransitStore {
     );
     this.byStop = byStop;
     this.byTrip = byTrip;
+    this.tripRunnings = new Map();
+    for (const instances of byTrip.values()) {
+      const { tripId, serviceDate } = instances[0]!;
+      (
+        this.tripRunnings.get(tripId) ??
+        this.tripRunnings.set(tripId, []).get(tripId)!
+      ).push(serviceDate);
+    }
+    // A vehicle's place was resolved against the expansion that has just been
+    // replaced, so it means nothing now. The next poll is a second away.
+    this.progress = new Map();
     this.expandedFor = new Date(now).toDateString();
   }
 
@@ -168,6 +191,7 @@ export class TransitStore {
         stopName: stop?.stopName ?? "This stop",
         sequence: call.sequence,
         time: call.time,
+        ...(call.timepoint ? { timepoint: true as const } : {}),
       };
     });
   }
@@ -180,6 +204,102 @@ export class TransitStore {
     let total = 0;
     for (const instances of this.byStop.values()) total += instances.length;
     return total;
+  }
+
+  /**
+   * Where each reported bus has got to, placed in the trip it is running.
+   *
+   * Two things have to be resolved before a position means anything about a
+   * call. Which running: the vehicle feed names a trip but not the day it
+   * started, and the expansion holds four days of them, so the running whose
+   * start is nearest now is the one the bus is on — they are a day apart, so
+   * there is nothing to be ambiguous about. And where in the trip: GPMETRO
+   * sends `currentStopSequence` as 0 for every vehicle, so the stop it names
+   * is looked up in the schedule instead.
+   *
+   * Replaced wholesale, unlike the predictions, because a vehicle that has
+   * stopped reporting has stopped saying anything — and what this settles is
+   * whether a bus is standing at a stop, which is only true while it is being
+   * observed.
+   */
+  setVehicleProgress(progress: VehicleProgress[], now = Date.now()): void {
+    const placed = new Map<string, VehicleReport>();
+
+    for (const vehicle of progress) {
+      let running: TripCallInstance[] | undefined;
+      let distance = Infinity;
+      for (const date of this.tripRunnings.get(vehicle.tripId) ?? []) {
+        const instances = this.byTrip.get(tripKey(date, vehicle.tripId));
+        if (!instances?.length) continue;
+        const away = Math.abs(instances[0]!.scheduledTime - now);
+        if (away < distance) {
+          distance = away;
+          running = instances;
+        }
+      }
+      if (!running) continue;
+
+      // Long finished, and the feed has not forgotten the bus yet. Same bound
+      // as liveTrips, for the same reason.
+      const last = running[running.length - 1]!;
+      if (last.scheduledTime < now - TRIP_LIVE_WINDOW_MS) continue;
+
+      /*
+       * A loop route calls at the same stop twice, and a stop id alone cannot
+       * say which of the two the bus is at. The first is taken, which is the
+       * conservative half of the guess: it marks fewer calls behind the bus,
+       * so the error is a row that stays on the page a little longer rather
+       * than one that vanishes while it can still be caught.
+       */
+      const sequence =
+        vehicle.sequence ??
+        running.find((call) => call.stopId === vehicle.stopId)?.sequence;
+      if (sequence === undefined) continue;
+
+      placed.set(tripKey(running[0]!.serviceDate, vehicle.tripId), {
+        sequence,
+        stopped: vehicle.stopped,
+      });
+    }
+
+    this.progress = placed;
+  }
+
+  /**
+   * What the vehicle feed says about one call: the bus is standing at it, or
+   * it is behind the bus. Undefined where no vehicle is reporting this running,
+   * or the bus has not reached the call yet.
+   *
+   * This is the only place either feed can answer "has it left?", and the
+   * reason the question is asked here rather than in the loader — see
+   * StopTimeStatus.
+   */
+  private vehicleStatus(
+    instance: TripCallInstance
+  ): StopTimeStatus.departed | StopTimeStatus.atStop | undefined {
+    const report = this.progress.get(
+      tripKey(instance.serviceDate, instance.tripId)
+    );
+    if (!report) return undefined;
+    if (instance.sequence < report.sequence) return StopTimeStatus.departed;
+    if (instance.sequence > report.sequence) return undefined;
+    return report.stopped ? StopTimeStatus.atStop : undefined;
+  }
+
+  /**
+   * What to call one departure, given a prediction about it and a bus seen
+   * somewhere along its trip.
+   *
+   * A cancellation outranks both: a bus standing at a stop it is not going to
+   * serve is still not going to serve it.
+   */
+  private callStatus(
+    update: StopTimeUpdate | undefined,
+    vehicle: StopTimeStatus | undefined
+  ): StopTimeStatus {
+    if (update?.status === StopTimeStatus.skipped)
+      return StopTimeStatus.skipped;
+    return vehicle ?? update?.status ?? StopTimeStatus.scheduled;
   }
 
   /**
@@ -204,11 +324,17 @@ export class TransitStore {
     );
     return scheduled.map((instance) => {
       const update = this.updates.get(updateKey(instance));
-      if (!update) return instance;
+      const vehicle = this.vehicleStatus(instance);
+      if (!update && !vehicle) return instance;
       return {
         ...instance,
-        predictedTime: update.predictedTime || instance.scheduledTime,
-        status: update.status || StopTimeStatus.scheduled,
+        predictedTime: update?.predictedTime || instance.scheduledTime,
+        status: this.callStatus(update, vehicle),
+        /*
+         * A bus seen at the stop is the agency saying something about this
+         * exact call, as much as a prediction is — and it is the stronger of
+         * the two, because it was observed rather than forecast.
+         */
         reported: true,
       };
     });
@@ -282,6 +408,7 @@ export class TransitStore {
         instances.map((instance) => {
           const update = this.updates.get(updateKey(instance));
           if (update) carried = update.predictedTime - instance.scheduledTime;
+          const vehicle = this.vehicleStatus(instance);
           const stop = this.stopsById.get(instance.stopId);
           return {
             stopId: instance.stopId,
@@ -292,8 +419,9 @@ export class TransitStore {
             scheduledTime: instance.scheduledTime,
             predictedTime:
               update?.predictedTime || instance.scheduledTime + carried,
-            status: update?.status || StopTimeStatus.scheduled,
-            ...(update ? { reported: true as const } : {}),
+            status: this.callStatus(update, vehicle),
+            ...(instance.timepoint ? { timepoint: true as const } : {}),
+            ...(update || vehicle ? { reported: true as const } : {}),
           };
         })
       );

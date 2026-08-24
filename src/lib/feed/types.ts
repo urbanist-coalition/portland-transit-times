@@ -14,6 +14,18 @@ export interface ScheduledCall {
   /** "HH:MM:SS", and may exceed 24:00:00 for trips running past midnight. */
   time: string;
   /**
+   * The feed holds the bus to this time — `timepoint` is 1 in stop_times.txt —
+   * so it is a time the bus departs *at*, not one it happens to pass. A bus
+   * that gets here early waits, which is the difference a rider needs when the
+   * app cannot see the vehicle: 6,938 of this feed's 40,345 calls are
+   * timepoints, including the first call of all 1,345 trips.
+   *
+   * Only an explicit 1 counts. GTFS reads a blank as an exact time, but a
+   * blank is not the agency saying anything, and this flag exists to make a
+   * stronger claim than the schedule alone supports.
+   */
+  timepoint?: true;
+  /**
    * The bus finishes here and does not continue: nobody can board it.
    *
    * A trip's last call is usually not the end of anything — the same vehicle

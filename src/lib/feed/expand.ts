@@ -74,8 +74,14 @@ export const tripKey = (serviceDate: string, tripId: string) =>
 export type TripCallInstance = StopTimeInstance & { sequence: number };
 
 export interface Expansion {
-  /** Boardable departures, sorted by time, keyed by stop. */
-  byStop: Map<string, StopTimeInstance[]>;
+  /**
+   * Boardable departures, sorted by time, keyed by stop.
+   *
+   * These are the same objects as in `byTrip`, so they carry their place in
+   * the trip — which is what lets a stop page ask whether the bus is still
+   * behind this call or already past it.
+   */
+  byStop: Map<string, TripCallInstance[]>;
   /**
    * Every call a trip makes, in the order it makes them, keyed by `tripKey`.
    *
@@ -116,7 +122,7 @@ export function expandInstances(
     calls.sort((a, b) => a.sequence - b.sequence);
   }
 
-  const byStop = new Map<string, StopTimeInstance[]>();
+  const byStop = new Map<string, TripCallInstance[]>();
   const byTrip = new Map<string, TripCallInstance[]>();
 
   for (const [serviceId, dates] of Object.entries(feed.serviceDates)) {
@@ -143,6 +149,7 @@ export function expandInstances(
             route,
             trip,
             ...(call.terminates ? { terminates: true } : {}),
+            ...(call.timepoint ? { timepoint: true as const } : {}),
           };
           calls.push(instance);
 
@@ -178,11 +185,11 @@ export function expandInstances(
  * A binary search over the array `expandInstances` already sorted, so a stop
  * page costs a lookup rather than a scan of the day.
  */
-export function departuresAfter(
-  instances: StopTimeInstance[],
+export function departuresAfter<T extends StopTimeInstance>(
+  instances: T[],
   after: number,
   limit: number
-): StopTimeInstance[] {
+): T[] {
   let low = 0;
   let high = instances.length;
   while (low < high) {

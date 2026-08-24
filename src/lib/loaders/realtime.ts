@@ -3,12 +3,19 @@ import {
   Alert,
   StopTimeStatus,
   VehiclePosition,
+  VehicleProgress,
   StopTimeUpdate,
 } from "@/types";
 import { TransitStore } from "@/lib/feed/store";
 import { formatInTimeZone } from "date-fns-tz";
 import { GTFSSystem } from "@/lib/gtfs/types";
 import { indexBy } from "../utils";
+
+const { STOPPED_AT } =
+  GtfsRealtimeBindings.transit_realtime.VehiclePosition.VehicleStopStatus;
+const { SKIPPED } =
+  GtfsRealtimeBindings.transit_realtime.TripUpdate.StopTimeUpdate
+    .ScheduleRelationship;
 
 export class GTFSRealtimeLoader {
   system: GTFSSystem;
@@ -55,6 +62,7 @@ export class GTFSRealtimeLoader {
     const routesById = indexBy(routes, "routeId");
 
     const vehiclesData: VehiclePosition[] = [];
+    const progressData: VehicleProgress[] = [];
     for (const entity of feed.entity) {
       if (!entity.vehicle) continue;
 
@@ -63,6 +71,27 @@ export class GTFSRealtimeLoader {
       const lat = entity.vehicle?.position?.latitude;
       const lng = entity.vehicle?.position?.longitude;
       const rawBearing = entity.vehicle?.position?.bearing;
+
+      /*
+       * Where the bus has got to, which is the only thing in either feed that
+       * can say whether it has actually left a stop. Collected before the
+       * checks below because it needs neither a position nor a route: a
+       * vehicle that reports its stop and nothing else still settles the
+       * question the map cannot draw it for.
+       */
+      const stopId = entity.vehicle?.stopId;
+      const currentStatus = entity.vehicle?.currentStatus;
+      if (tripId && stopId) {
+        const sequence = entity.vehicle?.currentStopSequence;
+        progressData.push({
+          tripId,
+          stopId,
+          // GPMETRO sends 0 for every vehicle, which is not a sequence; the
+          // store falls back to looking the stop up in the schedule.
+          ...(typeof sequence === "number" && sequence > 0 ? { sequence } : {}),
+          stopped: currentStatus === STOPPED_AT,
+        });
+      }
 
       if (!vehicleId || !tripId || !lat || !lng) {
         console.warn("Invalid vehicle data:", entity);
@@ -93,6 +122,7 @@ export class GTFSRealtimeLoader {
       vehiclesData.push(vehicleData);
     }
     this.store.setVehiclePositions(JSON.stringify(vehiclesData), updatedAt);
+    this.store.setVehicleProgress(progressData);
 
     if (process.env.VEHICLE_POSITIONS_HEARTBEAT_URL) {
       await fetch(process.env.VEHICLE_POSITIONS_HEARTBEAT_URL);
@@ -214,10 +244,23 @@ export class GTFSRealtimeLoader {
 
       const stopTimeInstanceData: StopTimeUpdate[] = [];
       for (const stopTimeUpdate of stopTimeUpdates) {
-        // For the first stop we will use the departure time because that is all we have
-        // For all others we use the arrival because people are supposed to already be at the stop when the bus arrives
+        /*
+         * Departure, to the same event the timetable names.
+         *
+         * normalizeFeed times a call by `departure_time`, because a rider
+         * standing at a stop is boarding rather than alighting. Taking the
+         * arrival here compared two different events and the difference was
+         * the layover: the 4:48 from Hancock St + Thames St is reported with
+         * the arrival the bus made at 4:43, so the page called it five minutes
+         * early and then said it had gone, with the bus still standing there.
+         *
+         * A trip's last call is the exception, and needs no special case: the
+         * schedule times it by arrival because nobody boards it, and the feed
+         * gives it an arrival and no departure, so the fallback picks the same
+         * event from both sides.
+         */
         const rawTime =
-          stopTimeUpdate.arrival?.time || stopTimeUpdate.departure?.time;
+          stopTimeUpdate.departure?.time || stopTimeUpdate.arrival?.time;
         const stopId = stopTimeUpdate.stopId;
 
         if (!rawTime || !stopId) {
@@ -226,13 +269,26 @@ export class GTFSRealtimeLoader {
         }
         const time = this.longToNumber(rawTime) * 1000;
 
-        // TODO: use the vehicle position to determine if the bus has departed
-        let status = StopTimeStatus.scheduled;
-        if (stopTimeUpdate.scheduleRelationship === 2) {
-          status = StopTimeStatus.skipped;
-        } else if (Date.now() > time) {
-          status = StopTimeStatus.departed;
-        }
+        /*
+         * Whether the bus has gone is not asked here, because this feed cannot
+         * answer it. While a bus stands at a stop the agency reports the
+         * arrival it has already made and moves the departure to whenever the
+         * feed was built, so both times are in the past for the whole layover —
+         * measured against a bus laying over at Maine Mall JC Penney, for the
+         * thirteen minutes between pulling in at 5:02 and its 5:15 departure.
+         *
+         * The vehicle feed does answer it, and TransitStore.vehicleStatus asks
+         * it there.
+         *
+         * The cancellation test is by name because the number it used to
+         * compare against, 2, is NO_DATA rather than SKIPPED — so a stop the
+         * agency had nothing to say about was labelled "Canceled", and a stop
+         * it really had cancelled was not.
+         */
+        const status =
+          stopTimeUpdate.scheduleRelationship === SKIPPED
+            ? StopTimeStatus.skipped
+            : StopTimeStatus.scheduled;
 
         stopTimeInstanceData.push({
           serviceDate: startDate,

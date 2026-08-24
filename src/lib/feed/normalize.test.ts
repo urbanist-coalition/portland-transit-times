@@ -98,6 +98,37 @@ describe("normalizeFeed()", () => {
     expect(call!.time).toBe("10:05:00");
   });
 
+  it("marks the calls the timetable holds the bus to", async () => {
+    // A timepoint is a time the bus departs *at* — it waits if it is early —
+    // and the rest are times it passes. That is the difference between telling
+    // a rider the bus departs in four minutes and telling them it turns up in
+    // four minutes, and it is all the app has to go on when no vehicle is
+    // reporting.
+    const feed = await normalize({
+      stopTimes: [
+        ["t1", "10:00:00", "10:00:00", "0:1", "1", "", "", "1"],
+        ["t1", "10:04:12", "10:04:12", "0:2", "2", "", "", "0"],
+      ],
+    });
+
+    expect(callAt(feed, "t1", "0:1")?.timepoint).toBe(true);
+    expect(callAt(feed, "t1", "0:2")?.timepoint).toBeUndefined();
+  });
+
+  it("does not read a blank timepoint as a promise", async () => {
+    // GTFS reads a blank as an exact time, but a blank is not the agency
+    // saying anything, and this flag exists to say something stronger than the
+    // schedule on its own supports.
+    const feed = await normalize({
+      stopTimes: [
+        ["t1", "10:00:00", "10:00:00", "0:1", "1", "", "", ""],
+        ["t1", "10:10:00", "10:10:00", "0:2", "2", "", "", ""],
+      ],
+    });
+
+    expect(callAt(feed, "t1", "0:1")?.timepoint).toBeUndefined();
+  });
+
   it("marks a trip's last call when its block carries on from that stop", async () => {
     // A bus reaches City Hall, waits, and leaves as the next trip. Offering the
     // arrival as well as the departure shows a rider two buses where there is

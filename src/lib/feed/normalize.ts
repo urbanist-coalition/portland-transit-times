@@ -78,6 +78,7 @@ export async function normalizeFeed(gtfs: GTFSStatic): Promise<StaticFeed> {
       stopId: stopTime.stop_id,
       sequence: parseInt(stopTime.stop_sequence, 10),
       time,
+      ...(stopTime.timepoint === "1" ? { timepoint: true as const } : {}),
     };
     calls.push(call);
     if (stopTime.arrival_time) arrivalTimes.set(call, stopTime.arrival_time);

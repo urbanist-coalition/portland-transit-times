@@ -64,10 +64,44 @@ export interface VehiclePosition {
   route: Route;
 }
 
+/**
+ * Where a bus is against one of its calls.
+ *
+ * `departed` and `atStop` are claims about a vehicle and are only made when a
+ * vehicle reported one — see TransitStore.vehicleStatus. The clock cannot make
+ * them: at a stop where the bus waits, this agency's feed reports the arrival
+ * it has already made and pushes the departure forward every poll, so a time
+ * in the past means "it got here", not "it left".
+ */
 export enum StopTimeStatus {
   scheduled = "SCHEDULED",
   skipped = "SKIPPED",
   departed = "DEPARTED",
+  /** The bus is standing at the stop now; nobody has missed it. */
+  atStop = "AT_STOP",
+}
+
+/**
+ * How far along its trip a bus has got, from the vehicle feed.
+ *
+ * This is the only source that answers "has it actually left?". The trip
+ * updates cannot: a bus laying over at Maine Mall JC Penney from 5:02 with a
+ * 5:15 departure is reported with an arrival of 5:02 and a departure of
+ * whenever the feed was built, both of which are in the past for the thirteen
+ * minutes it sits there with its doors open.
+ */
+export interface VehicleProgress {
+  tripId: string;
+  /** The stop it is standing at, or the one it is on its way to. */
+  stopId: string;
+  /**
+   * That stop's place in the trip, where the agency gives one. GPMETRO sends
+   * 0 for every vehicle, so the sequence is usually looked up from the
+   * schedule instead.
+   */
+  sequence?: number;
+  /** Standing at `stopId` rather than driving towards it. */
+  stopped: boolean;
 }
 
 export interface StopTimeInstanceBase {
@@ -89,6 +123,11 @@ export interface StopTimeInstance extends StopTimeInstanceBase {
    * catch is how someone ends up waiting for a bus going to the garage.
    */
   terminates?: boolean;
+  /**
+   * The timetable holds this call to the minute: the bus is not supposed to
+   * leave before it, and waits if it is early. See ScheduledCall.timepoint.
+   */
+  timepoint?: true;
 
   // Denormalized Route Info
   route: Route;
@@ -132,6 +171,8 @@ export interface TripCall {
    * runs, which is why a trip page can be built once rather than once a day.
    */
   time: string;
+  /** The bus holds here until this time rather than passing through it. */
+  timepoint?: true;
   /**
    * What this call comes to on the day the bus is actually running it, and what
    * the agency now expects. Absent from the timetable a page is built with;
