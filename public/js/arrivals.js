@@ -122,7 +122,7 @@ function paint() {
   reconcile(scratch);
 }
 
-async function poll() {
+async function fetchSnapshot() {
   // Drive the conditional request rather than leaving it to the browser cache.
   // The snapshot is served with `last-modified` and no freshness lifetime, so
   // a browser applies its own heuristic and can sit on a copy for minutes —
@@ -155,7 +155,7 @@ function markStale() {
 
 async function tick() {
   try {
-    await poll();
+    await fetchSnapshot();
   } catch {
     // A dropped poll is not worth reporting: the next one is a second away,
     // and the times already on the page are still the best we have. What is
