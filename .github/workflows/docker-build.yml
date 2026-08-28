@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npm run check:browser
       - run: npm test
       # The site has to build, or the worker has nothing to fill in.
       - run: npm run site:build

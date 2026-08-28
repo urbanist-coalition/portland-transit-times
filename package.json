@@ -12,6 +12,7 @@
     "build:loop": "tsx src/build-loop.ts",
     "check:headsigns": "tsx src/scripts/headsigns.ts",
     "check:stop-names": "tsx src/scripts/stop-name-normalization.ts",
+    "check:browser": "node scripts/check-browser-modules.mjs",
     "format": "prettier --write \"src/**/*.ts\" \"public/**/*.{js,css}\"",
     "prepare": "husky",
     "test": "jest",
