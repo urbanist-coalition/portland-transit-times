@@ -31,6 +31,7 @@ need:
 | `data/vehicle-positions.json` | every second | the map's live buses |
 | `site/stops/<code>/index.html` | on each feed refresh, and each minute | so a stop page arrives with real times in it, not a skeleton |
 | `site/trips/<slug>/index.html` | while that bus is running | the same, for the ~150 trips out on the road at once |
+| `site/stops/<code>/display/<device>/display.bin` | when the times shown actually change, and at most every 30 seconds | the e-ink panels, which flash for four seconds every time they redraw |
 
 Identical writes are skipped, so nginx can keep answering conditional requests
 with a 304 instead of resending an unchanged payload.
@@ -74,6 +75,56 @@ browser's loading bar between pages. A prerendered page runs its scripts, so
 anything with an effect beyond drawing — polling, recording a recent stop,
 counting a pageview — goes through `whenActivated` in
 `public/js/activation.js` and waits until the reader actually arrives.
+
+### The panels
+
+A few stops have a solar-powered e-ink display bolted to them, and those are
+served a rendered bitmap rather than a page: the hardware has no browser, and
+often not enough memory to hold one frame twice.
+
+`/stops/<code>/display/<device>/display.bin` is a packed 1-bit framebuffer and
+nothing else — no header, no length, no metadata. At 800x480 that is 100 bytes
+a row and exactly 48,000 bytes, whatever is drawn on it, which a
+microcontroller can stream from the socket straight into the panel without a
+decoder. What the file cannot state, the firmware has to be told: **the
+most-significant bit is leftmost, row 0 is the top, and a _clear_ bit is ink** —
+so a blank frame is all `0xFF`, which is what the panel's own clear routine
+writes. That is the point: the buffer goes into panel SRAM untouched, and a
+frame the firmware had to invert first may as well have been a PNG.
+`display.bmp` beside it is the same pixels behind a 62-byte header that says
+all three, so a browser can open it — it exists to be looked at, not to be
+fetched by hardware.
+
+The device is in the path because geometry is the part a second panel model
+changes. `src/lib/display/profile.ts` holds the registry; `displays.json` says
+which stops have hardware, and nothing outside that list is rendered.
+
+Drawing is `src/lib/display/`, and it shares this codebase's usual arrangement
+from one level up: no markup is shared with the website, because a panel has
+none, but `predictionStatus` is. A panel on a shelter and the page in a rider's
+hand must not be able to disagree about whether a bus is late. Type is blitted
+from `atlas.ts`, a table of glyphs thresholded to 1 bit when it was baked — see
+`scripts/build-font-atlas.mjs`, which is a build step precisely so that no font
+rasterizer ends up in the loop that writes every stop page on the site.
+
+A frame is rewritten only when both are true: 30 seconds have passed, and what
+a rider would read has actually changed — compared *before* the frame's "as of"
+line is applied, or the clock alone would make every frame different and the
+comparison worthless.
+
+That second condition is the one that matters, because the panel has no partial
+refresh: every frame it takes is four seconds of flashing black and white in
+front of whoever is waiting. So an unchanged frame is never written, and a panel
+that polls and finds nothing new gets a 304 with no body and does not redraw.
+How often it redraws otherwise is the firmware's polling interval, not this —
+the 30 seconds only bounds how stale the frame it collects can be. A full pass
+over ten panels costs about five milliseconds.
+
+```bash
+npm run render:display             # every installation, into _displays/
+npm run render:display -- 1117     # one stop, hardware or not
+npm run build:font-atlas           # only to change a size or a weight
+```
 
 ### The map
 
@@ -155,4 +206,5 @@ browsers re-fetch those 117 MB only when they have actually changed.
 | `BUILD_SCHEDULE` | cron for the release builder (default: every 10 minutes) |
 | `HEARTBEAT_BUILD`, `HEARTBEAT_TILES` | pinged at the start, end and failure of each stage |
 | `TILES_FROM` | use a prebuilt map bundle instead of running the pipeline |
+| `DISPLAYS_FILE` | where the e-ink installation list lives (default `displays.json`) |
 | `APP_VERSION` | override the commit as the release's version |

@@ -9,6 +9,8 @@
     "site:watch": "eleventy --watch",
     "worker": "tsx src/worker.ts",
     "build:release": "tsx src/builder.ts",
+    "build:font-atlas": "node scripts/build-font-atlas.mjs",
+    "render:display": "tsx src/scripts/render-display.ts",
     "build:loop": "tsx src/build-loop.ts",
     "check:headsigns": "tsx src/scripts/headsigns.ts",
     "check:stop-names": "tsx src/scripts/stop-name-normalization.ts",

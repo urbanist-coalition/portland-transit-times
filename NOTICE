@@ -64,3 +64,20 @@ travels with it as public/map/vendor/maplibre-gl-LICENSE.txt.
 
     https://github.com/maplibre/maplibre-gl-js
     https://github.com/protomaps/PMTiles
+
+Display typeface
+----------------
+
+The e-ink panel glyphs committed in src/lib/display/atlas.ts are bitmaps
+rendered from Lato, by Łukasz Dziedzic, which is licensed under the SIL Open
+Font License, Version 1.1:
+
+    https://www.latofonts.com/
+
+Only rasterized output is reproduced — the atlas holds thresholded 1-bit
+bitmaps of individual glyphs at five fixed sizes, produced by
+scripts/build-font-atlas.mjs. No part of the font software itself is
+redistributed, and the atlas is not offered as a font.
+
+One substitution is made: U+21E8, which Lato has no glyph for, is drawn with
+Lato's own U+2192 rather than borrowed from another face.

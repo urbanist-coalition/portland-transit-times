@@ -19,6 +19,11 @@
  * The trip pages are filled in the same way, from the other side: a page for a
  * bus that is out on the road now gets the predictions written into it, and
  * gets its timetable put back when that bus reaches the end of its run.
+ *
+ * The e-ink panels are the exception to all of it. A stop with one gets a third
+ * file — `<site>/stops/<code>/display/<device>/display.bin`, the framebuffer
+ * itself — but written on a slow schedule rather than on every pass, because
+ * the hardware cannot redraw without flashing. See writeDisplays.
  */
 
 import {
@@ -36,8 +41,12 @@ import { subMinutes } from "date-fns";
 import { renderArrivals } from "../../public/js/render-arrivals.js";
 import { renderTripCalls } from "../../public/js/render-trip.js";
 import { tripSlug } from "../../public/js/trips.js";
+import { toBin, toBmp } from "@/lib/display/encode";
+import { Installation, installations } from "@/lib/display/installations";
+import { frameKey, renderStopDisplay } from "@/lib/display/layout";
 import { ARRIVALS_LIMIT } from "@/lib/feed/expand";
 import { TransitStore } from "@/lib/feed/store";
+import { Stop } from "@/types";
 
 /** The comments site/stops.njk puts around the arrivals block. */
 const ARRIVALS_START = "<!--arrivals:start-->";
@@ -112,6 +121,17 @@ export class SnapshotWriter {
    * one we put there.
    */
   private written = new Map<string, { content: string; mtimeMs: number }>();
+
+  /**
+   * The stops with an e-ink panel on them, and the last frame each was sent.
+   *
+   * Panels are the one thing here that is not written every pass: see
+   * writeDisplays for why a display is rewritten far less often than the page
+   * showing the same stop.
+   */
+  private installs: Installation[] = [];
+  private stopsByCode = new Map<string, Stop>();
+  private frames = new Map<string, { key: string; at: number }>();
 
   private lastFeedUpdate = 0;
   private lastRenderedMinute = 0;
@@ -235,6 +255,15 @@ export class SnapshotWriter {
    */
   async loadShells(): Promise<void> {
     this.written.clear();
+    // A new release is new files, so nothing about the last one's frames says
+    // anything about whether these need writing.
+    this.frames.clear();
+    this.installs = installations();
+    this.stopsByCode = new Map(
+      this.store
+        .stops()
+        .flatMap((stop) => (stop.stopCode ? [[stop.stopCode, stop]] : []))
+    );
 
     /*
      * Trip snapshots are written only while a bus is running and removed when
@@ -254,8 +283,91 @@ export class SnapshotWriter {
 
     console.log(
       `[snapshots] ${this.shells.size} stop pages and ` +
-        `${this.tripShells.size} trip pages ready to fill`
+        `${this.tripShells.size} trip pages ready to fill` +
+        (this.installs.length ? `, ${this.installs.length} panels` : "")
     );
+  }
+
+  /**
+   * Draws the e-ink panels, for the few stops that have one.
+   *
+   * Unlike everything else here, this deliberately does *not* keep up with the
+   * feed. A frame is written only when both are true — the profile's interval
+   * has passed, and what a rider would read has actually changed.
+   *
+   * The second condition is the one that matters, because the panel has no
+   * partial refresh: every frame it takes is four seconds of flashing black and
+   * white in front of whoever is waiting. Writing an identical frame would cost
+   * the panel a redraw to say nothing, so identical frames are not written and
+   * the panel's next poll gets a 304 instead.
+   *
+   * The second half is why the comparison is on frameKey rather than on the
+   * rendered bytes: the frame states its own age, so its pixels differ every
+   * minute even when the buses do not.
+   */
+  async writeDisplays(now: number): Promise<void> {
+    if (!this.installs.length) return;
+    const after = subMinutes(new Date(now), ARRIVAL_WINDOW_MINUTES).getTime();
+
+    for (const { stopCode, profile } of this.installs) {
+      const stop = this.stopsByCode.get(stopCode);
+      if (!stop) {
+        // A panel on a stop this feed no longer has. The frame it is holding is
+        // the last true one; leaving it is better than blanking it.
+        continue;
+      }
+
+      const arrivals = this.store.departures(
+        stop.stopId,
+        after,
+        ARRIVALS_LIMIT,
+        now
+      );
+      const frame = { stop, arrivals, now, profile };
+      const key = frameKey(frame);
+      const last = this.frames.get(`${stopCode}/${profile.id}`);
+
+      if (last) {
+        const age = now - last.at;
+        if (age < profile.refreshSeconds * 1000) continue;
+        if (key === last.key && age < profile.maxFrameAgeSeconds * 1000)
+          continue;
+      }
+
+      const dir = join(this.siteDir, "stops", stopCode, "display", profile.id);
+      try {
+        const bitmap = renderStopDisplay(frame);
+        await mkdir(dir, { recursive: true });
+        await this.writeAtomic(join(dir, "display.bin"), toBin(bitmap));
+        await this.writeAtomic(join(dir, "display.bmp"), toBmp(bitmap));
+      } catch (error) {
+        /*
+         * One panel must not take the pass down with it. The stop pages, the
+         * trip pages and the arrivals for all 656 stops have already been
+         * written by the time this runs, but a throw here would repeat every
+         * tick and bury the log — and the panel it belongs to is better off
+         * holding its last good frame than being retried into a crash loop.
+         */
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.warn(`[snapshots] panel at ${stopCode} did not draw:`, error);
+        }
+        continue;
+      }
+      this.frames.set(`${stopCode}/${profile.id}`, { key, at: now });
+    }
+  }
+
+  /**
+   * Writes a file whole or not at all.
+   *
+   * The same rename that writeIfChanged uses, and for a stronger reason: a
+   * panel that reads half a framebuffer does not show a torn page, it shows
+   * noise, and then holds it for however long until the next refresh.
+   */
+  private async writeAtomic(path: string, content: Buffer): Promise<void> {
+    const temporary = `${path}.tmp`;
+    await writeFile(temporary, content);
+    await rename(temporary, path);
   }
 
   private async writeIfChanged(path: string, content: string): Promise<void> {
@@ -430,6 +542,7 @@ export class SnapshotWriter {
       this.lastFeedUpdate = feedUpdate;
       await this.writeArrivals(now);
       await this.writeTrips(now);
+      await this.writeDisplays(now);
     }
 
     await Promise.all([this.writeVehiclePositions(), this.writeAlerts()]);

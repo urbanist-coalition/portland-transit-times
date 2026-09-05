@@ -1,0 +1,15 @@
+{
+  "//": "Stops with an e-ink panel on them, and which panel. Read by the worker, which renders only these - see src/lib/display/. Ranked by scheduled boardable arrivals per week as of 2026-09-05; the figures are a note, not an input.",
+  "installations": [
+    { "stopCode": "1117", "device": "gdem075t41wt", "arrivalsPerWeek": 1539 },
+    { "stopCode": "1131", "device": "gdem075t41wt", "arrivalsPerWeek": 1053 },
+    { "stopCode": "1054", "device": "gdem075t41wt", "arrivalsPerWeek": 999 },
+    { "stopCode": "372",  "device": "gdem075t41wt", "arrivalsPerWeek": 762 },
+    { "stopCode": "132",  "device": "gdem075t41wt", "arrivalsPerWeek": 737 },
+    { "stopCode": "136",  "device": "gdem075t41wt", "arrivalsPerWeek": 709 },
+    { "stopCode": "113",  "device": "gdem075t41wt", "arrivalsPerWeek": 658 },
+    { "stopCode": "118",  "device": "gdem075t41wt", "arrivalsPerWeek": 651 },
+    { "stopCode": "168",  "device": "gdem075t41wt", "arrivalsPerWeek": 647 },
+    { "stopCode": "175",  "device": "gdem075t41wt", "arrivalsPerWeek": 647 }
+  ]
+}

@@ -31,6 +31,9 @@ import { normalizeFeed } from "@/lib/feed/normalize";
 import { TransitStore } from "@/lib/feed/store";
 import { GTFSStatic } from "@/lib/gtfs/static";
 import { Manifest, Releases } from "@/lib/release";
+import { toBin, toBmp } from "@/lib/display/encode";
+import { installations } from "@/lib/display/installations";
+import { renderStopDisplay } from "@/lib/display/layout";
 import { renderArrivals } from "../public/js/render-arrivals.js";
 
 const run = promisify(execFile);
@@ -245,6 +248,68 @@ async function seed(staging: string, store: TransitStore): Promise<void> {
     }
   }
   console.log(`[build] seeded ${store.stops().length} stops`);
+  await seedDisplays(staging, store, now, after);
+}
+
+/**
+ * Draws each panel's first frame.
+ *
+ * The same reason the stops above are seeded: a release becomes live in a
+ * rename, and for the second before the worker notices, a panel waking up would
+ * otherwise get a 404 and hold whatever it was showing. The worker replaces
+ * these on its own schedule — see SnapshotWriter.writeDisplays.
+ *
+ * Alone in this file, a failure here is not fatal. Everything else a build does
+ * is load-bearing for every rider: a bad feed or a bad map means the release is
+ * wrong and must not go out. A panel is an accessory on ten stops, and stopping
+ * 656 stop pages from getting a fresh timetable to protect it would be the
+ * wrong trade. So a panel that will not draw is logged and skipped, and the
+ * worker gets another go at it a few seconds later.
+ */
+async function seedDisplays(
+  staging: string,
+  store: TransitStore,
+  now: number,
+  after: number
+): Promise<void> {
+  const installs = installations();
+  if (!installs.length) return;
+
+  let seeded = 0;
+  for (const { stopCode, profile } of installs) {
+    try {
+      const stop = store.stops().find((s) => s.stopCode === stopCode);
+      if (!stop) {
+        console.warn(
+          `[build] panel at ${stopCode}: this feed has no such stop`
+        );
+        continue;
+      }
+
+      const arrivals = store.departures(
+        stop.stopId,
+        after,
+        ARRIVALS_LIMIT,
+        now
+      );
+      const bitmap = renderStopDisplay({ stop, arrivals, now, profile });
+      const dir = join(
+        staging,
+        "site",
+        "stops",
+        stopCode,
+        "display",
+        profile.id
+      );
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, "display.bin"), toBin(bitmap));
+      await writeFile(join(dir, "display.bmp"), toBmp(bitmap));
+      seeded++;
+    } catch (error) {
+      console.warn(`[build] panel at ${stopCode} did not draw:`, error);
+    }
+  }
+  console.log(`[build] seeded ${seeded} of ${installs.length} panels`);
 }
 
 async function build(): Promise<void> {

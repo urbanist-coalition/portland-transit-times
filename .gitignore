@@ -26,3 +26,7 @@
 *.tsbuildinfo
 npm-debug.log*
 .DS_Store
+
+# Panel frames written by `npm run render:display` for looking at. The ones
+# that matter are written into a release by the worker, not here.
+/_displays/
