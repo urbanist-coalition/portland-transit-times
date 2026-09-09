@@ -143,6 +143,26 @@
 }
 
 /*
+ * The `hidden` attribute, made to mean it.
+ *
+ * A browser hides it with a `display: none` from its own stylesheet, which any
+ * author rule setting a display outranks — so an element that is laid out as a
+ * flex row stays on screen no matter what the attribute says. That is not a
+ * hypothetical: the "0 alerts" box on the home page is `display: flex`, and it
+ * sat there next to the real alerts the first time the feed ever carried any,
+ * because the script that had "hidden" it had been overruled for months
+ * without anything to show for it.
+ *
+ * `!important` because it has to beat those author rules, and because there is
+ * no case where an element carrying this attribute should be drawn. Scripts
+ * here toggle `.hidden` rather than a class precisely so they do not have to
+ * know how a thing is laid out; this is what makes that safe.
+ */
+[hidden] {
+  display: none !important;
+}
+
+/*
  * `clip` rather than `hidden`: both stop a stray wide element from scrolling
  * the page sideways, but `hidden` makes these a scroll container, and a scroll
  * container that never scrolls silently kills `position: sticky` in everything
