@@ -17,7 +17,7 @@
 import { alertsForStop } from "/js/alert-rules.js";
 import { poll, staleNotice } from "/js/poll.js";
 import { formatTime } from "/js/render-arrivals.js";
-import { renderTvAlert, renderTvBoard } from "/js/render-tv.js";
+import { renderTvBoard, renderTvTicker } from "/js/render-tv.js";
 
 const POLL_MS = 1000;
 /**
@@ -99,11 +99,7 @@ function markStale() {
 }
 
 /**
- * The one alert worth a band, or none.
- *
- * Only the first: alertsForStop returns them worst first, and a board that
- * stacks three notices has given the screen to the thing a rider can do
- * nothing about. Anyone who needs the rest has a stop page.
+ * The alerts this stop should be scrolling, if any.
  *
  * Its own fetch and its own failure: an alerts endpoint that breaks must not
  * take the arrivals down with it, so nothing here touches the board.
@@ -120,8 +116,7 @@ async function tickAlerts() {
     return;
   }
 
-  const [worst] = alertsForStop(alerts, stop, Date.now());
-  const html = renderTvAlert(worst);
+  const html = renderTvTicker(alertsForStop(alerts, stop, Date.now()));
   if (html !== paintedAlert) {
     alertSlot.innerHTML = html;
     paintedAlert = html;

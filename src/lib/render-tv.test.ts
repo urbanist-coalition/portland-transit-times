@@ -13,7 +13,7 @@
  *     print under it stops repeating whichever one it is.
  */
 
-import { renderTvBoard } from "../../public/js/render-tv.js";
+import { renderTvBoard, renderTvTicker } from "../../public/js/render-tv.js";
 
 const now = Date.UTC(2026, 7, 17, 16, 0);
 const minutes = (count: number) => now + count * 60_000;
@@ -215,5 +215,74 @@ describe("renderTvBoard()", () => {
 
     expect(html).toContain("ends here");
     expect(html).not.toContain("Maine Mall");
+  });
+});
+
+describe("renderTvTicker()", () => {
+  const alert = (headerText: string, severity?: string) => ({
+    id: headerText,
+    headerText,
+    descriptionText: "not shown on a board",
+    ...(severity ? { severity } : {}),
+  });
+
+  it("says nothing when there is nothing to say", () => {
+    // The rail is absent rather than empty: it stands in for the divider under
+    // the stop name, and an empty one would be a coloured line about nothing.
+    expect(renderTvTicker([])).toBe("");
+    expect(renderTvTicker(null)).toBe("");
+    expect(renderTvTicker([{ id: "a" }])).toBe("");
+  });
+
+  it("runs every alert, not just the worst", () => {
+    // The static band it replaced showed one because it had room for one. An
+    // elevator still matters to the person it matters to.
+    const html = renderTvTicker([
+      alert("Stop closed", "severe"),
+      alert("Elevator out of service", "info"),
+    ]);
+
+    expect(html).toContain("Stop closed");
+    expect(html).toContain("Elevator out of service");
+  });
+
+  it("takes its severity from the first, which is the worst", () => {
+    // alertsForStop sorts them, so the rail can colour itself from the head.
+    const html = renderTvTicker([
+      alert("Stop closed", "severe"),
+      alert("Lift"),
+    ]);
+
+    expect(html).toContain('data-severity="severe"');
+  });
+
+  it("falls back to unknown where the feed said nothing", () => {
+    expect(renderTvTicker([alert("Stop closed")])).toContain(
+      'data-severity="unknown"'
+    );
+  });
+
+  it("lays the message end to end so the loop is never empty", () => {
+    const html = renderTvTicker([alert("Stop closed")]);
+
+    expect(html.match(/class="tv-ticker-run"/g)).toHaveLength(3);
+    // Only the first is read out; the rest are the same words again, and a
+    // screen reader saying them three times is a stutter, not a ticker.
+    expect(html.match(/aria-hidden="true"/g)).toHaveLength(2);
+  });
+
+  it("tells the stylesheet how much there is to read", () => {
+    // The lap length comes from this, so a long alert scrolls for longer
+    // rather than faster.
+    const html = renderTvTicker([alert("Stop closed")]);
+
+    expect(html).toContain("--tv-ticker-chars:11");
+  });
+
+  it("escapes what the agency wrote", () => {
+    const html = renderTvTicker([alert('Detour via <b>"High St"</b>')]);
+
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;b&gt;");
   });
 });

@@ -38,10 +38,15 @@ eleventyComputed:
     <p class="tv-clock" id="tv-clock"></p>
   </header>
 
-  <p class="tv-stale" id="tv-stale" hidden></p>
-
-  {# Filled by /js/tv.js with the most severe alert that concerns this stop. #}
+  {#
+    The alert rail, tucked under the stop name and above the first arrival. The
+    name stays pinned to the top — it is how a reader knows the board is about
+    where they are standing — and the alert sits in the band beneath it, closed
+    off by a line in its own colour. /js/tv.js fills it.
+  #}
   <div id="tv-alert"></div>
+
+  <p class="tv-stale" id="tv-stale" hidden></p>
 
   {#
     Three identifiers, because they answer three different questions: the code

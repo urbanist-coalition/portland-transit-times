@@ -200,26 +200,68 @@ function renderRow({ arrival, prediction }) {
 }
 
 /**
- * A service alert, as a band across the top of the board.
+ * Service alerts, as a ticker rail along the bottom of the board.
  *
- * The header only. A stop page can afford the description because a rider is
- * holding it and can read a paragraph; at ten feet a paragraph is a grey block
- * nobody finishes, and every line it takes is a line the next bus does not
- * have. GTFS-RT header text is already written to be the whole message — "Stop
- * closed, use Congress St + High St" — so the description is what a reader who
- * wants more opens the stop page for.
+ * A band that just sits there has to be cut short to fit, which on the one
+ * kind of message a rider cannot work out for themselves is the wrong thing to
+ * trim. A rail scrolls, so the length of the message stops being the
+ * constraint — and it is what every departure board a rider has ever read
+ * does, which means it needs no explaining.
  *
- * The severity is on the element rather than in the words, so the stylesheet
- * can make a suspended service look different from an out-of-order lift
- * without the renderer deciding what either of them is worth.
+ * Every alert goes in, joined, rather than only the worst one. The reason the
+ * static band showed one was that it had room for one; a rail does not have
+ * that problem, and an elevator being out still matters to the person it
+ * matters to. They arrive worst-first from alertsForStop, so the most urgent
+ * is what a reader sees first after a loop comes round.
+ *
+ * Header text only, still. A rail has unlimited room but a reader does not
+ * have unlimited patience: everything added here is time before the loop comes
+ * back to the start, and the header is written to be the whole message. The
+ * descriptions are on the stop page.
  */
-export function renderTvAlert(alert) {
-  if (!alert) return "";
+const TICKER_JOIN = "   \u2022   ";
+
+/**
+ * Copies of the message laid end to end, so the loop has something to scroll
+ * into and never shows the rail empty.
+ *
+ * Three rather than two because each copy is padded to a fraction of the
+ * screen: a short alert has to keep the rail filled across the whole width, or
+ * the message scrolls away and leaves a blank stripe until it comes round. See
+ * .tv-ticker-run.
+ */
+const TICKER_COPIES = 3;
+
+export function renderTvTicker(alerts) {
+  const list = Array.isArray(alerts) ? alerts : [];
+  if (list.length === 0) return "";
+
+  const message = list
+    .map((alert) => alert?.headerText ?? "")
+    .filter(Boolean)
+    .join(TICKER_JOIN);
+  if (!message) return "";
+
+  const runs = Array.from({ length: TICKER_COPIES }, (_, index) =>
+    [
+      // Only the first is read out: the rest are the same words again, and a
+      // screen reader announcing them three times is not a ticker, it is a
+      // stutter.
+      `<span class="tv-ticker-run"${index === 0 ? "" : ` aria-hidden="true"`}>`,
+      escapeHtml(message),
+      `</span>`,
+    ].join("")
+  ).join("");
 
   return [
-    `<p class="tv-alert" data-severity="${escapeHtml(alert.severity ?? "unknown")}">`,
-    escapeHtml(alert.headerText ?? ""),
-    `</p>`,
+    `<div class="tv-ticker" data-severity="${escapeHtml(list[0]?.severity ?? "unknown")}">`,
+    // The character count sets how long one lap takes, so a long alert scrolls
+    // for longer rather than faster — the speed a reader has to keep up with
+    // is the same either way. Same trick as --tv-count-len.
+    `<div class="tv-ticker-track" style="--tv-ticker-chars:${message.length}">`,
+    runs,
+    `</div>`,
+    `</div>`,
   ].join("");
 }
 
