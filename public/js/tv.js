@@ -16,6 +16,7 @@
 
 import { alertsForStop } from "/js/alert-rules.js";
 import { poll, staleNotice } from "/js/poll.js";
+import { readSettings } from "/js/tv-settings.js";
 import { formatTime } from "/js/render-arrivals.js";
 import { renderTvBoard, renderTvTicker } from "/js/render-tv.js";
 
@@ -32,6 +33,7 @@ const board = document.getElementById("tv-board");
 const clock = document.getElementById("tv-clock");
 const stale = document.getElementById("tv-stale");
 const alertSlot = document.getElementById("tv-alert");
+const frame = document.querySelector(".tv");
 const stopCode = board?.dataset.stopCode;
 
 /** What a service alert's selectors name — see /js/alert-rules.js. */
@@ -39,6 +41,24 @@ const stop = {
   stopId: board?.dataset.stopId,
   routeIds: (board?.dataset.routeIds || "").split(",").filter(Boolean),
 };
+
+/*
+ * Everything this screen was told, read from its own address. Nothing is stored
+ * in the browser, so there is one source of truth and it is the thing somebody
+ * pointed the panel at — see /js/tv-settings.js.
+ *
+ * The row count is fixed for the life of the page. The message is not: it is
+ * re-read on every alerts pass, because it carries an expiry and has to take
+ * itself down without anyone touching the screen.
+ */
+const { rows } = readSettings(window.location.search);
+
+/*
+ * How many rows are on screen decides how much room the hero has left, and the
+ * number in it is far too big to be allowed to work that out for itself — see
+ * [data-rows] in tv.css.
+ */
+if (frame) frame.dataset.rows = String(rows);
 
 /** null until the first successful fetch; the board shows "Loading…" until then. */
 let arrivals = null;
@@ -61,7 +81,7 @@ function paint() {
 
   if (!arrivals) return;
 
-  const html = renderTvBoard(arrivals, now);
+  const html = renderTvBoard(arrivals, now, rows);
   if (html !== painted) {
     board.innerHTML = html;
     painted = html;
@@ -116,7 +136,17 @@ async function tickAlerts() {
     return;
   }
 
-  const html = renderTvTicker(alertsForStop(alerts, stop, Date.now()));
+  /*
+   * The screen's own message runs alongside the feed's, not instead of it: an
+   * elevator notice typed in a back office does not stop a route being
+   * suspended. It sorts by severity with the rest, and readMessage drops it
+   * once its time is up.
+   */
+  const now = Date.now();
+  const { message } = readSettings(window.location.search, now);
+  const html = renderTvTicker(
+    alertsForStop(message ? [...alerts, message] : alerts, stop, now)
+  );
   if (html !== paintedAlert) {
     alertSlot.innerHTML = html;
     paintedAlert = html;

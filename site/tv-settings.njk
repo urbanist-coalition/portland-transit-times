@@ -1,0 +1,131 @@
+---
+permalink: /tv/settings/
+layout: layout.njk
+title: TV board link
+description: Build the address to point an arrivals screen at.
+styles: ["/css/tv-settings.css"]
+scripts: ["/js/tv-settings-form.js"]
+---
+{#
+  Builds the address that configures a screen.
+
+  Nothing here is saved anywhere: the fields feed one URL, and that URL is the
+  whole configuration. Point a television at it and it is set up; point it at a
+  different one and it is set up differently. Which is why this page is not
+  meant to be opened on the television — build the link where there is a
+  keyboard, and paste it in at the screen.
+
+  Plain form controls, no framework, no fetch, no storage. There is nothing to
+  save and no account that could be locked out.
+#}
+<main class="container container-sm settings">
+  <h1>TV board link</h1>
+  <p class="settings-intro">
+    Fill this in on your computer, then set the address it produces as the
+    television's home page. Everything the screen needs is in the link, so it
+    survives a restart and can be moved to different hardware.
+  </p>
+
+  <form id="tv-settings" class="settings-form" novalidate>
+    <section class="surface settings-card">
+      <h2 class="settings-heading">Arrivals shown</h2>
+      <p class="settings-note">
+        Besides the large one at the top. More rows means a smaller countdown.
+      </p>
+      <label class="settings-label" for="rows">Rows under the big arrival</label>
+      <select class="settings-control" id="rows" name="rows">
+        <option value="0">None — just the next bus</option>
+        <option value="1">1</option>
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </section>
+
+    <section class="surface settings-card">
+      <h2 class="settings-heading">Message</h2>
+      <p class="settings-note">
+        Scrolls along the top of the board, beside anything from the GPMetro
+        service alerts feed. Leave it empty for no message.
+      </p>
+      <label class="settings-label" for="message">Message</label>
+      <input
+        class="settings-control"
+        id="message"
+        name="message"
+        type="text"
+        maxlength="200"
+        autocomplete="off"
+        placeholder="e.g. Elevator out of service until Friday"
+      />
+
+      {#
+        The same three the feed uses, named by what they do on the board rather
+        than by the GTFS words for them — whoever is setting this is choosing
+        how loud to be, not filling in a spec.
+      #}
+      <label class="settings-label" for="severity">How urgent</label>
+      <select class="settings-control" id="severity" name="severity">
+        <option value="info">Information — blue</option>
+        <option value="warning" selected>Warning — amber</option>
+        <option value="severe">Severe — red</option>
+      </select>
+
+      {#
+        The expiry itself is the date field; the dropdown only fills it in. That
+        way "until Friday at six" is as easy to say as "four hours", and what is
+        actually stored is visible rather than implied by a choice made earlier.
+      #}
+      <label class="settings-label" for="until">Show until</label>
+      <input
+        class="settings-control"
+        id="until"
+        name="until"
+        type="datetime-local"
+      />
+
+      <label class="settings-label" for="duration">Or set it to</label>
+      <select class="settings-control" id="duration" name="duration">
+        <option value="">Choose a duration…</option>
+        <option value="4">4 hours from now</option>
+        <option value="24">24 hours from now</option>
+        <option value="72">3 days from now</option>
+        <option value="none">No end — until I remove it</option>
+      </select>
+      <p class="settings-note" id="message-status" role="status"></p>
+    </section>
+
+    <section class="surface settings-card">
+      <h2 class="settings-heading">Board</h2>
+      <label class="settings-label" for="stop">Stop number</label>
+      <input
+        class="settings-control"
+        id="stop"
+        name="stop"
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
+        placeholder="e.g. 1117"
+      />
+    </section>
+
+    <section class="surface settings-card">
+      <h2 class="settings-heading">The address</h2>
+      <p class="settings-note">
+        Set this as the television's home page. To change anything later, come
+        back here and give it a new one.
+      </p>
+      <output class="settings-url" id="board-url"></output>
+
+      <div class="settings-actions">
+        <button class="btn btn-primary" type="button" id="copy-url">
+          Copy address
+        </button>
+        <a class="btn btn-outline" id="open-board" target="_blank" rel="noopener"
+          >Preview the board</a
+        >
+      </div>
+      <p class="settings-note" id="copy-status" role="status"></p>
+    </section>
+  </form>
+</main>

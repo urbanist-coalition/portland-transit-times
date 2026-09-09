@@ -128,7 +128,7 @@
   gap: calc(var(--tv-unit) * 1.2);
   margin: 0 0 calc(var(--tv-unit) * 0.9);
   min-width: 0;
-  font-size: calc(var(--tv-unit) * 4.2);
+  font-size: calc(var(--tv-unit) * 4.2 * var(--tv-hero-scale, 1));
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -172,7 +172,7 @@
   gap: calc(var(--tv-unit) * 0.5);
   margin: 0;
   color: var(--text-muted);
-  font-size: calc(var(--tv-unit) * 2.9);
+  font-size: calc(var(--tv-unit) * 2.9 * var(--tv-hero-scale, 1));
   font-variant-numeric: tabular-nums;
 }
 
@@ -186,8 +186,8 @@
  * .arrival-arrow in arrivals.css — a background rather than markup, because
  * the renderer has to be a string function. See NOTICE. */
 .tv-arrow {
-  width: calc(var(--tv-unit) * 2.9);
-  height: calc(var(--tv-unit) * 2.9);
+  width: calc(var(--tv-unit) * 2.9 * var(--tv-hero-scale, 1));
+  height: calc(var(--tv-unit) * 2.9 * var(--tv-hero-scale, 1));
   flex: none;
   background-color: var(--text-muted);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='m560-240-56-58 142-142H160v-80h486L504-662l56-58 240 240-240 240Z'/%3E%3C/svg%3E")
@@ -200,7 +200,7 @@
   padding: calc(var(--tv-unit) * 0.1) calc(var(--tv-unit) * 0.8);
   border: 2px solid;
   border-radius: var(--r-pill);
-  font-size: calc(var(--tv-unit) * 2.2);
+  font-size: calc(var(--tv-unit) * 2.2 * var(--tv-hero-scale, 1));
   font-weight: 700;
   white-space: nowrap;
 
@@ -253,7 +253,7 @@
    * countdown ticking 10 → 9 not change size.
    */
   font-size: min(
-    calc(var(--tv-unit) * 16.5),
+    calc(var(--tv-unit) * var(--tv-count-scale, 16.5)),
     calc(40vw / var(--tv-count-len, 1))
   );
   font-weight: 800;
@@ -272,10 +272,39 @@
   color: var(--tone-color, var(--text));
 }
 
+/*
+ * What the hero gives up for each extra row.
+ *
+ * Its box already flexes, but the number inside it does not: at four rows the
+ * box had shrunk below the height of its own digits and the unit under them was
+ * drawn straight through the first row. A flex item can be made smaller than
+ * its contents; it cannot make its contents smaller.
+ *
+ * So the hero comes down as rows are added — the digits by their own ceiling,
+ * and everything beside them by --tv-hero-scale, because the route, the times
+ * and the status badge stack up as tall as the number does and it was the
+ * badge that landed on the first row's rule once the digits had been fixed.
+ *
+ * The values are measured rather than derived: each is the largest that leaves
+ * the hero clear at 1080p, which is the tightest case, since the rows scale
+ * with the viewport while the frame's padding does not.
+ *
+ * /js/tv.js sets the attribute. No attribute means two rows, the default.
+ */
+.tv[data-rows="3"] {
+  --tv-count-scale: 13.5;
+  --tv-hero-scale: 0.88;
+}
+
+.tv[data-rows="4"] {
+  --tv-count-scale: 9;
+  --tv-hero-scale: 0.78;
+}
+
 .tv-count-unit {
   margin-top: calc(var(--tv-unit) * 0.4);
   color: var(--text-muted);
-  font-size: calc(var(--tv-unit) * 3);
+  font-size: calc(var(--tv-unit) * 3 * var(--tv-hero-scale, 1));
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: lowercase;

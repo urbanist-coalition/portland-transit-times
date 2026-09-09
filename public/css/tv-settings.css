@@ -1,0 +1,79 @@
+/*
+ * The TV board settings form — site/tv-settings.njk.
+ *
+ * An ordinary page on the ordinary site, not a board: it is read at arm's
+ * length by somebody configuring a screen, so it uses the site's own type
+ * scale rather than the board's viewport-sized one.
+ */
+
+.settings-intro {
+  margin-bottom: 1.5rem;
+  color: var(--text-muted);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.settings-heading {
+  font-size: 1.125rem;
+}
+
+.settings-note {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.settings-label {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.settings-control {
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background-color: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.settings-control:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/*
+ * The address to save as the screen's home page. Monospace and breakable: it
+ * exists to be read off a screen and typed into another one, and a URL that
+ * runs off the side of a phone cannot be.
+ */
+.settings-url {
+  display: block;
+  padding: 0.625rem 0.75rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  background-color: var(--surface-2);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}

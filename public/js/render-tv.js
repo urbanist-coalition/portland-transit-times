@@ -29,13 +29,14 @@ import {
 } from "./render-arrivals.js";
 
 /**
- * How many buses the board shows: the next one, large, and what comes after it.
+ * How many buses follow the big one when the caller does not say.
  *
- * "The next arrival or two" is the whole brief, and the temptation is to fill
- * the remaining height with more rows. It should be resisted — a screen that
- * shows eight buses is a timetable, and a timetable is what the stop page is
- * for. The two rows under the hero exist so a reader who has just missed the
- * hero knows whether to wait, not to be read in their own right.
+ * "The next arrival or two" was the whole brief, and the temptation is to fill
+ * the remaining height with more rows. A screen that shows eight buses is a
+ * timetable, and a timetable is what the stop page is for — the rows under the
+ * hero exist so a reader who has just missed it knows whether to wait, not to
+ * be read in their own right. The agency can raise it per screen; see
+ * /js/tv-settings.js and ROWS_MAX for why it stops where it does.
  */
 const FOLLOWING = 2;
 
@@ -287,7 +288,11 @@ export function renderTvTicker(alerts) {
  * underneath. The hero has to be the soonest bus, because that is what a reader
  * across a room takes the big number to mean.
  */
-export function renderTvBoard(arrivals, now = Date.now()) {
+export function renderTvBoard(
+  arrivals,
+  now = Date.now(),
+  following = FOLLOWING
+) {
   const upcoming = (arrivals || [])
     .map((arrival) => ({ arrival, prediction: predictionStatus(arrival, now) }))
     .filter(({ prediction }) => {
@@ -310,12 +315,12 @@ export function renderTvBoard(arrivals, now = Date.now()) {
   }
 
   const [next, ...rest] = upcoming;
-  const following = rest.slice(0, FOLLOWING);
+  const rows = rest.slice(0, Math.max(0, following));
 
   return [
     renderHero(next),
-    following.length
-      ? `<div class="tv-next">${following.map(renderRow).join("")}</div>`
+    rows.length
+      ? `<div class="tv-next">${rows.map(renderRow).join("")}</div>`
       : "",
   ].join("");
 }
