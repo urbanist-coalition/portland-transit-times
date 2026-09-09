@@ -1,0 +1,387 @@
+/*
+ * The TV board — /stops/<code>/tv/.
+ *
+ * Every class here is written by /js/render-tv.js, except the frame, which is
+ * in site/tv.njk.
+ *
+ * Two rules govern the whole file. The board never scrolls: a television has
+ * no scrollbar and nobody is going to walk over and swipe it, so anything that
+ * does not fit has not been shown. And nothing is sized in `rem`: the rest of
+ * the site is built in them off a 16px root, which is right for a page held at
+ * arm's length and is exactly what makes a stop page unreadable across a room.
+ * Here the type is a fraction of the screen instead, so the board is the same
+ * size to the eye on a 1080p panel and a 4K one.
+ */
+
+/*
+ * The unit everything is a multiple of, ≈19px on a 1080p screen.
+ *
+ * `min` of the two axes rather than either alone. Sized off the width, the
+ * board overflows its height the moment someone opens it in a window that is
+ * not 16:9 — a portrait screen, or a laptop checking it looks right. Sized off
+ * the height, a very wide screen gets type too small for its width. The
+ * smaller of the two always fits, and at 16:9 — which is what a television
+ * actually is — the two agree, which is why the height is weighted by that
+ * ratio rather than compared raw.
+ *
+ * Clamped at both ends so a phone-sized window is still legible and a video
+ * wall does not get letters taller than the destination beside them.
+ */
+.tv {
+  --tv-unit: clamp(6px, min(1vw, 1.78vh), 40px);
+
+  /*
+   * A television crops the edges of its picture — a habit inherited from CRTs
+   * that the streaming sticks people plug into them still honour. How much
+   * varies by set and is not something a page can ask about, so the board
+   * keeps a few percent clear on every side. Cheap insurance: on a panel that
+   * does not overscan it reads as margin, which the layout wanted anyway.
+   */
+  padding: 3vh 3vw;
+
+  /*
+   * `dvh`, not `vh`. A TV browser with a chrome bar it hides on idle reports
+   * the larger viewport, and a board sized to that spends its first minutes
+   * with the last row cut off.
+   */
+  height: 100dvh;
+  overflow: hidden;
+
+  /*
+   * A column rather than a grid with named rows, because the staleness banner
+   * comes and goes. In a grid it either overlaps the header or leaves an empty
+   * track behind when it hides; as a flex item it simply takes its space when
+   * there is something to say and gives it back when there is not, and the
+   * board — the only thing here that flexes — absorbs the difference.
+   */
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--tv-unit) * 1.5);
+}
+
+/*
+ * The hero grows to fill whatever is left between the header and the rows
+ * under it, and `min-height: 0` is what lets it shrink instead of pushing
+ * those rows off the bottom of the screen — a flex item's default floor is its
+ * content, which on a board sized in viewport units is not small.
+ */
+.tv-board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The stop being shown, and the time it is now — the two things a board has to
+ * say before it says anything about a bus. The clock matters more here than on
+ * the site: a reader across the room cannot check their phone against it
+ * without getting their phone out, which is the thing the board is saving them.
+ */
+.tv-header {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--tv-unit) * 2);
+  padding-bottom: calc(var(--tv-unit) * 0.75);
+  border-bottom: 2px solid var(--border);
+}
+
+.tv-stop {
+  margin: 0;
+  font-size: calc(var(--tv-unit) * 3);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  /* One line. A two-line stop name would push the hero down the screen, and
+   * the name is the thing a reader needs least — they know which stop it is. */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tv-clock {
+  margin: 0;
+  flex: none;
+  color: var(--text-muted);
+  font-size: calc(var(--tv-unit) * 3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The next bus: what it is on the left, how long you have on the right. */
+.tv-hero {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(var(--tv-unit) * 2);
+  min-height: 0;
+}
+
+.tv-hero-what {
+  min-width: 0;
+}
+
+.tv-hero-route {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tv-unit) * 1.2);
+  margin: 0 0 calc(var(--tv-unit) * 0.9);
+  min-width: 0;
+  font-size: calc(var(--tv-unit) * 4.2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * The route number, as a filled badge rather than coloured text.
+ *
+ * The stop page colours the number itself and gives up on route colours too
+ * pale to read, falling back to body text. A badge has no such problem — the
+ * feed supplies a text colour to sit on the fill, and where it does not,
+ * contrastText computes one — so the board keeps every route's colour, which
+ * across a room is what identifies the bus before any of the words do.
+ */
+.tv-badge {
+  flex: none;
+  display: inline-block;
+  padding: calc(var(--tv-unit) * 0.15) calc(var(--tv-unit) * 0.7);
+  border-radius: calc(var(--tv-unit) * 0.5);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.tv-dest {
+  /* The one thing allowed to be cut short: a headsign can be very long, and
+   * "to Maine Medical Cen…" still tells a reader which bus this is. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tv-dest-ends {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.tv-times {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tv-unit) * 0.5);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: calc(var(--tv-unit) * 2.9);
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-time-superseded {
+  text-decoration: line-through;
+  text-decoration-thickness: 0.08em;
+  font-style: italic;
+}
+
+/* Material Symbols arrow_right_alt, the same glyph and the same technique as
+ * .arrival-arrow in arrivals.css — a background rather than markup, because
+ * the renderer has to be a string function. See NOTICE. */
+.tv-arrow {
+  width: calc(var(--tv-unit) * 2.9);
+  height: calc(var(--tv-unit) * 2.9);
+  flex: none;
+  background-color: var(--text-muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960'%3E%3Cpath d='m560-240-56-58 142-142H160v-80h486L504-662l56-58 240 240-240 240Z'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+}
+
+.tv-status {
+  display: inline-block;
+  margin: calc(var(--tv-unit) * 0.7) 0 0;
+  padding: calc(var(--tv-unit) * 0.1) calc(var(--tv-unit) * 0.8);
+  border: 2px solid;
+  border-radius: var(--r-pill);
+  font-size: calc(var(--tv-unit) * 2.2);
+  font-weight: 700;
+  white-space: nowrap;
+
+  color: var(--status-color);
+  border-color: color-mix(in srgb, var(--status-color) 45%, transparent);
+  background-color: color-mix(in srgb, var(--status-color) 14%, transparent);
+}
+
+.tv-status[data-status="ok"] {
+  --status-color: var(--status-ok);
+}
+.tv-status[data-status="late"] {
+  --status-color: var(--status-late);
+}
+.tv-status[data-status="early"] {
+  --status-color: var(--status-early);
+}
+.tv-status[data-status="warn"] {
+  --status-color: var(--status-warn);
+}
+.tv-status[data-status="idle"] {
+  --status-color: var(--status-idle);
+}
+
+/*
+ * The answer. Everything above is what bus; this is the part read from the
+ * doorway, and it is deliberately far larger than the hierarchy would
+ * otherwise justify — at this distance the number is the whole message and the
+ * rest is the footnote.
+ */
+.tv-hero-when {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.tv-count {
+  /*
+   * Big, but only as big as the value will allow.
+   *
+   * This slot holds "8", and it also holds "Canceled" and "7:21 pm" — at the
+   * size a single digit wants, an eight-character word is several times the
+   * width of the screen. Rather than a class per case, the renderer says how
+   * many characters it is sending and the size falls out of that: the 40vw is
+   * roughly the widest this column may grow before it starts eating the
+   * headsign beside it, and dividing it by the length keeps every value inside
+   * that. One digit and two digits both hit the ceiling, which is what makes a
+   * countdown ticking 10 → 9 not change size.
+   */
+  font-size: min(
+    calc(var(--tv-unit) * 16.5),
+    calc(40vw / var(--tv-count-len, 1))
+  );
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+
+  /*
+   * Almost always the plain text colour. A count of minutes is not a verdict —
+   * colouring it by lateness turns a perfectly catchable bus nine minutes out
+   * into a big red number, and on a departure board a big red number means
+   * cancelled. The tone is set only where this slot holds a word rather than a
+   * count ("Canceled", "Now"), which render-tv.js decides; the badge under the
+   * headsign carries the schedule story the rest of the time.
+   */
+  color: var(--tone-color, var(--text));
+}
+
+.tv-count-unit {
+  margin-top: calc(var(--tv-unit) * 0.4);
+  color: var(--text-muted);
+  font-size: calc(var(--tv-unit) * 3);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+
+.tv-hero[data-tone="ok"] {
+  --tone-color: var(--status-ok);
+}
+.tv-hero[data-tone="late"] {
+  --tone-color: var(--status-late);
+}
+.tv-hero[data-tone="early"] {
+  --tone-color: var(--status-early);
+}
+.tv-hero[data-tone="warn"] {
+  --tone-color: var(--status-warn);
+}
+
+/*
+ * What comes after the next bus.
+ *
+ * Half the size of the hero and no more than two rows, because this is context
+ * rather than content: it exists so a reader who cannot make the hero knows
+ * whether the next one is in eight minutes or fifty, and for nothing else. See
+ * FOLLOWING in render-tv.js.
+ */
+.tv-next {
+  flex: none;
+  border-top: 2px solid var(--border);
+}
+
+.tv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: calc(var(--tv-unit) * 1.5);
+  padding: calc(var(--tv-unit) * 0.8) 0;
+  font-size: calc(var(--tv-unit) * 2.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-row + .tv-row {
+  border-top: 1px solid var(--border);
+}
+
+.tv-row-route {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tv-unit) * 0.9);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.tv-badge-sm {
+  padding: calc(var(--tv-unit) * 0.05) calc(var(--tv-unit) * 0.5);
+  border-radius: calc(var(--tv-unit) * 0.35);
+}
+
+.tv-row-time {
+  color: var(--text-muted);
+}
+
+/* Fixed width so the countdowns line up down the right edge, and so a row
+ * whose bus is too far out to count down leaves the column empty rather than
+ * dragging the clock time across. */
+.tv-row-count {
+  min-width: calc(var(--tv-unit) * 7);
+  text-align: right;
+  font-weight: 700;
+}
+
+.tv-row-count small {
+  font-size: 0.6em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Last bus gone, or the small hours. Centred in the space the hero would have
+ * filled, so the board still looks like it is working. */
+.tv-none {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: calc(var(--tv-unit) * 5.5);
+  font-weight: 600;
+}
+
+/*
+ * Shown only once the times are old enough to mislead — the same rule, and the
+ * same wording, as the stop page's notice; /js/tv.js decides.
+ *
+ * Directly under the header, where a reader looking for the stop name finds it
+ * without it having displaced anything: the hero below flexes to make room.
+ */
+.tv-stale {
+  flex: none;
+  align-self: center;
+  margin: 0;
+  padding: calc(var(--tv-unit) * 0.4) calc(var(--tv-unit) * 1.2);
+  border: 2px solid color-mix(in srgb, var(--status-warn) 45%, transparent);
+  border-radius: var(--r-pill);
+  background-color: color-mix(in srgb, var(--status-warn) 16%, var(--bg));
+  color: var(--status-warn);
+  font-size: calc(var(--tv-unit) * 1.7);
+  font-weight: 700;
+}

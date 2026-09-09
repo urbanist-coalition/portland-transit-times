@@ -55,7 +55,7 @@ const STALE_THRESHOLD_MS = 10 * MINUTE_MS;
  * likelier to be a bus the agency lost track of than one still on its way. It
  * also stops a page restored from a cache overnight promising last night's bus.
  */
-const RETAIN_LATE_MS = 90 * MINUTE_MS;
+export const RETAIN_LATE_MS = 90 * MINUTE_MS;
 
 const timeFormat = new Intl.DateTimeFormat("en-US", {
   timeZone: TIME_ZONE,

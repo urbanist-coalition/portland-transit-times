@@ -33,7 +33,12 @@
   <body>
     {{ content | safe }}
     {% if footer != false %}{% include "footer.njk" %}{% endif %}
-    {% include "nav.njk" %}
+    {#
+      The menu is on every page a rider navigates. The TV board is the one that
+      is not navigated — it is pointed at once and left — so it opts out, the
+      same way it opts out of the footer.
+    #}
+    {% if nav != false %}{% include "nav.njk" %}{% endif %}
 
     <script type="module" src="/js/nav.js"></script>
     <script type="module" src="/js/pwa.js"></script>

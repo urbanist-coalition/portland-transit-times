@@ -1,0 +1,46 @@
+---
+pagination:
+  data: stops
+  size: 1
+  alias: stop
+permalink: "/stops/{{ stop.stopCode }}/tv/"
+layout: layout.njk
+styles: ["/css/tv.css"]
+scripts: ["/js/tv.js"]
+nav: false
+footer: false
+eleventyComputed:
+  title: "{{ stop.stopName }} — TV board"
+  description: "The next buses at stop {{ stop.stopCode }}, {{ stop.stopName }}, in large type for a screen on a wall."
+---
+{#
+  The stop, for a television.
+
+  A second view of a page that already exists, for a reader the stop page was
+  never designed for: someone across a room who wants the next bus and cannot
+  scroll, tap or zoom. So there is no menu, no footer, no save button and no
+  links — nothing here is navigated to anything, because nobody is going to
+  walk over and drive it. Point a screen at this URL and leave it.
+
+  Unlike site/stops.njk this is not filled in by the worker. A stop page has to
+  arrive with real times in it because a rider opens it, reads it and closes it
+  inside ten seconds; a board is opened once and left running for a month, so
+  the second it spends fetching its first snapshot costs nothing, and keeping
+  it out of the snapshot writer keeps a second set of markers, and a second
+  page written per stop per pass, out of src/lib/snapshots.ts. /js/tv.js does
+  all of it from /data/arrivals/<code>.json.
+#}
+<main class="tv">
+  <header class="tv-header">
+    <h1 class="tv-stop">{{ stop.stopName }}</h1>
+    {# Filled by /js/tv.js. Empty rather than server-rendered: a build-time
+       clock on a page that runs for weeks would be wrong within a minute. #}
+    <p class="tv-clock" id="tv-clock"></p>
+  </header>
+
+  <p class="tv-stale" id="tv-stale" hidden></p>
+
+  <div class="tv-board" id="tv-board" data-stop-code="{{ stop.stopCode }}">
+    <p class="tv-none">Loading…</p>
+  </div>
+</main>
