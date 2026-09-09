@@ -200,6 +200,30 @@ function renderRow({ arrival, prediction }) {
 }
 
 /**
+ * A service alert, as a band across the top of the board.
+ *
+ * The header only. A stop page can afford the description because a rider is
+ * holding it and can read a paragraph; at ten feet a paragraph is a grey block
+ * nobody finishes, and every line it takes is a line the next bus does not
+ * have. GTFS-RT header text is already written to be the whole message — "Stop
+ * closed, use Congress St + High St" — so the description is what a reader who
+ * wants more opens the stop page for.
+ *
+ * The severity is on the element rather than in the words, so the stylesheet
+ * can make a suspended service look different from an out-of-order lift
+ * without the renderer deciding what either of them is worth.
+ */
+export function renderTvAlert(alert) {
+  if (!alert) return "";
+
+  return [
+    `<p class="tv-alert" data-severity="${escapeHtml(alert.severity ?? "unknown")}">`,
+    escapeHtml(alert.headerText ?? ""),
+    `</p>`,
+  ].join("");
+}
+
+/**
  * The board: the next bus and the couple behind it, or the empty state.
  *
  * Two things happen here that the stop page does not do, and both follow from

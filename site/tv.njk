@@ -40,7 +40,21 @@ eleventyComputed:
 
   <p class="tv-stale" id="tv-stale" hidden></p>
 
-  <div class="tv-board" id="tv-board" data-stop-code="{{ stop.stopCode }}">
+  {# Filled by /js/tv.js with the most severe alert that concerns this stop. #}
+  <div id="tv-alert"></div>
+
+  {#
+    Three identifiers, because they answer three different questions: the code
+    addresses the arrivals snapshot, and the GTFS id and route ids are what a
+    service alert's selectors name. See /js/alert-rules.js.
+  #}
+  <div
+    class="tv-board"
+    id="tv-board"
+    data-stop-code="{{ stop.stopCode }}"
+    data-stop-id="{{ stop.stopId }}"
+    data-route-ids="{{ stop.routes | join(',', 'routeId') }}"
+  >
     <p class="tv-none">Loading…</p>
   </div>
 </main>

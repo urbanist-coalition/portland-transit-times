@@ -14,16 +14,31 @@
  * television not go to sleep.
  */
 
+import { alertsForStop } from "/js/alert-rules.js";
 import { poll, staleNotice } from "/js/poll.js";
 import { formatTime } from "/js/render-arrivals.js";
-import { renderTvBoard } from "/js/render-tv.js";
+import { renderTvAlert, renderTvBoard } from "/js/render-tv.js";
 
 const POLL_MS = 1000;
+/**
+ * Alerts change a few times a week, so they get their own slow loop rather
+ * than a place in the one that redraws the countdown every second. A minute is
+ * still far faster than the thing being described: nobody posts an alert and
+ * expects the screens to have it before they have finished typing.
+ */
+const ALERTS_POLL_MS = 60_000;
 
 const board = document.getElementById("tv-board");
 const clock = document.getElementById("tv-clock");
 const stale = document.getElementById("tv-stale");
+const alertSlot = document.getElementById("tv-alert");
 const stopCode = board?.dataset.stopCode;
+
+/** What a service alert's selectors name — see /js/alert-rules.js. */
+const stop = {
+  stopId: board?.dataset.stopId,
+  routeIds: (board?.dataset.routeIds || "").split(",").filter(Boolean),
+};
 
 /** null until the first successful fetch; the board shows "Loading…" until then. */
 let arrivals = null;
@@ -32,6 +47,8 @@ let lastModified = null;
 let dataAt = 0;
 /** What the board is currently showing, so an identical render is not written. */
 let painted = null;
+/** The same, for the alert band, which is redrawn on its own schedule. */
+let paintedAlert = null;
 
 function paint() {
   const now = Date.now();
@@ -81,6 +98,36 @@ function markStale() {
   stale.hidden = message === null;
 }
 
+/**
+ * The one alert worth a band, or none.
+ *
+ * Only the first: alertsForStop returns them worst first, and a board that
+ * stacks three notices has given the screen to the thing a rider can do
+ * nothing about. Anyone who needs the rest has a stop page.
+ *
+ * Its own fetch and its own failure: an alerts endpoint that breaks must not
+ * take the arrivals down with it, so nothing here touches the board.
+ */
+async function tickAlerts() {
+  if (!alertSlot) return;
+
+  let alerts = [];
+  try {
+    const response = await fetch("/data/alerts.json", { cache: "no-store" });
+    if (response.ok) alerts = await response.json();
+  } catch {
+    // Leave whatever is on screen; the next pass is a minute away.
+    return;
+  }
+
+  const [worst] = alertsForStop(alerts, stop, Date.now());
+  const html = renderTvAlert(worst);
+  if (html !== paintedAlert) {
+    alertSlot.innerHTML = html;
+    paintedAlert = html;
+  }
+}
+
 async function tick() {
   try {
     await fetchSnapshot();
@@ -118,5 +165,6 @@ function keepAwake() {
 
 if (board && stopCode) {
   poll(tick, POLL_MS);
+  poll(tickAlerts, ALERTS_POLL_MS);
   keepAwake();
 }

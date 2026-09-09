@@ -9,7 +9,12 @@
  * with no end date.
  */
 
-import { activeAlerts, isActive } from "../../public/js/alert-rules.js";
+import {
+  activeAlerts,
+  alertsForStop,
+  appliesToStop,
+  isActive,
+} from "../../public/js/alert-rules.js";
 
 const now = Date.UTC(2026, 8, 9, 12, 0);
 const hours = (count: number) => now + count * 3_600_000;
@@ -109,5 +114,134 @@ describe("activeAlerts()", () => {
     expect(activeAlerts(null, now)).toEqual([]);
     expect(activeAlerts(undefined, now)).toEqual([]);
     expect(activeAlerts({ error: "nope" }, now)).toEqual([]);
+  });
+});
+
+const stop = { stopId: "0:1117", routeIds: ["1", "5", "8"] };
+
+const targeted = (informedEntity: unknown, extra: object = {}) => ({
+  id: "a",
+  headerText: "Stop closed",
+  descriptionText: "Use Congress St + High St",
+  informedEntity,
+  ...extra,
+});
+
+describe("appliesToStop()", () => {
+  it("shows an alert the feed did not scope", () => {
+    // A producer may omit informed_entity entirely. That is not "affects
+    // nothing" — it is the agency not saying, and a rider still needs it.
+    expect(appliesToStop(targeted([]), stop)).toBe(true);
+    expect(appliesToStop({ id: "a", headerText: "h" }, stop)).toBe(true);
+  });
+
+  it("matches a selector naming this stop", () => {
+    expect(appliesToStop(targeted([{ stopId: "0:1117" }]), stop)).toBe(true);
+  });
+
+  it("does not match a selector naming a different stop", () => {
+    expect(appliesToStop(targeted([{ stopId: "0:1131" }]), stop)).toBe(false);
+  });
+
+  it("matches a route this stop is served by", () => {
+    expect(appliesToStop(targeted([{ routeId: "5" }]), stop)).toBe(true);
+    expect(appliesToStop(targeted([{ routeId: "24A" }]), stop)).toBe(false);
+  });
+
+  it("ANDs the fields within one selector", () => {
+    // Route 5 *at* this stop, which is neither route 5 elsewhere nor the
+    // other routes here.
+    const here = targeted([{ routeId: "5", stopId: "0:1117" }]);
+    expect(appliesToStop(here, stop)).toBe(true);
+
+    const elsewhere = targeted([{ routeId: "5", stopId: "0:1131" }]);
+    expect(appliesToStop(elsewhere, stop)).toBe(false);
+
+    const otherRouteHere = targeted([{ routeId: "24A", stopId: "0:1117" }]);
+    expect(appliesToStop(otherRouteHere, stop)).toBe(false);
+  });
+
+  it("ORs the selectors", () => {
+    const either = targeted([{ stopId: "0:1131" }, { routeId: "8" }]);
+    expect(appliesToStop(either, stop)).toBe(true);
+  });
+
+  it("shows an agency-wide alert", () => {
+    expect(appliesToStop(targeted([{ agencyId: "GPTD" }]), stop)).toBe(true);
+  });
+
+  it("shows an alert scoped only by things a stop cannot answer", () => {
+    // Deliberately lopsided: a stop knows nothing about directions or single
+    // trips, and failing open means an extra line rather than a rider never
+    // being told. See selectorMatches.
+    expect(appliesToStop(targeted([{ directionId: 0 }]), stop)).toBe(true);
+    expect(appliesToStop(targeted([{ tripId: "Saturday915070" }]), stop)).toBe(
+      true
+    );
+    expect(appliesToStop(targeted([{ routeType: 3 }]), stop)).toBe(true);
+  });
+
+  it("can only be hidden by an explicit mismatch", () => {
+    // The safety property, stated directly: of every selector shape, the only
+    // ones that hide an alert here name a stop or a route that is not ours.
+    const shapes = [
+      [{}],
+      [{ agencyId: "GPTD" }],
+      [{ routeType: 3 }],
+      [{ directionId: 1 }],
+      [{ tripId: "t" }],
+      [{ stopId: "0:1117" }],
+      [{ routeId: "1" }],
+    ];
+    for (const informedEntity of shapes) {
+      expect(appliesToStop(targeted(informedEntity), stop)).toBe(true);
+    }
+  });
+});
+
+describe("alertsForStop()", () => {
+  it("puts the worst first and keeps feed order within a severity", () => {
+    const alerts = [
+      targeted([], { id: "info-1", severity: "info" }),
+      targeted([], { id: "severe", severity: "severe" }),
+      targeted([], { id: "info-2", severity: "info" }),
+      targeted([], { id: "warning", severity: "warning" }),
+    ];
+
+    expect(alertsForStop(alerts, stop, now).map((a) => a.id)).toEqual([
+      "severe",
+      "warning",
+      "info-1",
+      "info-2",
+    ]);
+  });
+
+  it("ranks an unstated severity with the ordinary ones", () => {
+    // Not at either extreme: a feed that said nothing has not said it is
+    // urgent, and has not said it is trivial either.
+    const alerts = [
+      targeted([], { id: "unsaid" }),
+      targeted([], { id: "warning", severity: "warning" }),
+    ];
+
+    expect(alertsForStop(alerts, stop, now).map((a) => a.id)).toEqual([
+      "warning",
+      "unsaid",
+    ]);
+  });
+
+  it("applies the clock and the targeting together", () => {
+    const alerts = [
+      targeted([{ stopId: "0:1131" }], { id: "elsewhere" }),
+      targeted([{ stopId: "0:1117" }], {
+        id: "lapsed",
+        activePeriod: [{ start: hours(-2), end: hours(-1) }],
+      }),
+      targeted([{ stopId: "0:1117" }], { id: "here-and-now" }),
+    ];
+
+    expect(alertsForStop(alerts, stop, now).map((a) => a.id)).toEqual([
+      "here-and-now",
+    ]);
   });
 });

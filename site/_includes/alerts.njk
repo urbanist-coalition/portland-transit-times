@@ -6,8 +6,22 @@
   the script never has to build structure — it fills in a count and some text.
   Alerts are rare and usually zero, so the empty state is the honest default
   while the fetch is in flight.
+
+  On a stop page the stop's own identifiers come with it, and the script shows
+  only the alerts that concern this stop. They are absent on the home page, and
+  that absence is what asks for all of them — which is what the home page
+  wants, since it is not about anywhere in particular.
+
+  The GTFS stop id, not the stop code: a selector in the feed names the id.
 #}
-<div class="alerts" id="service-alerts">
+<div
+  class="alerts"
+  id="service-alerts"
+  {%- if stop %}
+  data-stop-id="{{ stop.stopId }}"
+  data-route-ids="{{ stop.routes | join(',', 'routeId') }}"
+  {%- endif %}
+>
   <div class="surface alerts-box alerts-empty">
     <span class="alerts-title">Service Alerts</span>
     <span class="alerts-badge" data-tone="ok">0</span>

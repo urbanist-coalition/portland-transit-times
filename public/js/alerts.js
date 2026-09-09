@@ -11,7 +11,7 @@
  * a normal day.
  */
 
-import { activeAlerts } from "/js/alert-rules.js";
+import { activeAlerts, alertsForStop } from "/js/alert-rules.js";
 
 const ENDPOINT = "/data/alerts.json";
 
@@ -20,6 +20,19 @@ const emptyState = root?.querySelector(".alerts-empty");
 const fullState = root?.querySelector(".alerts-full");
 const badge = fullState?.querySelector(".alerts-badge");
 const list = fullState?.querySelector(".alerts-list");
+
+/**
+ * The stop this page is about, or null on the home page — see alerts.njk.
+ *
+ * A stop page asks only for the alerts that concern its stop; the home page,
+ * which is about nowhere in particular, asks for all of them.
+ */
+const stop = root?.dataset.stopId
+  ? {
+      stopId: root.dataset.stopId,
+      routeIds: (root.dataset.routeIds || "").split(",").filter(Boolean),
+    }
+  : null;
 
 function alertItem({ headerText, descriptionText }) {
   const item = document.createElement("li");
@@ -54,7 +67,11 @@ async function load() {
    * comes into force at nine o'clock would otherwise wait for the next edit to
    * the file, which on a quiet week is days.
    */
-  const alerts = activeAlerts(await response.json(), Date.now());
+  const body = await response.json();
+  const now = Date.now();
+  const alerts = stop
+    ? alertsForStop(body, stop, now)
+    : activeAlerts(body, now);
   if (alerts.length === 0) return;
 
   badge.textContent = String(alerts.length);
