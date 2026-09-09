@@ -62,4 +62,40 @@ eleventyComputed:
   >
     <p class="tv-none">Loading…</p>
   </div>
+
+  {#
+    Who made this and where to find it again — one row, because it is a credit
+    and not a message: the next bus is what the screen is for, and every line
+    spent here is height the countdown gives up.
+
+    The mark leads the row, in the corner, where a reader who has learnt the
+    board knows to stop looking. Its alt is empty on purpose: the name it stands
+    for is written out on the same line, and a screen reader saying "UCP Logo"
+    before it only says it twice. The dimensions are stated so the row cannot
+    change height once the image loads.
+
+    Not a link. Nothing on this board is — nobody is going to walk over and tap
+    a television — so the address is set as something to read and remember.
+  #}
+  <footer class="tv-brand">
+    <p class="tv-brand-who">
+      <img
+        class="tv-brand-logo"
+        src="/UCP_logo.png"
+        alt=""
+        width="1310"
+        height="1250"
+      />
+      <span class="tv-brand-text">
+        <span class="tv-brand-lead">Powered by the</span>
+        <span class="tv-brand-name">
+          Urbanist Coalition of Portland Transit Tracker
+        </span>
+      </span>
+    </p>
+    <p class="tv-brand-where">
+      <span class="tv-brand-lead">Updates at</span>
+      <span class="tv-brand-url">transit.ucop.me</span>
+    </p>
+  </footer>
 </main>

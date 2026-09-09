@@ -302,9 +302,20 @@
  * whether the next one is in eight minutes or fifty, and for nothing else. See
  * FOLLOWING in render-tv.js.
  */
+/*
+ * Ruled above and below, so the block is closed at both ends.
+ *
+ * The bottom rule sits on the last row rather than on the credit beneath it,
+ * which is not a distinction without a difference: as the credit's own border
+ * it came after the row's padding *and* the column's gap, so the last row's
+ * band stood 25px taller than the one above it and the rows stopped looking
+ * like a set. Here it is the same distance below the last row as the
+ * separators are between them.
+ */
 .tv-next {
   flex: none;
   border-top: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
 }
 
 .tv-row {
@@ -550,4 +561,94 @@
   .tv-ticker-run[aria-hidden="true"] {
     display: none;
   }
+}
+
+/*
+ * The credit along the foot — site/tv.njk.
+ *
+ * Laid out like the header it faces: the who on the left, the where on the
+ * right, one row, nothing centred. That symmetry is what lets it be ignored —
+ * a reader who has already learnt that the corners hold the standing facts
+ * does not re-read them every time they glance up for a bus.
+ *
+ * Muted and small on purpose. It is a credit on somebody else's wall, and the
+ * moment it competes with the countdown it has cost more than it is worth.
+ */
+.tv-brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--tv-unit) * 2);
+  color: var(--text-muted);
+  font-size: calc(var(--tv-unit) * 1.3);
+  font-weight: 600;
+}
+
+.tv-brand p {
+  margin: 0;
+  /* Neither half wraps: this row has one line, and a name long enough to need
+   * two would take the height from the arrivals rather than from nowhere. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/*
+ * Flex for the sake of the mark only — it has two children, the logo and one
+ * run of text, so the gap falls where it is wanted and nowhere else.
+ *
+ * The words inside are ordinary inline text with ordinary spaces between them.
+ * They were flex items too until now, and a flex container throws away the
+ * whitespace between its children, so the only thing separating "the" from
+ * "Urbanist" was the gap — thirteen pixels where a word space should be, which
+ * read as a mistake because it was one.
+ *
+ * The right-hand half is not a flex container at all, for the same reason.
+ */
+.tv-brand-who {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tv-unit) * 0.7);
+}
+
+/*
+ * Sized off the row rather than in pixels, so it holds its proportion to the
+ * words beside it on a 1080p panel and a 4K one alike. `width: auto` with the
+ * intrinsic dimensions on the element keeps it from stretching before it
+ * loads.
+ */
+.tv-brand-logo {
+  flex: none;
+  /*
+   * Twice the height of the words beside it. At the same size as them the mark
+   * is a coloured smudge from across a room — the tree stops being a tree — and
+   * the row's height is set by this, so the extra costs about ten pixels.
+   */
+  height: calc(var(--tv-unit) * 2.6);
+  width: auto;
+}
+
+/*
+ * The words that introduce something — "Powered by", "Updates at" — stay
+ * quieter than the thing itself, so the eye lands on the name and the address
+ * rather than on the run-up to them.
+ */
+.tv-brand-lead {
+  font-weight: 500;
+}
+
+.tv-brand-name {
+  font-weight: 700;
+}
+
+/*
+ * The one part worth reading twice, and the only thing down here given the
+ * body colour back — a rider who wants this board on their own phone needs the
+ * address, not the credit.
+ */
+.tv-brand-url {
+  color: var(--text);
+  font-weight: 700;
 }
