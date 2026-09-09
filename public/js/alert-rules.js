@@ -92,7 +92,7 @@ export function appliesToStop(alert, stop) {
  */
 const SEVERITY_RANK = { severe: 3, warning: 2, info: 1, unknown: 1 };
 
-export function severityRank(alert) {
+function severityRank(alert) {
   return SEVERITY_RANK[alert?.severity] ?? 1;
 }
 

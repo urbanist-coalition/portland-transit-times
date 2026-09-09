@@ -155,7 +155,7 @@ async function tickAlerts() {
   /*
    * The screen's own message runs alongside the feed's, not instead of it: an
    * elevator notice typed in a back office does not stop a route being
-   * suspended. It sorts by severity with the rest, and readMessage drops it
+   * suspended. It sorts by severity with the rest, and readSettings drops it
    * once its time is up.
    */
   const now = Date.now();

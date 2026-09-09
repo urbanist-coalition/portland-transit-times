@@ -61,7 +61,7 @@ export function parseRows(value) {
 }
 
 /** An instant from the address, or null if it is missing or unreadable. */
-export function parseUntil(value) {
+function parseUntil(value) {
   if (!value) return null;
   const at = new Date(value).getTime();
   return Number.isFinite(at) ? at : null;
