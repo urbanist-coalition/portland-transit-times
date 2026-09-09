@@ -16,6 +16,7 @@
 
 import { alertsForStop } from "/js/alert-rules.js";
 import { poll, staleNotice } from "/js/poll.js";
+import { RELEASE_URL, releaseId, shouldAdopt } from "/js/release.js";
 import { readSettings } from "/js/tv-settings.js";
 import { formatTime } from "/js/render-arrivals.js";
 import { renderTvBoard, renderTvTicker } from "/js/render-tv.js";
@@ -28,6 +29,19 @@ const POLL_MS = 1000;
  * expects the screens to have it before they have finished typing.
  */
 const ALERTS_POLL_MS = 60_000;
+
+/**
+ * How long a screen waits before acting on a new release.
+ *
+ * Spread out, so a fleet of them does not reload in lockstep the moment a
+ * deploy lands. Ten boards hitting a handful of static files is nothing; ten
+ * boards all blank at the same second in the same station is a thing somebody
+ * notices and asks about.
+ */
+const RELOAD_SPREAD_MS = 20_000;
+
+/** Remembers the release this screen already tried to reload for. */
+const ATTEMPTED_KEY = "tv-release-attempted";
 
 const board = document.getElementById("tv-board");
 const clock = document.getElementById("tv-clock");
@@ -65,6 +79,8 @@ let arrivals = null;
 let lastModified = null;
 /** When the times on screen were worked out, so staleNotice can age them. */
 let dataAt = 0;
+/** The release this page was served by, learnt on the first poll. */
+let bootedRelease = null;
 /** What the board is currently showing, so an identical render is not written. */
 let painted = null;
 /** The same, for the alert band, which is redrawn on its own schedule. */
@@ -153,6 +169,87 @@ async function tickAlerts() {
   }
 }
 
+/**
+ * Reload onto the new release, once the browser is actually able to serve it.
+ *
+ * A plain reload is not enough, and the reason is worth stating: the service
+ * worker serves pages network-first but stylesheets and modules
+ * stale-while-revalidate, so reloading straight away gets the new HTML running
+ * the *old* JavaScript. The version check would then find nothing wrong, the
+ * screen would settle, and the fix would never arrive.
+ *
+ * So the worker is asked to update first. A release whose assets changed has a
+ * new sw.js — its cache is named after a fingerprint of them — which installs,
+ * skips waiting, deletes the old cache and claims this page, and that fires
+ * `controllerchange`. Reloading then gets everything new together.
+ *
+ * A release that only changed a template has a byte-identical worker and will
+ * never fire it, which is why the timer is not merely a safety net: for that
+ * case it is the normal path, and reloading with the cached assets is right,
+ * because they are the same assets.
+ */
+function adoptRelease(id) {
+  try {
+    window.sessionStorage?.setItem(ATTEMPTED_KEY, id);
+  } catch {
+    // A screen that cannot remember its attempt is a screen that could loop.
+    // Better to leave it running the release it has.
+    return;
+  }
+
+  const wait = Math.random() * RELOAD_SPREAD_MS;
+  const reload = () => window.setTimeout(() => window.location.reload(), wait);
+
+  const worker = navigator.serviceWorker;
+  if (!worker) return reload();
+
+  worker.addEventListener("controllerchange", reload, { once: true });
+  worker
+    .getRegistration()
+    .then((registration) => registration?.update())
+    .catch(() => {});
+
+  // The template-only case above, and the backstop for a worker that never
+  // takes over. Racing `reload` with itself is harmless: the first one wins
+  // and the page is gone.
+  window.setTimeout(reload, 15_000);
+}
+
+/**
+ * Has the release under this page been replaced?
+ *
+ * Rides the alerts poll rather than adding a timer of its own — a deploy that
+ * lands on the screens within the minute is far sooner than anybody needs.
+ */
+async function tickRelease() {
+  let manifest;
+  try {
+    const response = await fetch(RELEASE_URL, { cache: "no-store" });
+    if (!response.ok) return;
+    manifest = await response.json();
+  } catch {
+    // Offline, or the release is being swapped underneath us. Either way the
+    // next pass is a minute away and the times on screen are unaffected.
+    return;
+  }
+
+  const current = releaseId(manifest);
+  if (!current) return;
+  if (!bootedRelease) {
+    bootedRelease = current;
+    return;
+  }
+
+  let attempted = null;
+  try {
+    attempted = window.sessionStorage?.getItem(ATTEMPTED_KEY) ?? null;
+  } catch {
+    attempted = null;
+  }
+
+  if (shouldAdopt(bootedRelease, current, attempted)) adoptRelease(current);
+}
+
 async function tick() {
   try {
     await fetchSnapshot();
@@ -191,5 +288,6 @@ function keepAwake() {
 if (board && stopCode) {
   poll(tick, POLL_MS);
   poll(tickAlerts, ALERTS_POLL_MS);
+  poll(tickRelease, ALERTS_POLL_MS);
   keepAwake();
 }

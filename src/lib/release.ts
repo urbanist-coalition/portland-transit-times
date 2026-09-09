@@ -102,11 +102,21 @@ export class Releases {
     return staging;
   }
 
+  /**
+   * Two copies, for two readers.
+   *
+   * The one at the release root is ours: the builder reads the live release's
+   * to decide whether anything has changed since. The one inside `site/` is
+   * the only part of a release that nginx serves, and it is there for the
+   * screens — a board hangs on a wall for weeks, so it polls this to notice
+   * that it is running a release that has been replaced. See /js/release.js.
+   *
+   * Written after the site is built, because that is when `site/` exists.
+   */
   async writeManifest(staging: string, manifest: Manifest): Promise<void> {
-    await writeFile(
-      join(staging, "manifest.json"),
-      JSON.stringify(manifest, null, 2)
-    );
+    const json = JSON.stringify(manifest, null, 2);
+    await writeFile(join(staging, "manifest.json"), json);
+    await writeFile(join(staging, "site", "release.json"), json);
   }
 
   /**

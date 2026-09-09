@@ -351,18 +351,20 @@ async function build(): Promise<void> {
         Object.fromEntries(feed.stops.map((s) => [s.stopId, s.stopName]))
       )
     );
-    await releases.writeManifest(staging, {
-      feedHash: feedFile.hash,
-      appVersion: version,
-      builtAt: new Date().toISOString(),
-    } satisfies Manifest);
-
     // The map only depends on the feed, so an unchanged feed keeps its bundle.
     const reusable = live?.feedHash === feedFile.hash ? current : null;
     await Promise.all([
       buildSite(staging),
       buildTiles(staging, releases, feedFile.zip, reusable),
     ]);
+
+    // After the site, because one of the two copies goes inside it — that is
+    // the one the screens poll to notice they have been superseded.
+    await releases.writeManifest(staging, {
+      feedHash: feedFile.hash,
+      appVersion: version,
+      builtAt: new Date().toISOString(),
+    } satisfies Manifest);
 
     const store = new TransitStore(GPMETRO.timeZone);
     await store.loadStatic(join(staging, "static.json"));
