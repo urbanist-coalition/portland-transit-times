@@ -17,6 +17,47 @@ const { SKIPPED } =
   GtfsRealtimeBindings.transit_realtime.TripUpdate.StopTimeUpdate
     .ScheduleRelationship;
 
+/**
+ * GTFS-RT states an alert's effect as a number. A number in a JSON file tells
+ * a reader nothing and cannot be grepped for, so it is turned back into the
+ * spec's own name — inverted from the bindings rather than transcribed here,
+ * so a value added in a later version of the spec passes through instead of
+ * quietly becoming null.
+ */
+const EFFECT: Record<number, string> = Object.fromEntries(
+  Object.entries(GtfsRealtimeBindings.transit_realtime.Alert.Effect).map(
+    ([name, value]) => [value, name]
+  )
+);
+
+/**
+ * Whether the feed actually set a field, rather than protobufjs having filled
+ * in the type's default on decode.
+ *
+ * Not pedantry. An unset `routeType` and `directionId` both decode as 0, and 0
+ * is a real value for each — a tram, and a direction — so a selector naming
+ * only a stop would arrive claiming to be about trams going one way, and the
+ * stop targeting would match the wrong things. An unset `end` decodes as 0 as
+ * well, which is 1970, so an alert with no end date would read as long expired
+ * and never be shown. GTFS-RT is proto2, which keeps presence, and protobufjs
+ * puts the defaults on the prototype — so an own property is the honest test.
+ */
+const isSet = (message: object, field: string): boolean =>
+  Object.prototype.hasOwnProperty.call(message, field);
+
+/**
+ * Severity is spelled out rather than derived, because unlike the effect it is
+ * a closed set the rest of the app switches on — the union in Alert["severity"]
+ * is what a renderer relies on to decide how loudly to say something, and it
+ * should fail to compile if these drift apart.
+ */
+const SEVERITY: Record<number, Alert["severity"]> = {
+  1: "unknown",
+  2: "info",
+  3: "warning",
+  4: "severe",
+};
+
 export class GTFSRealtimeLoader {
   system: GTFSSystem;
   store: TransitStore;
@@ -151,6 +192,52 @@ export class GTFSRealtimeLoader {
       id: entity.id,
       headerText: headerEn.text,
       descriptionText: descEn.text,
+
+      /*
+       * Everything below this line was thrown away until now, which is why
+       * every alert on the site reads as a permanent, agency-wide notice: the
+       * feed says which stops and routes it concerns and when it applies, and
+       * nothing here kept it. Retained as the feed states it — what to do with
+       * it is the renderers' business, not the loader's.
+       */
+      informedEntity: (alert.informedEntity ?? []).map((selector) => ({
+        // Only what the selector actually set: an unset field means "any", and
+        // writing it out would turn that into a claim. See isSet.
+        ...(isSet(selector, "agencyId")
+          ? { agencyId: String(selector.agencyId) }
+          : {}),
+        ...(isSet(selector, "routeId")
+          ? { routeId: String(selector.routeId) }
+          : {}),
+        ...(isSet(selector, "routeType")
+          ? { routeType: Number(selector.routeType) }
+          : {}),
+        ...(isSet(selector, "directionId")
+          ? { directionId: Number(selector.directionId) }
+          : {}),
+        ...(isSet(selector, "stopId")
+          ? { stopId: String(selector.stopId) }
+          : {}),
+        ...(selector.trip && isSet(selector.trip, "tripId")
+          ? { tripId: String(selector.trip.tripId) }
+          : {}),
+      })),
+
+      activePeriod: (alert.activePeriod ?? []).map((period) => ({
+        ...(isSet(period, "start")
+          ? { start: this.longToNumber(period.start!) * 1000 }
+          : {}),
+        ...(isSet(period, "end")
+          ? { end: this.longToNumber(period.end!) * 1000 }
+          : {}),
+      })),
+
+      // null means the feed did not say, which is different from saying
+      // "unknown" — the producer has an enum value for that.
+      severity: isSet(alert, "severityLevel")
+        ? (SEVERITY[alert.severityLevel!] ?? null)
+        : null,
+      effect: isSet(alert, "effect") ? (EFFECT[alert.effect!] ?? null) : null,
     };
   }
 
@@ -169,8 +256,10 @@ export class GTFSRealtimeLoader {
       new Uint8Array(buffer)
     );
 
+    // Called through an arrow, not passed as a bare method: it reads `this`
+    // now, and `.map(this.method)` would hand it an undefined receiver.
     const alerts = feed.entity
-      .map(this.mapAlertEntityToServiceAlert)
+      .map((entity) => this.mapAlertEntityToServiceAlert(entity))
       .filter((alert): alert is Alert => alert !== null);
 
     this.store.setAlerts(alerts);

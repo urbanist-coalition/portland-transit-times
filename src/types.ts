@@ -48,10 +48,56 @@ export interface StopSummary {
 
 // Real-time Data
 
+/**
+ * When an alert applies. Epoch milliseconds, like every other time in here —
+ * GTFS-RT states these in seconds, and the conversion happens at the edge so
+ * nothing downstream has to remember which kind of number it is holding.
+ *
+ * Either end may be missing, and each absence means something: no `start` is
+ * "already in force", no `end` is "until further notice". An alert with no
+ * ranges at all is always active.
+ */
+export interface AlertWindow {
+  start?: number;
+  end?: number;
+}
+
+/**
+ * What an alert is about: a stop, a route, a route in one direction, a whole
+ * agency, or a single trip.
+ *
+ * A GTFS-RT EntitySelector ANDs the fields it sets and an alert ORs its
+ * selectors, so `{ routeId: "5", stopId: "0:1117" }` is route 5 *at* that stop
+ * rather than either of them. Kept as the feed states it, because collapsing it
+ * to "the stops this affects" would throw away the distinction that makes it
+ * worth targeting.
+ */
+export interface AlertEntity {
+  agencyId?: string;
+  routeId?: string;
+  routeType?: number;
+  directionId?: number;
+  stopId?: string;
+  tripId?: string;
+}
+
 export interface Alert {
   id: string; // Corresponds to the feed entity ID
   headerText: string;
   descriptionText: string;
+
+  /**
+   * Empty means the feed said nothing, not that the alert affects nothing —
+   * the producer is free to omit it, so an empty list has to read as "applies
+   * to everything" rather than "applies to nothing".
+   */
+  informedEntity: AlertEntity[];
+  /** Empty means always active. */
+  activePeriod: AlertWindow[];
+  /** GTFS-RT SeverityLevel, lowercased; null where the feed did not say. */
+  severity: "unknown" | "info" | "warning" | "severe" | null;
+  /** GTFS-RT Effect, as its enum name (NO_SERVICE, DETOUR, …), or null. */
+  effect: string | null;
 }
 
 export interface VehiclePosition {
